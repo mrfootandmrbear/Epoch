@@ -29,6 +29,18 @@ form  →  jump  →  look
 
 Forming is tactile and immediate, same as Habitat. Jumping is the new center of gravity: not a fast-forward you watch tick by tick, but a deliberate leap where the payoff *is* the leap — you commit to a jump size and a set of forces, and the world on the other side is the answer.
 
+### 2.1 Two speeds, not one
+
+The engine runs at two different speeds, and they are not the same problem:
+
+**Play speed**, during build/inspect sessions: whatever game speed makes sculpting and short-run observation feel good. This is a live, steppable simulation at a human timescale — the player builds, nudges forces, watches immediate response. This is the register Habitat already ran in.
+
+**Jump speed**, on demand: the player commits to a jump size and clicks. What happens next is not the engine stepping through a thousand simulated years and rendering each one — it's a load screen: something plays while the result is prepared, then it clears to reveal the landing state. What fills that load screen is open — a morph animation (the island visibly deforming from its pre-jump form toward its post-jump form) is one candidate, not a commitment. What's settled is the shape of the beat — commit → load → reveal — and that it *materializes* the outcome rather than *playing back* the interval.
+
+This split is what makes §5 tractable. Epoch-scale rendering does not mean "run the live renderer for a thousand simulated years." It means computing a plausible end state (§3) and producing a convincing load-screen treatment for the beat between them — closer to a VFX/UI problem than a continuous physically-driven rendering one.
+
+**Jump size is player input**, chosen from a preset ladder rather than typed freely: 1, 5, 10, 25, 50, 100, 1000 years, extending upward from there — deep-time presets are more of the same list, not a different mechanic. Every rung uses the same beat (commit, load, reveal); what changes is what the landing state plausibly contains, and, per §7, possibly how the load screen itself scales.
+
 ## 3. The governing design decision: plausible, not precise
 
 Habitat spent real effort chasing simulation accuracy and left an unresolved tension on the table: the owner repeatedly said correctness mattered less than a believable outcome, but the engine's determinism guarantee (exact reproducibility) was never relaxed to match. That argument doesn't carry over — Epoch just decides it:
@@ -47,11 +59,15 @@ Same rule as §3 applies: this needs to be *plausible* population-level drift an
 
 ## 5. The load-bearing risk: rendering at epoch scale
 
-Habitat's water and coverage rendering (rain sheet-flow, snow ground-cover, sim-backlog freezing) was a recurring fight even at a 96×96 terrestrial grid over game-time spans of days to seasons. Epoch's core promise — sculpt, then watch a thousand years happen — is a much harder version of the same problem: more elapsed time, more accumulated change, and a jump that needs to *read* correctly the instant it lands, with no time-lapse animation to hide behind.
+§2.1 splits this risk into two pieces, and they are not equally scary.
 
-**This is the assumption everything else depends on.** If terrain, water, and coverage can't be rendered convincingly at whatever scale an epoch-jump needs, the two-verb loop in §2 doesn't work regardless of how good the underlying sim is, and the design needs to be rethought at the rendering layer before anything else — not patched.
+**Play-speed rendering** is Habitat's problem, already fought once. Rain sheet-flow, snow ground-cover, sim-backlog freezing — real fights, but at a known scale (96×96 grid, day-to-season spans) with prior art to draw on.
 
-Treat this as the first thing to validate, ahead of building out sim depth or evolution mechanics on top of it.
+**Jump-transition and landing-state rendering** is new and unproven. Two separate asks: (1) a load-screen treatment that sells "a thousand years happened" without literally simulating and rendering every intervening year — morph animation is one candidate, not a commitment (§2.1) — and (2) the state it clears to — a canyon, a reef, an ancient forest, whatever an epoch plausibly produced — has to render convincingly at whatever density and scale that implies, even though nothing about it needs to run in real time once it's landed.
+
+**This is still the assumption everything else depends on.** If the landing state can't be rendered convincingly, or the load screen doesn't sell the jump, the two-verb loop in §2 doesn't work regardless of how good the underlying sim is — and the fix lives at the rendering/transition layer, not the sim.
+
+Treat both halves as the first thing to validate, ahead of building out sim depth or evolution mechanics on top of them.
 
 ## 6. What Epoch does not inherit from Habitat
 
@@ -62,8 +78,8 @@ Epoch starts without that scaffolding. One founding doc, not a constitution. Dec
 ## 7. Open, not yet decided
 
 - **Renderer/tech stack.** WebGL is under consideration as a direction — not committed. This is an implementation choice that should follow from what §5's validation finds, not precede it.
-- **What "an epoch" means as a unit.** A fixed jump size, a player-chosen one, or several presets (century / millennium / deep time) — undecided.
-- **What carries state across a jump vs. what's regenerated from the post-jump conditions.** Directly related to §3 — if the sim only owes plausibility, it may be cheaper to resolve the destination state from the starting conditions + elapsed time than to actually step through the interval.
+- **How the landing state is actually computed.** §2.1 settles the *presentation* (transition, then reveal) but not the computation behind it — whether the end state is resolved directly from starting conditions + elapsed time (cheaper, and consistent with §3's "owes plausibility, not a literal trace"), or produced by stepping the sim forward at a coarse resolution and discarding the intermediate frames.
+- **What actually fills the load screen.** Morph animation (island visibly deforming pre→post) is one candidate, not a commitment — could as easily be something cheaper or more abstract. Its length, whether it scales with jump size, and whether it's skippable are all downstream of this and equally undecided.
 
 ---
 
