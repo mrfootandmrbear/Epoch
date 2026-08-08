@@ -39,7 +39,7 @@ The engine runs at two different speeds, and they are not the same problem:
 
 This split is what makes §5 tractable. Epoch-scale rendering does not mean "run the live renderer for a thousand simulated years." It means computing a plausible end state (§3) and producing a convincing load-screen treatment for the beat between them — closer to a VFX/UI problem than a continuous physically-driven rendering one.
 
-**Jump size is player input**, chosen from a preset ladder rather than typed freely: 1, 5, 10, 25, 50, 100, 1000 years, extending upward from there — deep-time presets are more of the same list, not a different mechanic. Every rung uses the same beat (commit, load, reveal); what changes is what the landing state plausibly contains, and, per §7, possibly how the load screen itself scales.
+**Jump size is player input**, chosen from a preset ladder rather than typed freely: 1, 5, 10, 25, 50, 100, 1000 years, extending upward from there — deep-time presets are more of the same list, not a different mechanic. Every rung uses the same beat (commit, load, reveal); what changes is what the landing state plausibly contains, and, per §8, possibly how the load screen itself scales.
 
 ## 3. The governing design decision: plausible, not precise
 
@@ -67,15 +67,27 @@ Same rule as §3 applies: this needs to be *plausible* population-level drift an
 
 **This is still the assumption everything else depends on.** If the landing state can't be rendered convincingly, or the load screen doesn't sell the jump, the two-verb loop in §2 doesn't work regardless of how good the underlying sim is — and the fix lives at the rendering/transition layer, not the sim.
 
-Treat both halves as the first thing to validate, ahead of building out sim depth or evolution mechanics on top of them.
+Treat both halves as the first thing to validate, ahead of building out sim depth or evolution mechanics on top of them — and see §6 for how high a bar that validation needs to clear.
 
-## 6. What Epoch does not inherit from Habitat
+## 6. Visual bar: this should look stunning, not just work
+
+§5 asks whether epoch-scale rendering can work at all. This sets a higher bar on top of that: **Epoch is meant to be visually stunning**, not merely legible — and that bar gets designed for from the start, alongside the sim, not queued behind it.
+
+Habitat's own history is the cautionary example. `docs/VISUAL_UPGRADE_NOTE.md` in that repo records an explicit, out-of-process "push toward AAA-grade production polish" — PBR materials, real shadows, a real water shader, atmosphere, post-processing — that had to happen as a dedicated retrofit pass after the simulation and mechanics were already built. It worked, but it was a departure from normal process precisely *because* visual quality had been deferred long enough to need one. Epoch shouldn't need that pass.
+
+Concretely:
+
+- **The renderer/tech-stack choice (§8) should be made with a real shading pipeline in mind from day one** — PBR materials, proper lighting and shadows, a convincing water shader, atmosphere — not a placeholder that gets swapped out later.
+- **§5's validation spike should target real visual quality, not a bare-minimum "does this read" proof of concept.** Whether epoch-scale rendering works and whether it looks good are one question, not two answered in sequence — a rendering pipeline built cheap is expensive to make beautiful afterward.
+- **§3 is what pays for this.** Simulation that doesn't chase precision frees up engineering and performance budget to spend on how the result actually looks. Plausibility is cheap; stunning is where the budget goes.
+
+## 7. What Epoch does not inherit from Habitat
 
 Habitat accumulated real process weight over its run: a Decision Register with Locked entries, a binding clip-test gate (D-007), owner-lock ceremony, multi-track cloud-agent pipelines, a verification policy document, a conformance ledger. That process served a long-running iterative project well, but the owner's own read is that some of it constrained the design rather than protecting it.
 
 Epoch starts without that scaffolding. One founding doc, not a constitution. Decisions get made and written down when they matter, not routed through a lock ceremony. If the project grows to the point where that kind of governance earns its keep again, add it back deliberately — don't inherit it by default.
 
-## 7. Open, not yet decided
+## 8. Open, not yet decided
 
 - **Renderer/tech stack.** WebGL is under consideration as a direction — not committed. This is an implementation choice that should follow from what §5's validation finds, not precede it.
 - **How the landing state is actually computed.** §2.1 settles the *presentation* (transition, then reveal) but not the computation behind it — whether the end state is resolved directly from starting conditions + elapsed time (cheaper, and consistent with §3's "owes plausibility, not a literal trace"), or produced by stepping the sim forward at a coarse resolution and discarding the intermediate frames.
