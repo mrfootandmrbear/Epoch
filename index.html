@@ -27,11 +27,191 @@
         pointer-events: none;
         z-index: 10;
       }
+      #epoch-card {
+        position: fixed;
+        right: 28px;
+        bottom: 26px;
+        z-index: 10;
+        color: #f5f0e5;
+        text-align: right;
+        font-family: ui-serif, Georgia, serif;
+        text-shadow: 0 2px 18px rgba(0, 0, 0, 0.8);
+        pointer-events: none;
+        width: min(340px, calc(100vw - 40px));
+        opacity: 0;
+        transform: translateY(12px);
+        transition: opacity 900ms ease, transform 900ms ease;
+      }
+      #epoch-card.visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      #epoch-card small {
+        display: block;
+        margin-bottom: 5px;
+        font: 600 11px/1.2 system-ui, sans-serif;
+        letter-spacing: 0.24em;
+        text-transform: uppercase;
+        opacity: 0.74;
+      }
+      #epoch-card strong {
+        display: block;
+        font-size: clamp(26px, 3.5vw, 52px);
+        font-weight: 400;
+        letter-spacing: -0.035em;
+        white-space: nowrap;
+      }
+      #epoch-card span {
+        display: block;
+        margin-top: 4px;
+        font: 13px/1.4 system-ui, sans-serif;
+        opacity: 0.72;
+        text-wrap: balance;
+      }
+      #experience {
+        position: fixed;
+        left: 50%;
+        bottom: 28px;
+        z-index: 20;
+        width: min(620px, calc(100vw - 40px));
+        transform: translateX(-50%);
+        color: #f7f3e8;
+        text-align: center;
+        font-family: system-ui, sans-serif;
+        transition: opacity 500ms ease, transform 500ms ease;
+      }
+      #experience.committed {
+        opacity: 0;
+        transform: translate(-50%, 18px);
+        pointer-events: none;
+      }
+      #form-title {
+        margin: 0 0 5px;
+        font: 400 clamp(24px, 3vw, 40px)/1.05 ui-serif, Georgia, serif;
+        text-shadow: 0 2px 20px rgba(0,0,0,.8);
+      }
+      #form-hint {
+        margin: 0 0 14px;
+        font-size: 13px;
+        opacity: .72;
+        text-shadow: 0 2px 12px #000;
+      }
+      .actions {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+      }
+      .force-actions { margin-bottom: 8px; }
+      .force-actions select { min-width: 112px; }
+      .actions button {
+        appearance: none;
+        border: 1px solid rgba(255,255,255,.22);
+        border-radius: 999px;
+        padding: 10px 18px;
+        color: #f7f3e8;
+        background: rgba(8,20,20,.66);
+        backdrop-filter: blur(12px);
+        font: 600 12px/1 system-ui, sans-serif;
+        letter-spacing: .04em;
+        cursor: pointer;
+      }
+      .actions select {
+        appearance: none;
+        border: 1px solid rgba(255,255,255,.22);
+        border-radius: 999px;
+        padding: 10px 34px 10px 16px;
+        color: #f7f3e8;
+        background: rgba(8,20,20,.66);
+        font: 600 12px/1 system-ui, sans-serif;
+        cursor: pointer;
+      }
+      .actions button:hover, .actions button.active {
+        background: rgba(98,128,97,.82);
+        border-color: rgba(255,255,255,.5);
+      }
+      #jump {
+        margin-left: 8px;
+        padding-inline: 24px;
+        background: #e7dfc9;
+        color: #172320;
+        border-color: transparent;
+      }
+      #jump-veil {
+        position: fixed;
+        inset: 0;
+        z-index: 15;
+        pointer-events: none;
+        opacity: 0;
+        background: radial-gradient(circle at 50% 45%, rgba(221,230,211,.08), rgba(5,13,14,.84));
+      }
+      #jump-veil.active { animation: epoch-jump 2s ease both; }
+      @keyframes epoch-jump {
+        0% { opacity: 0; }
+        48% { opacity: 1; }
+        100% { opacity: 0; }
+      }
+      @media (max-width: 700px) {
+        #epoch-card { right: 18px; bottom: 210px; }
+        .actions { flex-wrap: wrap; }
+      }
+      @media (min-width: 701px) and (max-width: 1100px) {
+        #epoch-card { bottom: 190px; }
+      }
     </style>
   </head>
   <body>
     <div id="app"></div>
     <div id="status">loading…</div>
+    <div id="jump-veil"></div>
+    <div id="experience">
+      <div id="form-title">Shape the island</div>
+      <p id="form-hint">Drag to orbit. Scroll to move closer. Choose a shaping tool when the form calls for it.</p>
+      <div class="actions force-actions" aria-label="Climate forces">
+        <select id="rainfall" aria-label="Rainfall regime">
+          <option value="arid">Arid</option>
+          <option value="temperate" selected>Temperate rain</option>
+          <option value="wet">Wet</option>
+        </select>
+        <select id="temperature" aria-label="Temperature regime">
+          <option value="cold">Cold</option>
+          <option value="mild" selected>Mild</option>
+          <option value="warm">Warm</option>
+        </select>
+        <select id="wind" aria-label="Prevailing wind">
+          <option value="calm">Calm</option>
+          <option value="westerly" selected>West wind</option>
+          <option value="easterly">East wind</option>
+        </select>
+        <select id="sea-level" aria-label="Sea level">
+          <option value="low">Low sea</option>
+          <option value="present" selected>Present sea</option>
+          <option value="high">High sea</option>
+        </select>
+      </div>
+      <div class="actions">
+        <button class="active" data-tool="look">Look</button>
+        <button data-tool="raise">Raise land</button>
+        <button data-tool="carve">Carve</button>
+        <select id="jump-years" aria-label="Jump duration">
+          <option value="1">1 year</option>
+          <option value="5">5 years</option>
+          <option value="10">10 years</option>
+          <option value="25">25 years</option>
+          <option value="50">50 years</option>
+          <option value="100">100 years</option>
+          <option value="1000" selected>1,000 years</option>
+          <option value="10000">10,000 years</option>
+          <option value="100000">100,000 years</option>
+          <option value="1000000">1 million years</option>
+        </select>
+        <button id="jump">Jump 1,000 years</button>
+      </div>
+    </div>
+    <div id="epoch-card">
+      <small>Landing state</small>
+      <strong id="world-age">Year 1,000</strong>
+      <span id="landing-summary">Temperate coast · two diverged grazer populations</span>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

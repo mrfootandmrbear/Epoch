@@ -1,4 +1,4 @@
-import { Color, Mesh, Node, NodeMaterial, PlaneGeometry, Vector3 } from "three/webgpu";
+import { Color, DataTexture, Mesh, Node, NodeMaterial, PlaneGeometry, Vector3 } from "three/webgpu";
 import {
   Fn,
   cameraPosition,
@@ -21,6 +21,7 @@ import {
   sin,
   smoothstep,
   sub,
+  texture,
   time,
   transformNormalToView,
   varying,
@@ -41,9 +42,9 @@ interface ChopLayer {
 // reference look wants both simultaneously. Cheaper than a second FFT
 // cascade, and a reasonable stand-in for now (see THESIS.md §3).
 const CHOP_LAYERS: ChopLayer[] = [
-  { angleDeg: 100, amplitude: 0.17, wavelength: 7, speed: 2.0 },
-  { angleDeg: 205, amplitude: 0.12, wavelength: 5, speed: 2.4 },
-  { angleDeg: 33, amplitude: 0.08, wavelength: 3.6, speed: 2.7 },
+  { angleDeg: 100, amplitude: 0.25, wavelength: 7, speed: 2.2 },
+  { angleDeg: 205, amplitude: 0.18, wavelength: 5, speed: 2.7 },
+  { angleDeg: 33, amplitude: 0.12, wavelength: 3.6, speed: 3.1 },
 ];
 const MAX_CHOP_HEIGHT = CHOP_LAYERS.reduce((sum, layer) => sum + layer.amplitude, 0);
 
@@ -52,6 +53,8 @@ export interface FFTWaterOptions {
   segments?: number;
   sunDirection: Vector3;
   sunColor?: Color;
+  terrainHeightTexture: DataTexture;
+  terrainSize?: number;
 }
 
 export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): Mesh {
@@ -61,6 +64,7 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): M
   const sunDir = options.sunDirection.clone().normalize();
   const n = ocean.size;
   const patch = ocean.patchSize;
+  const terrainSize = options.terrainSize ?? 380;
 
   const geometry = new PlaneGeometry(size, size, segments, segments);
   geometry.rotateX(-Math.PI / 2);
@@ -118,6 +122,15 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): M
   const deepColor = color(new Color(0x041c26));
   const shallowColor = color(new Color(0x1c6b78));
   const foamColor = color(new Color(0xf3fbff));
+  const terrainUv = positionWorld.xz.div(terrainSize).add(0.5);
+  const insideTerrain = smoothstep(0, 0.015, terrainUv.x)
+    .mul(float(1).sub(smoothstep(0.985, 1, terrainUv.x)))
+    .mul(smoothstep(0, 0.015, terrainUv.y))
+    .mul(float(1).sub(smoothstep(0.985, 1, terrainUv.y)));
+  const sampledTerrain = texture(options.terrainHeightTexture, terrainUv).r;
+  const terrainSurface = mix(float(-40), sampledTerrain, insideTerrain);
+  const waterDepth = positionWorld.y.sub(terrainSurface);
+  const shallowFactor = float(1).sub(smoothstep(0.7, 10, waterDepth)).mul(insideTerrain);
 
   const hash2 = Fn(([p]: [Node<"vec2">]) => {
     return fract(sin(dot(p, vec2(127.1, 311.7))).mul(43758.5453123));
@@ -177,7 +190,11 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): M
     const fresnel = pow(float(1.0).sub(cosTheta), 5.0).mul(0.96).add(0.04);
 
     const diffuse = max(dot(shadingNormal, vec3(sunDir.x, sunDir.y, sunDir.z)), 0.0);
-    const baseWater = mix(deepColor, shallowColor, diffuse.mul(0.6));
+    const baseWater = mix(
+      deepColor,
+      shallowColor,
+      clamp(shallowFactor.mul(0.88).add(diffuse.mul(0.16)), 0, 1),
+    );
 
     const reflectDir = normalize(reflect(vec3(sunDir.x, sunDir.y, sunDir.z).negate(), shadingNormal));
     const specular = pow(max(dot(eyeDir, reflectDir), 0.0), 200).mul(sunColorNode).mul(3.0);
@@ -189,15 +206,26 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): M
     // no matter how it's post-processed — tried that first, kept the
     // polka-dot grid at any distance). Chop crest/slope only biases *where*
     // foam is more likely, it doesn't draw the pattern itself.
-    const turb = foamTurbulence(positionWorld.xz.mul(0.05));
+    const turb = foamTurbulence(vec2(positionWorld.x.mul(0.018), positionWorld.z.mul(0.072)));
     const chopSlope = vec2(chop.y, chop.z).length();
     const waveActivity = clamp(
       chop.x.div(MAX_CHOP_HEIGHT * 0.4).add(chopSlope.mul(1.2)),
       0,
       1.0,
     );
-    const foamMask = smoothstep(0.64, 0.86, turb.add(waveActivity.mul(0.3)));
-    const foamFactor = foamMask.mul(float(1.0).sub(distFade));
+    const foamMask = smoothstep(0.76, 0.98, turb.add(waveActivity.mul(0.28)));
+    const openWaterFoam = foamMask.mul(0.58).mul(float(1.0).sub(distFade));
+
+    // A broken, moving ribbon where the displaced water surface meets land.
+    const intersectionBand = smoothstep(0.03, 0.2, waterDepth)
+      .mul(float(1).sub(smoothstep(0.2, 0.95, waterDepth)))
+      .mul(insideTerrain);
+    const shorePulse = sin(time.mul(1.35).add(positionWorld.x.mul(0.045)).add(positionWorld.z.mul(0.03)))
+      .mul(0.16).add(0.58);
+    const shoreBreakup = smoothstep(0.58, 0.88, turb.add(shorePulse));
+    const shoreFoam = intersectionBand.mul(shoreBreakup).mul(0.86)
+      .mul(float(1).sub(distFade.mul(0.55)));
+    const foamFactor = max(openWaterFoam, shoreFoam);
 
     return mix(albedo, foamColor, foamFactor);
   })();
