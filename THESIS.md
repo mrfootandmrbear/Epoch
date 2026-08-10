@@ -55,7 +55,7 @@ Evolution is not a distant aspiration tacked on after the terrain works — it i
 
 Same rule as §3 applies: this needs to be *plausible* population-level drift and radiation, not an accurate genetic model. Procedural trait/morph variation driven by what the local conditions rewarded is enough. The bar is "makes sense in hindsight," same as Habitat's arrival mechanic — not phylogenetic rigor.
 
-**Sequencing, not scope-cutting:** evolution is in scope from the start conceptually, but it is *gated* behind §5 — see below. Building evolving animals on top of a terrain/water renderer that can't hold up at epoch scale would be building on sand (the bad kind).
+**Architected in, not sequenced after:** evolution is not gated behind §5 — it is validated alongside it, starting with the first spike. Too much else depends on world state already carrying population/trait data for evolution to be a layer added once rendering works; that's exactly the kind of retrofit §6 is trying to avoid on the visual side, and the same logic applies here. What is still sequenced is depth, not presence — the first spike proves a small population can look plausibly evolved and render at the bar set in §6, not that the full drift/radiation model is complete.
 
 ## 5. The load-bearing risk: rendering at epoch scale
 
@@ -67,7 +67,9 @@ Same rule as §3 applies: this needs to be *plausible* population-level drift an
 
 **This is still the assumption everything else depends on.** If the landing state can't be rendered convincingly, or the load screen doesn't sell the jump, the two-verb loop in §2 doesn't work regardless of how good the underlying sim is — and the fix lives at the rendering/transition layer, not the sim.
 
-Treat both halves as the first thing to validate, ahead of building out sim depth or evolution mechanics on top of them — and see §6 for how high a bar that validation needs to clear.
+Treat landing-state rendering as the first thing to validate — ahead of sim depth, ahead of the load-screen/transition treatment, but *with* evolution (§4), not ahead of it. See §6 for how high a bar that validation needs to clear.
+
+**First spike, scoped narrowly:** a single fixed island, one jump size, terrain and water rendered at §6's bar, plus a small population rendered with visible trait variation. The jump-transition / load-screen treatment (§2.1, §8) is explicitly *not* attempted in this spike — deferred to a later one, not cut.
 
 ## 6. Visual bar: this should look stunning, not just work
 
@@ -77,7 +79,8 @@ Habitat's own history is the cautionary example. `docs/VISUAL_UPGRADE_NOTE.md` i
 
 Concretely:
 
-- **The renderer/tech-stack choice (§8) should be made with a real shading pipeline in mind from day one** — PBR materials, proper lighting and shadows, a convincing water shader, atmosphere — not a placeholder that gets swapped out later.
+- **Concrete reference for "stunning": [Three.js Water Pro](https://threejsresources.com/tool/three-js-water-pro).** FFT wave simulation, Fresnel reflections, subsurface scattering, caustics, real-time foam, dynamic sky — that's the water/atmosphere bar to clear, not just a mood-board pointer.
+- **Renderer/tech stack: Three.js, fresh codebase (not a fork of Habitat's), targeting `WebGPURenderer` + TSL (Three.js Shading Language)** — that's what the reference above is built with, so matching it means matching its pipeline, not approximating the look on classic WebGL2. Trade-off, stated plainly rather than discovered later: WebGPU support isn't universal yet (weakest on Safari) — acceptable for a concept-stage solo project, revisit if/when distribution beyond a modern-Chromium target matters.
 - **§5's validation spike should target real visual quality, not a bare-minimum "does this read" proof of concept.** Whether epoch-scale rendering works and whether it looks good are one question, not two answered in sequence — a rendering pipeline built cheap is expensive to make beautiful afterward.
 - **§3 is what pays for this.** Simulation that doesn't chase precision frees up engineering and performance budget to spend on how the result actually looks. Plausibility is cheap; stunning is where the budget goes.
 
@@ -89,9 +92,10 @@ Epoch starts without that scaffolding. One founding doc, not a constitution. Dec
 
 ## 8. Open, not yet decided
 
-- **Renderer/tech stack.** WebGL is under consideration as a direction — not committed. This is an implementation choice that should follow from what §5's validation finds, not precede it.
-- **How the landing state is actually computed.** §2.1 settles the *presentation* (transition, then reveal) but not the computation behind it — whether the end state is resolved directly from starting conditions + elapsed time (cheaper, and consistent with §3's "owes plausibility, not a literal trace"), or produced by stepping the sim forward at a coarse resolution and discarding the intermediate frames.
-- **What actually fills the load screen.** Morph animation (island visibly deforming pre→post) is one candidate, not a commitment — could as easily be something cheaper or more abstract. Its length, whether it scales with jump size, and whether it's skippable are all downstream of this and equally undecided.
+- **How the landing state is actually computed.** §2.1 settles the *presentation* (transition, then reveal) but not the computation behind it — whether the end state is resolved directly from starting conditions + elapsed time (cheaper, and consistent with §3's "owes plausibility, not a literal trace"), or produced by stepping the sim forward at a coarse resolution and discarding the intermediate frames. Not needed to answer the first spike (§5), since that spike composes a landing state by hand rather than deriving one from a jump — but it's the next real fork after the spike lands.
+- **What actually fills the load screen.** Morph animation (island visibly deforming pre→post) is one candidate, not a commitment — could as easily be something cheaper or more abstract. Its length, whether it scales with jump size, and whether it's skippable are all downstream of this and equally undecided. Explicitly out of scope for the first spike (§5).
+
+**Resolved since day zero:** renderer/tech stack (Three.js, fresh codebase, `WebGPURenderer` + TSL — see §6) and evolution's sequencing (baked in from the first spike, not gated — see §4) are no longer open; see those sections.
 
 ---
 

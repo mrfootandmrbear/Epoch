@@ -6,4 +6,4 @@ Successor to [Habitat](https://github.com/mrfootandmrbear/Habitat), distilled fr
 
 Start here: [THESIS.md](THESIS.md).
 
-No code yet.
+First checkpoint running: a procedural ocean (Three.js, WebGPU + TSL) — `npm install && npm run dev`.
