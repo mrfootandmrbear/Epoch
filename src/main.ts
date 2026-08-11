@@ -4,9 +4,11 @@ import {
   Color,
   DirectionalLight,
   FogExp2,
+  MOUSE,
   PerspectiveCamera,
   Raycaster,
   Scene,
+  TOUCH,
   Vector2,
   Vector3,
   WebGPURenderer,
@@ -74,9 +76,12 @@ appEl.appendChild(renderer.domElement);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.target.set(0, 14, 0);
 controls.enableDamping = true;
+controls.dampingFactor = 0.08;
 controls.minDistance = 1.25;
 controls.maxDistance = 800;
-controls.maxPolarAngle = Math.PI / 2 + 0.3;
+// Stay above the horizon — past 0.49π the camera swings under the seabed and
+// the world renders from its underside.
+controls.maxPolarAngle = Math.PI * 0.49;
 controls.zoomToCursor = true;
 controls.zoomSpeed = 1.25;
 
@@ -145,8 +150,23 @@ const raycaster = new Raycaster();
 const pointer = new Vector2();
 type FormTool = "look" | "raise" | "carve";
 let formTool: FormTool = "look";
-let sculpting = false;
 let jumped = false;
+
+// Gesture arbitration. A shaping tool takes the primary gesture (left-drag /
+// one finger) and nothing else, so the camera is never taken away mid-sculpt:
+// right-drag still pans, the wheel still zooms, two fingers still pinch-pan.
+// `controls.enabled` is left alone here — presentation mode owns that flag.
+const activePointers = new Set<number>();
+let strokePointerId: number | null = null;
+// Where a stroke started, held until we know it is a stroke and not the first
+// finger of a pinch. Flushed on the first move (drag) or on release (tap).
+let strokeOrigin: { x: number; y: number } | null = null;
+
+function syncCameraGestures(): void {
+  const painting = formTool !== "look" && !jumped;
+  controls.mouseButtons.LEFT = painting ? null : MOUSE.ROTATE;
+  controls.touches.ONE = painting ? null : TOUCH.ROTATE;
+}
 let totalYears = 0;
 let climate: ClimateForces = { ...DEFAULT_CLIMATE };
 
@@ -179,7 +199,7 @@ function readClimate(): ClimateForces {
 
 function setTool(tool: FormTool): void {
   formTool = tool;
-  controls.enabled = tool === "look";
+  syncCameraGestures();
   document.querySelectorAll<HTMLButtonElement>("[data-tool]").forEach((button) => {
     button.classList.toggle("active", button.dataset.tool === tool);
   });
@@ -187,8 +207,8 @@ function setTool(tool: FormTool): void {
     tool === "look"
       ? "Drag to orbit. Scroll to move closer. Choose a shaping tool when the form calls for it."
       : tool === "raise"
-        ? "Drag across the land to build ridges and refuges."
-        : "Drag across the land to cut valleys and channels.";
+        ? "Drag across the land to build ridges and refuges — right-drag or two fingers still move the camera."
+        : "Drag across the land to cut valleys and channels — right-drag or two fingers still move the camera.";
 }
 
 function sculptAt(clientX: number, clientY: number): void {
@@ -199,21 +219,51 @@ function sculptAt(clientX: number, clientY: number): void {
   if (hit) landingState.sculpt(hit.point, formTool === "raise" ? 1 : -1);
 }
 
+function endStroke(): void {
+  if (strokePointerId !== null && renderer.domElement.hasPointerCapture(strokePointerId)) {
+    // OrbitControls captures the first pointer too and may have released it
+    // already, so never release blind — that throws NotFoundError.
+    renderer.domElement.releasePointerCapture(strokePointerId);
+  }
+  strokePointerId = null;
+  strokeOrigin = null;
+}
+
 renderer.domElement.addEventListener("pointerdown", (event) => {
+  activePointers.add(event.pointerId);
   if (jumped || formTool === "look" || event.button !== 0) return;
-  sculpting = true;
-  controls.enabled = false;
+  if (activePointers.size > 1) {
+    // A second finger means the camera, not the terrain. Drop the pending
+    // stroke unsculpted and let OrbitControls take the pinch.
+    endStroke();
+    return;
+  }
+  strokePointerId = event.pointerId;
+  strokeOrigin = { x: event.clientX, y: event.clientY };
   renderer.domElement.setPointerCapture(event.pointerId);
+});
+
+renderer.domElement.addEventListener("pointermove", (event) => {
+  if (event.pointerId !== strokePointerId) return;
+  if (activePointers.size > 1) {
+    endStroke();
+    return;
+  }
+  strokeOrigin = null;
   sculptAt(event.clientX, event.clientY);
 });
-renderer.domElement.addEventListener("pointermove", (event) => {
-  if (sculpting) sculptAt(event.clientX, event.clientY);
-});
-renderer.domElement.addEventListener("pointerup", (event) => {
-  sculpting = false;
-  controls.enabled = formTool === "look";
-  renderer.domElement.releasePointerCapture(event.pointerId);
-});
+
+function finishPointer(event: PointerEvent): void {
+  activePointers.delete(event.pointerId);
+  if (event.pointerId !== strokePointerId) return;
+  // A press with no movement is still a deliberate dab — apply it on release,
+  // once we know no second finger arrived.
+  if (strokeOrigin && event.type === "pointerup") sculptAt(strokeOrigin.x, strokeOrigin.y);
+  endStroke();
+}
+
+renderer.domElement.addEventListener("pointerup", finishPointer);
+renderer.domElement.addEventListener("pointercancel", finishPointer);
 
 document.querySelectorAll<HTMLButtonElement>("[data-tool]").forEach((button) => {
   button.addEventListener("click", () => setTool(button.dataset.tool as FormTool));
@@ -236,7 +286,8 @@ jumpButtonEl.addEventListener("click", () => {
   climate = readClimate();
   const committedClimate = { ...climate };
   jumped = true;
-  controls.enabled = true;
+  endStroke();
+  syncCameraGestures();
   experienceEl.classList.add("committed");
   formHintEl.textContent = `Resolving ${formatYears(jumpYears)} of water, weather, and selection…`;
   jumpVeilEl.classList.remove("active");
