@@ -17,7 +17,7 @@ import {
   Vector3,
 } from "three/webgpu";
 import { resolveLanding, type LandingOutcome } from "./outcome-resolver";
-import { populationTraitDistance, type LineageChange } from "./lineage-history";
+import { createLineageHistory, populationTraitDistance, type LineageChange } from "./lineage-history";
 import { lineageSeed, type PopulationIdentity } from "./population-archetypes";
 import type { PopulationTraits } from "./population-traits";
 import { resolveTerrainHistory, withGrazingPressure, withVegetationProtection } from "./terrain-history";
@@ -326,6 +326,7 @@ export interface WorldExperience {
   terrainHeightTexture: DataTexture;
   oceanMaskTexture: DataTexture;
   sculpt: (point: Vector3, direction: 1 | -1) => void;
+  introduceDistantDrifter: (currentAge: number) => boolean;
   advance: (years: number, totalYears: number, climate: ClimateForces) => LineageReport;
   update: (elapsed: number, viewPosition?: Readonly<Vector3>) => void;
 }
@@ -358,7 +359,9 @@ export function createLandingState(scene: Scene): WorldExperience {
   const terrainPositions = terrain.geometry.attributes.position;
   const initialHeights = new Float32Array(terrainPositions.count);
   for (let i = 0; i < terrainPositions.count; i++) initialHeights[i] = terrainPositions.getY(i);
-  let worldHistory = createWorldHistory(initialHeights, TERRAIN_SIDE, TERRAIN_SIZE);
+  // Coastal animals recruit from the sea and birds arrive under their own
+  // power. Non-flying terrestrial animals require an over-water drifter.
+  let worldHistory = createWorldHistory(initialHeights, TERRAIN_SIDE, TERRAIN_SIZE, false);
 
   function heightAt(x: number, z: number): number {
     const gx = Math.max(0, Math.min(TERRAIN_SEGMENTS, (x + TERRAIN_HALF) / TERRAIN_STEP));
@@ -554,6 +557,17 @@ export function createLandingState(scene: Scene): WorldExperience {
     terrainHeightTexture,
     oceanMaskTexture,
     sculpt,
+    introduceDistantDrifter(currentAge: number) {
+      if (worldHistory.lineages.lineages.length > 0) return false;
+      const founders = createLineageHistory();
+      worldHistory = {
+        ...worldHistory,
+        lineages: {
+          lineages: founders.lineages.map((lineage) => ({ ...lineage, originAge: currentAge })),
+        },
+      };
+      return true;
+    },
     advance(years: number, totalYears: number, climate: ClimateForces) {
       revealed = true;
       activeClimate = { ...climate };

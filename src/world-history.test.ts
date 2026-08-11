@@ -6,6 +6,12 @@ function validHistory() {
 }
 
 describe("world history validation", () => {
+  it("accepts a world with terrestrial dispersal still gated", () => {
+    const history = createWorldHistory(new Float32Array(4), 2, 10, false);
+    expect(history.lineages.lineages).toEqual([]);
+    expect(() => validateWorldHistory(history)).not.toThrow();
+  });
+
   it("accepts the current schema", () => {
     expect(() => validateWorldHistory(validHistory())).not.toThrow();
   });

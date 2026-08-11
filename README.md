@@ -16,6 +16,8 @@ The prototype exposes the [THESIS.md §2.1](THESIS.md#21-two-speeds-not-one) jum
 
 Climate is deliberately a whole-island forcing layer. Its derived habitat fields should eventually connect terrestrial, freshwater, coastal and marine, and aerial food webs. Future plants, land animals, aquatic animals, and flying animals must resolve from those shared conditions and exchanges rather than growing into separate simulation silos.
 
+Dispersal respects how each guild can reach an island. Coastal animals recruit from the ocean, birds arrive under their own power, and non-flying terrestrial animals remain absent until the player notices **Distant Drifter**, an offshore rafting opportunity that supplies a founder population for a later jump.
+
 The landing state is not only an overview. Camera scale runs continuously from whole-island composition toward intimate shoreline, forest, and wildlife views; cursor-directed zoom lets the player descend into whatever part of the reveal catches their attention. Rendering work must clear both scales—the island should read coherently from above and remain a place the player wants to inhabit up close.
 
 Visible grazers now roam using a coarse terrain-aware navigation field. Water and severe slopes are impassable, gentler exposed slopes carry a higher movement cost, and lightweight cohesion/separation keeps each population legible as a herd. This local movement is deliberately distinct from deep-time migration: jumps resolve populations statistically, then landing-state individuals embody that outcome at playable scale.

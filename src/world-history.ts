@@ -15,11 +15,12 @@ export function createWorldHistory(
   elevations: Float32Array,
   side: number,
   extent: number,
+  includeTerrestrialFounders = true,
 ): WorldHistory {
   return {
     version: WORLD_HISTORY_VERSION,
     terrain: createTerrainHistory(elevations, side, extent),
-    lineages: createLineageHistory(),
+    lineages: includeTerrestrialFounders ? createLineageHistory() : { lineages: [] },
   };
 }
 

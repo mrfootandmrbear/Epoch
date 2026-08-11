@@ -55,6 +55,7 @@ const formHintEl = document.getElementById("form-hint")!;
 const formTitleEl = document.getElementById("form-title")!;
 const jumpYearsEl = document.getElementById("jump-years") as HTMLSelectElement;
 const jumpButtonEl = document.getElementById("jump") as HTMLButtonElement;
+const distantDrifterEl = document.getElementById("distant-drifter") as HTMLButtonElement;
 const worldAgeEl = document.getElementById("world-age")!;
 const landingSummaryEl = document.getElementById("landing-summary")!;
 const epochStoryEl = document.getElementById("epoch-story")!;
@@ -194,16 +195,18 @@ function syncCameraGestures(): void {
 }
 let totalYears = 0;
 let climate: ClimateForces = { ...DEFAULT_CLIMATE };
+let terrestrialFoundersIntroduced = false;
 
 function formatYears(years: number): string {
   if (years >= 1_000_000) return `${years / 1_000_000} million years`;
   return `${years.toLocaleString()} ${years === 1 ? "year" : "years"}`;
 }
 
-function landingSummary(years: number, forces: ClimateForces): string {
+function landingSummary(years: number, forces: ClimateForces, hasTerrestrialFounders: boolean): string {
   if (years < 10) return "Fresh weathering · pioneer growth beginning";
   if (years < 100) return "Young communities · channels and slopes settling";
   if (years < 1000) return `Maturing communities · ${climateLabel(forces)} climate`;
+  if (!hasTerrestrialFounders) return `Ocean arrivals and visiting birds · ${climateLabel(forces)} coast`;
   if (years < 100_000) return `Diverged grazers · ${climateLabel(forces)} coast`;
   return `Ancient descendants · ${climateLabel(forces)} deep-time coast`;
 }
@@ -298,6 +301,15 @@ jumpYearsEl.addEventListener("change", () => {
   jumpButtonEl.textContent = `Jump ${formatYears(Number(jumpYearsEl.value))}`;
 });
 
+distantDrifterEl.addEventListener("click", () => {
+  if (!landingState.introduceDistantDrifter(totalYears)) return;
+  terrestrialFoundersIntroduced = true;
+  distantDrifterEl.textContent = "Drifter approaching";
+  distantDrifterEl.classList.add("active");
+  distantDrifterEl.disabled = true;
+  formHintEl.textContent = "A vegetation raft rides the far current. Any terrestrial founders aboard will face the next jump.";
+});
+
 for (const select of [rainfallEl, temperatureEl, windEl, seaLevelEl]) {
   select.addEventListener("change", () => {
     climate = readClimate();
@@ -324,7 +336,7 @@ jumpButtonEl.addEventListener("click", () => {
     renderLineageReport(lineageReport.changes, lineageReport.traitDistance);
     applyOceanForces(committedClimate);
     worldAgeEl.textContent = `Year ${totalYears.toLocaleString()}`;
-    landingSummaryEl.textContent = landingSummary(totalYears, committedClimate);
+    landingSummaryEl.textContent = landingSummary(totalYears, committedClimate, terrestrialFoundersIntroduced);
     epochStoryEl.textContent = buildEpochStory(previousAge, lineageReport.changes, committedClimate);
     epochCardEl.classList.add("visible");
   }, () => {

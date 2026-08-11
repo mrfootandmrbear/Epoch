@@ -230,6 +230,10 @@
         background: rgba(98,128,97,.82);
         border-color: rgba(255,255,255,.5);
       }
+      .actions button:disabled {
+        cursor: default;
+        opacity: .66;
+      }
       #jump {
         margin-left: 8px;
         padding-inline: 24px;
@@ -479,6 +483,9 @@
       </div>
       <div class="actions force-actions reveal-actions" aria-label="Reveal treatment">
         <select id="reveal-treatment" aria-label="Reveal treatment"></select>
+      </div>
+      <div class="actions force-actions" aria-label="Dispersal opportunities">
+        <button id="distant-drifter">Distant Drifter</button>
       </div>
       <div class="actions">
         <button class="active" data-tool="look">Look</button>

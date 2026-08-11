@@ -24,7 +24,7 @@ export function buildEpochStory(
   if (previousAge === 0) {
     return established > 0
       ? `Life took hold: ${countLabel(established, "lineage")} established across the young island.`
-      : "The first epoch left the island open for life to find a foothold.";
+      : "The first epoch brought no terrestrial founders; the coast and sky remained open to arrivals.";
   }
 
   const events: string[] = [];

@@ -13,6 +13,11 @@ const change = (event: LineageChange["event"]): LineageChange => ({
 });
 
 describe("buildEpochStory", () => {
+  it("distinguishes missing terrestrial founders from an empty ecosystem", () => {
+    expect(buildEpochStory(0, [], DEFAULT_CLIMATE))
+      .toBe("The first epoch brought no terrestrial founders; the coast and sky remained open to arrivals.");
+  });
+
   it("introduces the first landing as an origin rather than a comparison", () => {
     expect(buildEpochStory(0, [change("established"), { ...change("established"), id: "ridge-grazer:0", identity: "ridge-grazer" }], DEFAULT_CLIMATE))
       .toBe("Life took hold: 2 lineages established across the young island.");
