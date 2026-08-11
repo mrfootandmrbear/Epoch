@@ -19,6 +19,7 @@ import { createLandingState } from "./landing-state";
 import type { LineageChange } from "./lineage-history";
 import { buildLineageReportHtml } from "./lineage-report";
 import { createPresentationController, isGoldenShotName } from "./presentation";
+import { sampleAtmosphere, type AtmosphereProfile } from "./atmosphere";
 import {
   DEFAULT_CLIMATE,
   SEA_LEVEL,
@@ -113,7 +114,28 @@ sunLight.shadow.camera.top = 220;
 sunLight.shadow.camera.bottom = -220;
 sunLight.shadow.camera.far = 650;
 scene.add(sunLight);
-scene.add(new AmbientLight(0x8eacc0, 0.55));
+const ambientLight = new AmbientLight(0x8eacc0, 0.55);
+scene.add(ambientLight);
+
+function updateAtmosphere(elapsed: number): void {
+  const profile: AtmosphereProfile = captureShot === "dawn"
+    ? "dawn"
+    : captureShot === "storm"
+      ? "storm"
+      : captureMode
+        ? "day"
+        : "cycle";
+  const state = sampleAtmosphere(elapsed, profile);
+  sunDirection.copy(state.sunDirection);
+  sky.sunPosition.value.copy(sunDirection).multiplyScalar(400000);
+  sunLight.position.copy(sunDirection).multiplyScalar(200);
+  sunLight.color.copy(state.sunColor);
+  sunLight.intensity = state.sunIntensity;
+  ambientLight.color.copy(state.ambientColor);
+  ambientLight.intensity = state.ambientIntensity;
+  scene.fog?.color.copy(state.fogColor);
+  renderer.toneMappingExposure = state.exposure;
+}
 
 const landingState = createLandingState(scene);
 const raycaster = new Raycaster();
@@ -308,6 +330,7 @@ async function start() {
       presentation.setActive(true, elapsed);
     }
     fftOcean?.update(elapsed);
+    updateAtmosphere(elapsed);
     landingState.update(elapsed);
     presentation.update(elapsed);
     if (!presentation.active) controls.update();

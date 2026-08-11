@@ -23,6 +23,7 @@ import {
   sub,
   texture,
   transformNormalToView,
+  uniform,
   varying,
   vec2,
   vec3,
@@ -60,7 +61,7 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): M
   const size = options.size ?? 1400;
   const segments = options.segments ?? 300;
   const sunColorNode = color(options.sunColor ?? new Color(0xfff2d9));
-  const sunDir = options.sunDirection.clone().normalize();
+  const sunDir = uniform(options.sunDirection);
   const n = ocean.size;
   const patch = ocean.patchSize;
   const terrainSize = options.terrainSize ?? 380;
@@ -189,14 +190,14 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): M
     const cosTheta = clamp(dot(shadingNormal, eyeDir), 0, 1);
     const fresnel = pow(float(1.0).sub(cosTheta), 5.0).mul(0.96).add(0.04);
 
-    const diffuse = max(dot(shadingNormal, vec3(sunDir.x, sunDir.y, sunDir.z)), 0.0);
+    const diffuse = max(dot(shadingNormal, sunDir), 0.0);
     const baseWater = mix(
       deepColor,
       shallowColor,
       clamp(shallowFactor.mul(0.88).add(diffuse.mul(0.16)), 0, 1),
     );
 
-    const reflectDir = normalize(reflect(vec3(sunDir.x, sunDir.y, sunDir.z).negate(), shadingNormal));
+    const reflectDir = normalize(reflect(sunDir.negate(), shadingNormal));
     const specular = pow(max(dot(eyeDir, reflectDir), 0.0), 200).mul(sunColorNode).mul(3.0);
 
     const albedo = mix(baseWater, mirror.rgb, fresnel).add(specular);
