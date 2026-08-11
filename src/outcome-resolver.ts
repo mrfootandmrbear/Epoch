@@ -6,6 +6,11 @@ import {
   type ClimateForces,
 } from "./climate";
 import { snapshotHeightAt, type WorldSnapshot } from "./world-snapshot";
+import {
+  derivePopulationTraits,
+  type PopulationIdentity,
+  type PopulationTraits,
+} from "./population-traits";
 
 export interface HabitatSample {
   elevation: number;
@@ -30,10 +35,13 @@ export interface TreeOutcome {
 }
 
 export interface PopulationOutcome {
+  identity: PopulationIdentity;
   x: number;
   y: number;
   z: number;
   visible: boolean;
+  habitat: EcosystemSample;
+  traits: PopulationTraits;
 }
 
 export interface CoastalAnimalOutcome {
@@ -138,11 +146,12 @@ export function sampleEcosystem(
 
 function populationSite(
   heightAt: HeightAt,
-  preference: "sheltered" | "rugged",
+  identity: PopulationIdentity,
   climate: ClimateForces,
   deepTime: number,
   avoid?: PopulationOutcome,
 ): PopulationOutcome {
+  const preference = identity === "sheltered-grazer" ? "sheltered" : "rugged";
   let best = { x: 0, y: heightAt(0, 0), z: 0, score: -Infinity };
   for (let i = 0; i < 320; i++) {
     const angle = hash(i, 71) * Math.PI * 2;
@@ -159,7 +168,16 @@ function populationSite(
     if (avoid) score += Math.min(1, Math.hypot(x - avoid.x, z - avoid.z) / 75) * 1.35;
     if (score > best.score) best = { x, y: ecosystem.elevation, z, score };
   }
-  return { x: best.x, y: best.y, z: best.z, visible: false };
+  const habitat = sampleEcosystem(heightAt, best.x, best.z, climate);
+  return {
+    identity,
+    x: best.x,
+    y: best.y,
+    z: best.z,
+    visible: false,
+    habitat,
+    traits: derivePopulationTraits(identity, habitat, climate),
+  };
 }
 
 export function resolveLanding(snapshot: WorldSnapshot): LandingOutcome {
@@ -193,8 +211,8 @@ export function resolveLanding(snapshot: WorldSnapshot): LandingOutcome {
     });
   }
 
-  const sheltered = populationSite(heightAt, "sheltered", climate as ClimateForces, deepTime);
-  const rugged = populationSite(heightAt, "rugged", climate as ClimateForces, deepTime, sheltered);
+  const sheltered = populationSite(heightAt, "sheltered-grazer", climate as ClimateForces, deepTime);
+  const rugged = populationSite(heightAt, "ridge-grazer", climate as ClimateForces, deepTime, sheltered);
   sheltered.visible = totalYears >= 100;
   rugged.visible = totalYears >= 1000;
 

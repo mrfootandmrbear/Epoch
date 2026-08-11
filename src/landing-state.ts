@@ -19,13 +19,13 @@ import {
   Vector3,
 } from "three/webgpu";
 import { resolveLanding } from "./outcome-resolver";
+import type { PopulationTraits } from "./population-traits";
 import { captureWorldSnapshot } from "./world-snapshot";
 import { findTerrainPath, isWalkable } from "./animal-navigation";
 import {
   DEFAULT_CLIMATE,
   RAINFALL,
   SEA_LEVEL,
-  TEMPERATURE,
   type ClimateForces,
 } from "./climate";
 
@@ -152,28 +152,29 @@ function addForest(scene: Group): { canopy: InstancedMesh; trunks: InstancedMesh
   return { canopy, trunks };
 }
 
-function makeGrazer(color: number, bodyScale: Vector3, hornScale: number): Group {
+function makeGrazer(): Group {
   const animal = new Group();
-  const material = new MeshStandardMaterial({ color, roughness: 0.82 });
+  const material = new MeshStandardMaterial({ color: 0x9b7955, roughness: 0.82 });
   const dark = new MeshStandardMaterial({ color: 0x241b18, roughness: 1 });
   const body = new Mesh(new SphereGeometry(1, 12, 8), material);
-  body.scale.copy(bodyScale);
-  body.position.y = 1.7;
+  body.name = "body";
   const head = new Mesh(new SphereGeometry(0.55, 10, 7), material);
-  head.position.set(1.45 * bodyScale.x, 2.0, 0);
-  head.scale.set(1, 0.85, 0.85);
+  head.name = "head";
   animal.add(body, head);
   for (const z of [-0.55, 0.55]) {
     for (const x of [-0.85, 0.75]) {
       const leg = new Mesh(new CylinderGeometry(0.1, 0.13, 1.5, 5), dark);
-      leg.position.set(x, 0.75, z * bodyScale.z);
+      leg.name = "leg";
+      leg.userData.baseX = x;
+      leg.userData.side = z;
       animal.add(leg);
     }
   }
   for (const z of [-0.32, 0.32]) {
-    const horn = new Mesh(new ConeGeometry(0.11, hornScale, 6), dark);
+    const horn = new Mesh(new ConeGeometry(0.11, 1, 6), dark);
+    horn.name = "horn";
+    horn.userData.side = z;
     horn.rotation.z = -0.55;
-    horn.position.set(1.75 * bodyScale.x, 2.55, z);
     animal.add(horn);
   }
   animal.traverse((child) => {
@@ -182,17 +183,49 @@ function makeGrazer(color: number, bodyScale: Vector3, hornScale: number): Group
   return animal;
 }
 
+/** The sole seam between semantic population traits and today's primitive rig. */
+function applyGrazerTraits(animal: Group, traits: PopulationTraits): void {
+  const body = animal.getObjectByName("body") as Mesh;
+  const head = animal.getObjectByName("head") as Mesh;
+  const bodyLength = 1.36 + traits.bodyMass * 0.2;
+  const bodyHeight = 0.62 + traits.bodyMass * 0.19 + traits.insulation * 0.12;
+  const bodyWidth = 0.58 + traits.bodyMass * 0.13 + traits.insulation * 0.09;
+  const legHeight = 1.5 * traits.legLength;
+  const bodyY = legHeight + bodyHeight * 0.82;
+  const coat = new Color().setHSL(
+    0.075 - traits.coatWarmth * 0.035,
+    0.24 + traits.coatWarmth * 0.24,
+    0.25 + traits.coatLightness * 0.28,
+  );
+
+  (body.material as MeshStandardMaterial).color.copy(coat);
+  body.scale.set(bodyLength, bodyHeight, bodyWidth);
+  body.position.y = bodyY;
+  head.scale.set(0.92 + traits.bodyMass * 0.08, 0.76 + traits.insulation * 0.12, 0.78 + traits.footWidth * 0.04);
+  head.position.set(bodyLength + 0.5, bodyY + bodyHeight * 0.38, 0);
+
+  animal.children.forEach((child) => {
+    if (!(child instanceof Mesh)) return;
+    if (child.name === "leg") {
+      const baseX = child.userData.baseX as number;
+      const side = child.userData.side as number;
+      child.scale.set(traits.footWidth, traits.legLength, traits.footWidth);
+      child.position.set(baseX * bodyLength / 1.45, legHeight / 2, side * bodyWidth / 0.72);
+    } else if (child.name === "horn") {
+      const side = child.userData.side as number;
+      child.scale.set(0.85 + traits.hornLength * 0.12, traits.hornLength, 0.85 + traits.hornLength * 0.12);
+      child.position.set(bodyLength + 0.78, bodyY + bodyHeight * 0.9, side);
+    }
+  });
+}
+
 function addEvolvedHerds(scene: Group): Group[] {
   const animals: Group[] = [];
-  const populations = [
-    { color: 0xb58a58, scale: new Vector3(1.5, 0.8, 0.72), horns: 0.7, center: [-28, 38] },
-    { color: 0x745a46, scale: new Vector3(1.25, 1.05, 0.64), horns: 1.25, center: [42, -12] },
-  ] as const;
-  for (const [populationIndex, population] of populations.entries()) {
+  for (const populationIndex of [0, 1]) {
     for (let i = 0; i < 7; i++) {
-      const animal = makeGrazer(population.color, population.scale.clone(), population.horns);
-      const x = population.center[0] + (hash(i, populationIndex) - 0.5) * 28;
-      const z = population.center[1] + (hash(i, populationIndex + 8) - 0.5) * 22;
+      const animal = makeGrazer();
+      const x = (populationIndex === 0 ? -28 : 42) + (hash(i, populationIndex) - 0.5) * 28;
+      const z = (populationIndex === 0 ? 38 : -12) + (hash(i, populationIndex + 8) - 0.5) * 22;
       animal.position.set(x, terrainHeight(x, z), z);
       animal.rotation.y = hash(i, populationIndex + 20) * Math.PI * 2;
       animal.scale.setScalar(1.65);
@@ -466,7 +499,6 @@ export function createLandingState(scene: Scene): WorldExperience {
       const snapshot = captureWorldSnapshot(heightAt, totalYears, climate);
       const outcome = resolveLanding(snapshot);
       currentOutcome = outcome;
-      const insulation = TEMPERATURE[climate.temperature].insulation;
       const matrix = new Matrix4();
       const rotation = new Quaternion();
       outcome.trees.forEach((tree, index) => {
@@ -487,13 +519,14 @@ export function createLandingState(scene: Scene): WorldExperience {
         const population = animal.userData.population as number;
         const herdIndex = animal.userData.herdIndex as number;
         const site = outcome.populations[population];
+        applyGrazerTraits(animal, site.traits);
         const angle = hash(herdIndex, population + 92) * Math.PI * 2;
         const radius = 4 + hash(herdIndex, population + 103) * 13;
         const x = site.x + Math.cos(angle) * radius;
         const z = site.z + Math.sin(angle) * radius;
         animal.position.set(x, heightAt(x, z), z);
         animal.visible = site.visible;
-        animal.scale.setScalar(1.65 + insulation * 0.32);
+        animal.scale.setScalar(1.65);
         const state = navigation[index];
         state.path = [];
         state.waypoint = 0;
