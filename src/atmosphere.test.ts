@@ -8,6 +8,7 @@ describe("atmosphere", () => {
     expect(dawn.sunColor.r).toBeGreaterThan(dawn.sunColor.b);
     expect(dawn.sunIntensity).toBeLessThan(day.sunIntensity);
     expect(dawn.exposure).toBeLessThan(day.exposure);
+    expect(dawn.turbidity).toBeGreaterThan(day.turbidity);
   });
 
   it("makes storms darker without moving the sun below the world", () => {
@@ -15,6 +16,7 @@ describe("atmosphere", () => {
     const day = sampleAtmosphere(0, "day");
     expect(storm.sunIntensity).toBeLessThan(day.sunIntensity);
     expect(storm.exposure).toBeLessThan(day.exposure);
+    expect(storm.cloudCoverage).toBeGreaterThan(day.cloudCoverage);
     expect(storm.sunDirection.length()).toBeCloseTo(1);
   });
 

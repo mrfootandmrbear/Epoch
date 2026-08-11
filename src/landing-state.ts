@@ -63,6 +63,7 @@ function terrainColor(
   z: number,
   climate: ClimateForces,
   disturbance = 0,
+  slope = 0,
 ): Color {
   const variation = (hash(Math.floor(x / 8), Math.floor(z / 8)) - 0.5) * 0.07;
   const seaLevel = SEA_LEVEL[climate.seaLevel];
@@ -70,17 +71,26 @@ function terrainColor(
   const cold = climate.temperature === "cold";
   if (height < seaLevel + 0.8) return new Color(0.46 + variation, 0.38 + variation, 0.23);
   if (cold && height > 16) return new Color(0.72 + variation, 0.76 + variation, 0.72 + variation);
-  if (height < 8) return new Color(
+  const base = height < 8 ? new Color(
     0.19 - wetness * 0.12 + variation + disturbance * 0.2,
     0.32 + wetness * 0.2 + variation - disturbance * 0.12,
     0.14 - disturbance * 0.04,
-  );
-  if (height < 24) return new Color(
+  ) : height < 24 ? new Color(
     0.12 - wetness * 0.08 + variation + disturbance * 0.19,
     0.25 + wetness * 0.2 + variation - disturbance * 0.1,
     0.1,
-  );
-  return new Color(0.27 + variation + disturbance * 0.12, 0.28 + variation - disturbance * 0.08, 0.22);
+  ) : new Color(0.27 + variation + disturbance * 0.12, 0.28 + variation - disturbance * 0.08, 0.22);
+  const rockExposure = Math.min(0.78, Math.max(0, (slope - 0.28) / 0.52) + disturbance * 0.22);
+  return base.lerp(new Color(0x716b5d).offsetHSL(0, 0, variation), rockExposure);
+}
+
+function terrainSlope(elevations: Float32Array, index: number): number {
+  const x = index % TERRAIN_SIDE;
+  const z = Math.floor(index / TERRAIN_SIDE);
+  if (x === 0 || z === 0 || x === TERRAIN_SIDE - 1 || z === TERRAIN_SIDE - 1) return 0;
+  const dx = (elevations[index + 1]! - elevations[index - 1]!) / (TERRAIN_STEP * 2);
+  const dz = (elevations[index + TERRAIN_SIDE]! - elevations[index - TERRAIN_SIDE]!) / (TERRAIN_STEP * 2);
+  return Math.hypot(dx, dz);
 }
 
 function formedTerrainColor(height: number, x: number, z: number): Color {
@@ -602,7 +612,10 @@ export function createLandingState(scene: Scene): WorldExperience {
         const z = positions.getZ(i);
         const y = worldHistory.terrain.elevations[i]!;
         positions.setY(i, y);
-        color.copy(terrainColor(y, x, z, climate, worldHistory.terrain.disturbance[i]));
+        color.copy(terrainColor(
+          y, x, z, climate, worldHistory.terrain.disturbance[i],
+          terrainSlope(worldHistory.terrain.elevations, i),
+        ));
         colors.setXYZ(i, color.r, color.g, color.b);
       }
       colors.needsUpdate = true;

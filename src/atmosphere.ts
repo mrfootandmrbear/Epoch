@@ -10,6 +10,12 @@ export interface AtmosphereState {
   readonly sunIntensity: number;
   readonly ambientIntensity: number;
   readonly exposure: number;
+  readonly turbidity: number;
+  readonly rayleigh: number;
+  readonly mieCoefficient: number;
+  readonly mieDirectionalG: number;
+  readonly cloudCoverage: number;
+  readonly cloudDensity: number;
 }
 
 const DAY_SECONDS = 8 * 60;
@@ -54,7 +60,13 @@ export function sampleAtmosphere(elapsed: number, profile: AtmosphereProfile = "
     ambientColor,
     fogColor,
     sunIntensity: (0.12 + profileDaylight * 1.88) * (1 - storm * 0.58),
-    ambientIntensity: (0.25 + profileDaylight * 0.34) * (1 - storm * 0.22),
-    exposure: (0.48 + profileDaylight * 0.18) * (1 - storm * 0.16),
+    ambientIntensity: (0.34 + profileDaylight * 0.4) * (1 - storm * 0.22),
+    exposure: (0.62 + profileDaylight * 0.2) * (1 - storm * 0.18),
+    turbidity: 2.1 + profileHorizon * 2.4 + storm * 5.5,
+    rayleigh: 2.35 - profileHorizon * 0.72 - storm * 0.55,
+    mieCoefficient: 0.0035 + profileHorizon * 0.005 + storm * 0.009,
+    mieDirectionalG: 0.82,
+    cloudCoverage: 0.08 + profileHorizon * 0.06 + storm * 0.68,
+    cloudDensity: 0.18 + storm * 0.58,
   };
 }

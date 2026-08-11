@@ -4,6 +4,8 @@
 > **Updated:** 2026-08-11.
 > **Scope:** Wildlife, food-web connections, evolutionary lineages, and the ecosystem asset families that make those systems visible.
 
+Landing-state rendering quality is tracked separately in [RENDERER-ROADMAP.md](RENDERER-ROADMAP.md); asset acceptance still requires an in-renderer owner verdict.
+
 Epoch deliberately avoids a heavyweight decision register. This page answers the smaller operational questions: what is built, what is being tested, what comes next, and what evidence advances it. `THESIS.md` remains product direction; design studies remain rationale. When they disagree about current status, this page wins.
 
 ## Status vocabulary

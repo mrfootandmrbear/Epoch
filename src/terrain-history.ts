@@ -26,6 +26,23 @@ function clamp01(value: number): number {
   return Math.min(1, Math.max(0, value));
 }
 
+/**
+ * Epoch-scale geomorphic response. Short jumps still weather the surface, but
+ * landscape-scale incision and coastal retreat only become important after a
+ * millennium. Keeping the response bounded preserves the one-pass resolver
+ * while ensuring the upper jump ladder produces a materially different land.
+ */
+export function geomorphicDuration(jumpYears: number): Readonly<{
+  weathering: number;
+  deepTime: number;
+}> {
+  const logYears = Math.log10(Math.max(1, jumpYears));
+  return {
+    weathering: clamp01(logYears / 6),
+    deepTime: clamp01((logYears - 3) / 3),
+  };
+}
+
 export function createTerrainHistory(
   elevations: Float32Array,
   side: number,
@@ -56,7 +73,7 @@ export function resolveTerrainHistory(
   const nextForage = previous.forage.slice();
   const nextNutrients = previous.nutrients.slice();
   const nextRunoff = new Float32Array(previous.runoff.length);
-  const duration = clamp01(Math.log10(Math.max(1, jumpYears) + 1) / 6);
+  const { weathering: duration, deepTime } = geomorphicDuration(jumpYears);
   const erosion = RAINFALL[climate.rainfall].erosion;
   const wind = WIND[climate.wind].exposure;
   const sea = SEA_LEVEL[climate.seaLevel];
@@ -75,13 +92,23 @@ export function resolveTerrainHistory(
       const relief = Math.abs(neighborhood - elevation);
       const protection = previous.vegetationProtection[index]!;
       const exposed = 1 - protection * 0.78;
-      const transport = duration * erosion * exposed * (0.055 + relief * 0.012);
+      const transport = duration * erosion * exposed * (0.055 + relief * 0.012)
+        + deepTime * erosion * exposed * (0.08 + relief * 0.018);
       const coastal = elevation < sea + 5
         ? duration * erosion * exposed * clamp01((sea + 5 - elevation) / 7) * 0.72
+          + deepTime * exposed * clamp01((sea + 7 - elevation) / 9) * (1.8 + wind * 1.1)
         : 0;
+      const downhill = Math.max(0, elevation - Math.min(
+        previous.elevations[index - 1]!, previous.elevations[index + 1]!,
+        previous.elevations[index - side]!, previous.elevations[index + side]!,
+      ));
+      const drainageIncision = deepTime * rainSupply * exposed
+        * clamp01(previous.runoff[index]! * 0.7 + downhill * 0.055)
+        * (0.35 + relief * 0.045);
       nextElevations[index] = Math.max(
         -5,
-        elevation + (neighborhood - elevation) * Math.min(0.34, transport) - coastal,
+        elevation + (neighborhood - elevation) * Math.min(0.42, transport)
+          - coastal - drainageIncision,
       );
 
       const activity = clamp01((relief * 0.1 + coastal * 0.32) * erosion * exposed + duration * wind * 0.06);
@@ -94,10 +121,6 @@ export function resolveTerrainHistory(
 
       // Coarse D8-style drainage: local relief and rainfall accumulate water;
       // vegetation retains soil while exposed erosion exports its nutrients.
-      const downhill = Math.max(0, elevation - Math.min(
-        previous.elevations[index - 1]!, previous.elevations[index + 1]!,
-        previous.elevations[index - side]!, previous.elevations[index + side]!,
-      ));
       const inheritedFlow = (
         previous.runoff[index - 1]! + previous.runoff[index + 1]!
         + previous.runoff[index - side]! + previous.runoff[index + side]!

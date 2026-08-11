@@ -4,6 +4,7 @@ import {
   Color,
   DirectionalLight,
   FogExp2,
+  HemisphereLight,
   MOUSE,
   PerspectiveCamera,
   Raycaster,
@@ -14,7 +15,7 @@ import {
   WebGPURenderer,
 } from "three/webgpu";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { SkyMesh } from "three/addons/objects/SkyMesh.js";
+import { mix, smoothstep, uniform, viewportUV } from "three/tsl";
 import { FFTOcean } from "./fft-ocean";
 import { createFFTOceanMesh } from "./fft-water";
 import { createLandingState } from "./landing-state";
@@ -83,6 +84,9 @@ const sunDirection = new Vector3(0.55, 0.42, 0.35).normalize();
 
 const scene = new Scene();
 scene.fog = new FogExp2(0xb9ced9, 0.00042);
+const skyHorizonColor = uniform(new Color(0xb9ced9));
+const skyZenithColor = uniform(new Color(0x4f8fb5));
+scene.backgroundNode = mix(skyHorizonColor, skyZenithColor, smoothstep(0.08, 1, viewportUV.y));
 
 const camera = new PerspectiveCamera(
   55,
@@ -133,11 +137,6 @@ for (const eventName of ["pointerdown", "wheel", "keydown", "touchstart"] as con
   }, { passive: true });
 }
 
-const sky = new SkyMesh();
-sky.scale.setScalar(10000);
-sky.sunPosition.value.copy(sunDirection).multiplyScalar(400000);
-scene.add(sky);
-
 const sunLight = new DirectionalLight(new Color(0xfff2d9), 2.0);
 sunLight.position.copy(sunDirection).multiplyScalar(200);
 sunLight.castShadow = true;
@@ -148,8 +147,10 @@ sunLight.shadow.camera.top = 220;
 sunLight.shadow.camera.bottom = -220;
 sunLight.shadow.camera.far = 650;
 scene.add(sunLight);
-const ambientLight = new AmbientLight(0x8eacc0, 0.55);
+const ambientLight = new AmbientLight(0x8eacc0, 0.18);
 scene.add(ambientLight);
+const hemisphereLight = new HemisphereLight(0xaed7ee, 0x5b4938, 0.62);
+scene.add(hemisphereLight);
 
 function updateAtmosphere(elapsed: number): void {
   const profile: AtmosphereProfile = captureShot === "dawn"
@@ -161,12 +162,16 @@ function updateAtmosphere(elapsed: number): void {
         : "cycle";
   const state = sampleAtmosphere(elapsed, profile);
   sunDirection.copy(state.sunDirection);
-  sky.sunPosition.value.copy(sunDirection).multiplyScalar(400000);
+  skyHorizonColor.value.copy(state.fogColor).offsetHSL(0, 0.02, 0.035);
+  skyZenithColor.value.copy(state.ambientColor).offsetHSL(0.015, 0.12, -0.12);
   sunLight.position.copy(sunDirection).multiplyScalar(200);
   sunLight.color.copy(state.sunColor);
   sunLight.intensity = state.sunIntensity;
   ambientLight.color.copy(state.ambientColor);
   ambientLight.intensity = state.ambientIntensity;
+  hemisphereLight.color.copy(state.ambientColor).offsetHSL(0.01, 0.04, 0.12);
+  hemisphereLight.groundColor.set(0x5b4938);
+  hemisphereLight.intensity = state.ambientIntensity * 0.95;
   scene.fog?.color.copy(state.fogColor);
   renderer.toneMappingExposure = state.exposure;
   renderPipeline?.setProfile(profile);

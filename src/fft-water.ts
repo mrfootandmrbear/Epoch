@@ -17,7 +17,6 @@ import {
   positionWorld,
   pow,
   reflect,
-  reflector,
   sin,
   smoothstep,
   sub,
@@ -133,6 +132,8 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): M
 
   const deepColor = color(new Color(0x041c26));
   const shallowColor = color(new Color(0x1c6b78));
+  const zenithColor = color(new Color(0x2c6685));
+  const horizonColor = color(new Color(0xa8ced9));
   const foamColor = color(new Color(0xf3fbff));
   const terrainUv = positionWorld.xz.div(terrainSize).add(0.5);
   const insideTerrain = smoothstep(0, 0.015, terrainUv.x)
@@ -203,12 +204,6 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): M
     const distFade = smoothstep(60.0, 260.0, viewDist);
     const shadingNormal = normalize(mix(waveNormal, vec3(0, 1, 0), distFade.mul(0.9)));
 
-    const distortion = vec2(vWave.y, vWave.z).mul(0.6).mul(float(1.0).sub(distFade.mul(0.85)));
-    const mirror = reflector({ resolutionScale: 0.5 });
-    mirror.target.rotateX(-Math.PI / 2);
-    mirror.uvNode = mirror.uvNode!.add(distortion);
-    mesh.add(mirror.target);
-
     const cosTheta = clamp(dot(shadingNormal, eyeDir), 0, 1);
     const fresnel = pow(float(1.0).sub(cosTheta), 5.0).mul(0.96).add(0.04);
 
@@ -227,7 +222,12 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): M
       .mul(sunColorNode)
       .mul(specularStrength);
 
-    const albedo = mix(baseWater, mirror.rgb, fresnel).add(specular);
+    // A stable analytic atmosphere reflection is preferable to an unbounded
+    // planar reflector here: distorted UVs outside the reflector target made
+    // black polygons at the island and wave-height cameras, and the extra
+    // scene render did not provide useful detail at ocean scale.
+    const reflectedSky = mix(horizonColor, zenithColor, clamp(reflectDir.y.mul(0.75).add(0.25), 0, 1));
+    const albedo = mix(baseWater, reflectedSky, fresnel.mul(0.86)).add(specular);
 
     // Turbulence only breaks up the shoreline ribbon below. Thresholding it
     // across open water produces isolated pale blobs that read as polka dots
