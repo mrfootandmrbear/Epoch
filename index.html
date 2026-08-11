@@ -262,20 +262,78 @@
         object-fit: cover;
         pointer-events: none;
       }
+      .season-world {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        opacity: 0;
+        overflow: hidden;
+        pointer-events: none;
+      }
+      .season-sky, .season-weather, .season-ground {
+        position: absolute;
+        inset: 0;
+      }
       .reveal-kicker { font: 600 10px/1 system-ui, sans-serif; letter-spacing: .3em; text-transform: uppercase; opacity: .56; }
       .reveal-years { margin-top: 14px; font-size: clamp(38px, 7vw, 104px); letter-spacing: -.045em; }
       .reveal-phase { margin-top: 12px; font: 11px/1.4 system-ui, sans-serif; letter-spacing: .13em; opacity: .58; }
       @keyframes reveal-shell { 0%,100% { opacity: 0 } 10%,88% { opacity: 1 } }
 
-      #jump-veil[data-treatment="witness-seasons"] { background: transparent; mix-blend-mode: screen; }
+      #jump-veil[data-treatment="witness-seasons"] { background: transparent; }
       #jump-veil[data-treatment="witness-seasons"]::before {
-        background: linear-gradient(105deg, rgba(94,139,174,.88), rgba(234,190,102,.52), rgba(84,131,83,.78), rgba(205,222,230,.86));
+        z-index: 2;
+        background: linear-gradient(110deg, rgba(75,116,68,.16), rgba(235,185,81,.2), rgba(117,75,43,.22), rgba(203,222,230,.26));
         background-size: 400% 100%;
-        animation: seasons 520ms linear infinite;
+        mix-blend-mode: color;
+        animation: seasons var(--season-cycle) linear infinite;
       }
-      #jump-veil[data-treatment="witness-seasons"]::after { background: radial-gradient(circle, transparent 10%, rgba(2,9,11,.86) 82%); }
+      #jump-veil[data-treatment="witness-seasons"]::after {
+        z-index: 2;
+        background: radial-gradient(circle at 50% 44%, transparent 18%, rgba(2,9,11,.58) 94%);
+        animation: season-vignette calc(var(--season-cycle) + var(--season-cycle)) ease-in-out infinite;
+      }
+      #jump-veil[data-treatment="witness-seasons"] .season-world { opacity: 1; }
+      #jump-veil[data-treatment="witness-seasons"] .season-sky {
+        background:
+          radial-gradient(circle at 18% 12%, rgba(255,231,150,.58) 0 2%, transparent 15%),
+          linear-gradient(180deg, rgba(255,201,105,.14), transparent 55%);
+        transform-origin: 50% 100%;
+        animation: season-light var(--season-cycle) ease-in-out infinite;
+      }
+      #jump-veil[data-treatment="witness-seasons"] .season-weather {
+        background-image:
+          radial-gradient(ellipse at 18% 16%, rgba(225,232,226,.7) 0 7%, transparent 18%),
+          radial-gradient(ellipse at 44% 11%, rgba(196,210,209,.64) 0 10%, transparent 23%),
+          radial-gradient(ellipse at 75% 17%, rgba(219,224,215,.6) 0 8%, transparent 20%),
+          repeating-linear-gradient(104deg, transparent 0 27px, rgba(209,230,235,.13) 28px 29px, transparent 30px 53px);
+        background-size: 150% 100%, 170% 100%, 145% 100%, 100% 100%;
+        animation: season-weather var(--season-cycle) linear infinite;
+      }
+      #jump-veil[data-treatment="witness-seasons"] .season-ground {
+        top: 46%;
+        background:
+          radial-gradient(ellipse at 28% 55%, rgba(211,226,220,.42), transparent 27%),
+          radial-gradient(ellipse at 67% 62%, rgba(217,229,222,.38), transparent 30%),
+          linear-gradient(180deg, transparent, rgba(217,228,222,.2));
+        mix-blend-mode: screen;
+        animation: season-frost var(--season-cycle) ease-in-out infinite;
+      }
       #jump-veil[data-treatment="witness-seasons"] .reveal-copy { animation: time-rush var(--reveal-duration) ease both; }
-      @keyframes seasons { to { background-position: 100% 0; filter: hue-rotate(45deg); } }
+      @keyframes seasons { to { background-position: 100% 0; } }
+      @keyframes season-light {
+        0%,100% { transform: translate(-8%, 9%) rotate(-5deg); opacity: .55; filter: hue-rotate(-8deg); }
+        24% { transform: translate(18%, -3%) rotate(2deg); opacity: .9; }
+        50% { transform: translate(43%, 4%) rotate(7deg); opacity: .42; filter: hue-rotate(12deg); }
+        76% { transform: translate(8%, 14%) rotate(-1deg); opacity: .18; }
+      }
+      @keyframes season-weather {
+        0%,18% { transform: translateX(-24%); opacity: 0; }
+        32%,51% { transform: translateX(-5%); opacity: .46; }
+        62% { transform: translateX(7%); opacity: .18; }
+        76%,100% { transform: translateX(23%); opacity: .48; filter: brightness(1.35); }
+      }
+      @keyframes season-frost { 0%,62%,100% { opacity: 0; } 76%,91% { opacity: 1; } }
+      @keyframes season-vignette { 0%,46%,100% { opacity: .28; } 74% { opacity: .82; } }
       @keyframes time-rush { 0%,16% { transform: scale(.96); opacity: 0 } 35%,68% { transform: scale(1); opacity: 1 } 88%,100% { transform: scale(1.06); opacity: 0 } }
 
       #jump-veil[data-treatment="witness-glimpses"] { background: #020505; }
@@ -358,6 +416,8 @@
       }
       @keyframes wipe-copy { 0%,48% { opacity: 0; transform: translateX(-12px); } 60%,82% { opacity: 1; transform: none; } 100% { opacity: 0; } }
       #jump-veil.resolved .reveal-kicker::after { content: " · resolved"; color: #dfe8ba; }
+      .reveal-actions { display: none; }
+      body.reveal-lab-mode .reveal-actions { display: flex; }
       }
       @media (max-width: 700px) {
         #epoch-card { right: 18px; bottom: 210px; }
@@ -374,6 +434,11 @@
     <aside id="lineage-panel" aria-label="Lineage changes"></aside>
     <div id="jump-veil" aria-live="polite">
       <canvas class="reveal-before" data-reveal-before aria-hidden="true"></canvas>
+      <div class="season-world" aria-hidden="true">
+        <div class="season-sky"></div>
+        <div class="season-weather"></div>
+        <div class="season-ground"></div>
+      </div>
       <div class="reveal-copy">
         <div class="reveal-kicker" data-reveal-title>Witness time</div>
         <div class="reveal-years" data-reveal-years>1,000 years</div>

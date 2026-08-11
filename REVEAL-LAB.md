@@ -1,6 +1,6 @@
 # Reveal lab
 
-Epoch's jump transition is an experiment, not a settled production treatment. The lab holds the simulation outcome constant and compares three presentation philosophies with two variants each.
+Epoch's jump transition is an experiment. **Seasons accelerate is the current owner-selected production direction.** The lab retains the five alternatives as references, holding the simulation outcome constant while presentation changes.
 
 | Philosophy | Variant | Intended experience | Principal cost / risk |
 | --- | --- | --- | --- |
@@ -22,4 +22,4 @@ Use the same island, climate, jump duration, and camera position for every treat
 
 Promote the strongest two into a crude two-jump sequence before selecting a production direction. A treatment that is impressive once but tedious twice has failed the central loop.
 
-Treatments can be selected in the main controls or fixed with `?reveal=<treatment-id>` for repeatable capture.
+Ordinary play uses Seasons accelerate and hides experimental controls. Open `?lab=1` to show the selector, or fix a treatment with `?reveal=<treatment-id>` for repeatable capture.

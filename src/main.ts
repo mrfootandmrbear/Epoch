@@ -69,6 +69,9 @@ for (const option of revealTreatmentOptions()) {
 }
 const requestedTreatment = new URLSearchParams(window.location.search).get("reveal");
 if (isRevealTreatmentName(requestedTreatment)) revealTreatmentEl.value = requestedTreatment;
+if (new URLSearchParams(window.location.search).get("lab") === "1") {
+  document.body.classList.add("reveal-lab-mode");
+}
 const reveal = createRevealController(jumpVeilEl);
 
 const sunDirection = new Vector3(0.55, 0.42, 0.35).normalize();

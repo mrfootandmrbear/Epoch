@@ -103,6 +103,8 @@ export function createRevealController(root: HTMLElement): RevealController {
       clearTimers();
       const treatment = REVEAL_TREATMENTS[treatmentName];
       root.dataset.treatment = treatmentName;
+      root.dataset.jumpScale = years <= 10 ? "short" : years <= 1_000 ? "human" : "deep";
+      root.style.setProperty("--season-cycle", years <= 10 ? "1600ms" : years <= 1_000 ? "850ms" : "360ms");
       root.style.setProperty("--reveal-duration", `${treatment.duration}ms`);
       title.textContent = treatment.philosophy;
       yearsEl.textContent = years >= 1_000_000
