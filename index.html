@@ -27,6 +27,28 @@
         pointer-events: none;
         z-index: 10;
       }
+      #lineage-panel {
+        position: fixed;
+        top: 46px;
+        left: 8px;
+        z-index: 10;
+        width: 238px;
+        padding: 10px 12px;
+        border: 1px solid rgba(255,255,255,.14);
+        border-radius: 7px;
+        color: rgba(245,240,229,.82);
+        background: rgba(5,13,14,.66);
+        backdrop-filter: blur(10px);
+        font: 11px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 500ms ease;
+      }
+      #lineage-panel.visible { opacity: 1; }
+      #lineage-panel section + section { margin-top: 9px; }
+      #lineage-panel strong, #lineage-panel span { display: block; }
+      #lineage-panel strong { color: #f5f0e5; font: 600 11px/1.4 system-ui, sans-serif; }
+      #lineage-panel footer { margin-top: 9px; padding-top: 7px; border-top: 1px solid rgba(255,255,255,.12); }
       #epoch-card {
         position: fixed;
         right: 28px;
@@ -162,6 +184,7 @@
   <body>
     <div id="app"></div>
     <div id="status">loading…</div>
+    <aside id="lineage-panel" aria-label="Lineage changes"></aside>
     <div id="jump-veil"></div>
     <div id="experience">
       <div id="form-title">Shape the island</div>

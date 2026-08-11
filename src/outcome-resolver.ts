@@ -11,6 +11,16 @@ import {
   type PopulationIdentity,
   type PopulationTraits,
 } from "./population-traits";
+import {
+  blendPopulationTraits,
+  createLineageHistory,
+  migrationRadius,
+  traitAdaptationRate,
+  type LineageChange,
+  type LineageHistory,
+  type LineageState,
+  type LineageStatus,
+} from "./lineage-history";
 
 export interface HabitatSample {
   elevation: number;
@@ -36,12 +46,16 @@ export interface TreeOutcome {
 
 export interface PopulationOutcome {
   identity: PopulationIdentity;
-  x: number;
-  y: number;
-  z: number;
+  status: LineageStatus;
   visible: boolean;
-  habitat: EcosystemSample;
-  traits: PopulationTraits;
+  previousSite?: Readonly<{ x: number; z: number }>;
+  site?: {
+    x: number;
+    y: number;
+    z: number;
+    habitat: EcosystemSample;
+  };
+  traits?: PopulationTraits;
 }
 
 export interface CoastalAnimalOutcome {
@@ -72,6 +86,12 @@ export interface LandingOutcome {
   freshwater: FreshwaterOutcome[];
   coastalAnimals: CoastalAnimalOutcome[];
   aerial: AerialPopulationOutcome;
+}
+
+export interface LandingResolution {
+  outcome: LandingOutcome;
+  nextHistory: LineageHistory;
+  changes: readonly [LineageChange, LineageChange];
 }
 
 type HeightAt = (x: number, z: number) => number;
@@ -144,43 +164,157 @@ export function sampleEcosystem(
   return { ...habitat, drainage, coastalProductivity, nesting, lift };
 }
 
-function populationSite(
+interface ScoredSite {
+  x: number;
+  y: number;
+  z: number;
+  habitat: EcosystemSample;
+  score: number;
+  reanchored?: boolean;
+}
+
+function siteScore(
+  habitat: EcosystemSample,
+  identity: PopulationIdentity,
+  deepTime: number,
+): number {
+  return identity === "sheltered-grazer"
+    ? habitat.moisture * (1.7 + deepTime * 0.35) + habitat.drainage * 0.45
+      - habitat.slope * 0.9 - habitat.exposure * (0.25 + deepTime * 0.2)
+    : habitat.exposure * (1.25 + deepTime * 0.45)
+      + habitat.slope * (0.8 + deepTime * 0.3) - habitat.moisture * 0.3;
+}
+
+function isViableSite(habitat: EcosystemSample, climate: ClimateForces): boolean {
+  return habitat.elevation >= SEA_LEVEL[climate.seaLevel] + 2 && habitat.slope < 1.35;
+}
+
+function foundingSite(
   heightAt: HeightAt,
   identity: PopulationIdentity,
   climate: ClimateForces,
   deepTime: number,
-  avoid?: PopulationOutcome,
-): PopulationOutcome {
-  const preference = identity === "sheltered-grazer" ? "sheltered" : "rugged";
-  let best = { x: 0, y: heightAt(0, 0), z: 0, score: -Infinity };
+  extent: number,
+  avoid?: ScoredSite,
+): ScoredSite | undefined {
+  let best: ScoredSite | undefined;
+  const worldRadius = extent / 2 - 5;
   for (let i = 0; i < 320; i++) {
     const angle = hash(i, 71) * Math.PI * 2;
-    const radius = Math.sqrt(hash(i, 83)) * 135;
+    const radius = Math.sqrt(hash(i, 83)) * worldRadius;
     const x = Math.cos(angle) * radius;
     const z = Math.sin(angle) * radius;
-    const ecosystem = sampleEcosystem(heightAt, x, z, climate);
-    if (ecosystem.elevation < SEA_LEVEL[climate.seaLevel] + 2) continue;
-    let score = preference === "sheltered"
-      ? ecosystem.moisture * (1.7 + deepTime * 0.35) + ecosystem.drainage * 0.45
-        - ecosystem.slope * 0.9 - ecosystem.exposure * (0.25 + deepTime * 0.2)
-      : ecosystem.exposure * (1.25 + deepTime * 0.45)
-        + ecosystem.slope * (0.8 + deepTime * 0.3) - ecosystem.moisture * 0.3;
+    const habitat = sampleEcosystem(heightAt, x, z, climate);
+    if (!isViableSite(habitat, climate)) continue;
+    let score = siteScore(habitat, identity, deepTime);
     if (avoid) score += Math.min(1, Math.hypot(x - avoid.x, z - avoid.z) / 75) * 1.35;
-    if (score > best.score) best = { x, y: ecosystem.elevation, z, score };
+    if (!best || score > best.score) best = { x, y: habitat.elevation, z, habitat, score };
   }
-  const habitat = sampleEcosystem(heightAt, best.x, best.z, climate);
+  return best;
+}
+
+function migratedSite(
+  heightAt: HeightAt,
+  lineage: LineageState,
+  climate: ClimateForces,
+  deepTime: number,
+  jumpYears: number,
+  extent: number,
+): ScoredSite | undefined {
+  if (!lineage.site) return undefined;
+  const origin = lineage.site;
+  const originHabitat = sampleEcosystem(heightAt, origin.x, origin.z, climate);
+  const originValid = isViableSite(originHabitat, climate);
+  const normalRadius = migrationRadius(jumpYears);
+  const maximumRadius = originValid ? normalRadius : extent;
+  let best: ScoredSite | undefined;
+
+  for (let i = -1; i < 480; i++) {
+    const angle = i < 0 ? 0 : hash(i, lineage.identity === "sheltered-grazer" ? 401 : 409) * Math.PI * 2;
+    const radius = i < 0 ? 0 : Math.sqrt(hash(i, 421)) * maximumRadius;
+    const x = origin.x + Math.cos(angle) * radius;
+    const z = origin.z + Math.sin(angle) * radius;
+    const sampleBoundary = extent / 2 - 5;
+    if (Math.abs(x) > sampleBoundary || Math.abs(z) > sampleBoundary) continue;
+    const habitat = sampleEcosystem(heightAt, x, z, climate);
+    if (!isViableSite(habitat, climate)) continue;
+    const displacement = Math.hypot(x - origin.x, z - origin.z);
+    const score = siteScore(habitat, lineage.identity, deepTime)
+      - (displacement / Math.max(1, maximumRadius)) * 0.04;
+    if (!best || score > best.score) best = { x, y: habitat.elevation, z, habitat, score };
+  }
+  return best ? { ...best, reanchored: !originValid } : undefined;
+}
+
+function resolveLineage(
+  snapshot: WorldSnapshot,
+  previous: LineageState,
+  jumpYears: number,
+  deepTime: number,
+  avoid?: ScoredSite,
+): { outcome: PopulationOutcome; next: LineageState; change: LineageChange; scored?: ScoredSite } {
+  const heightAt = (x: number, z: number) => snapshotHeightAt(snapshot, x, z);
+  const emergenceAge = previous.identity === "sheltered-grazer" ? 100 : 1000;
+  if (previous.status === "extinct" || snapshot.totalYears < emergenceAge) {
+    const status = previous.status;
+    return {
+      outcome: { identity: previous.identity, status, visible: false },
+      next: previous,
+      change: { identity: previous.identity, previousStatus: previous.status, status, moved: 0 },
+    };
+  }
+
+  const scored = previous.status === "active"
+    ? migratedSite(heightAt, previous, snapshot.climate as ClimateForces, deepTime, jumpYears, snapshot.extent)
+    : foundingSite(heightAt, previous.identity, snapshot.climate as ClimateForces, deepTime, snapshot.extent, avoid);
+  if (!scored) {
+    const next: LineageState = { ...previous, status: "extinct" };
+    return {
+      outcome: { identity: previous.identity, status: "extinct", visible: false },
+      next,
+      change: { identity: previous.identity, previousStatus: previous.status, status: "extinct", moved: 0 },
+    };
+  }
+
+  const target = derivePopulationTraits(previous.identity, scored.habitat, snapshot.climate);
+  const traits = previous.status === "active" && previous.traits
+    ? blendPopulationTraits(previous.traits, target, traitAdaptationRate(jumpYears))
+    : target;
+  const moved = previous.site ? Math.hypot(scored.x - previous.site.x, scored.z - previous.site.z) : 0;
+  const next: LineageState = {
+    identity: previous.identity,
+    status: "active",
+    site: { x: scored.x, z: scored.z },
+    traits,
+  };
   return {
-    identity,
-    x: best.x,
-    y: best.y,
-    z: best.z,
-    visible: false,
-    habitat,
-    traits: derivePopulationTraits(identity, habitat, climate),
+    outcome: {
+      identity: previous.identity,
+      status: "active",
+      visible: true,
+      previousSite: previous.site,
+      site: { x: scored.x, y: scored.y, z: scored.z, habitat: scored.habitat },
+      traits,
+    },
+    next,
+    scored,
+    change: {
+      identity: previous.identity,
+      previousStatus: previous.status,
+      status: "active",
+      moved,
+      reanchored: scored.reanchored,
+      bodyMass: previous.traits ? { before: previous.traits.bodyMass, after: traits.bodyMass } : undefined,
+      insulation: previous.traits ? { before: previous.traits.insulation, after: traits.insulation } : undefined,
+    },
   };
 }
 
-export function resolveLanding(snapshot: WorldSnapshot): LandingOutcome {
+export function resolveLanding(
+  snapshot: WorldSnapshot,
+  previousHistory: LineageHistory = createLineageHistory(),
+  jumpYears = snapshot.totalYears,
+): LandingResolution {
   const heightAt = (x: number, z: number) => snapshotHeightAt(snapshot, x, z);
   const { climate, totalYears } = snapshot;
   const trees: TreeOutcome[] = [];
@@ -211,10 +345,14 @@ export function resolveLanding(snapshot: WorldSnapshot): LandingOutcome {
     });
   }
 
-  const sheltered = populationSite(heightAt, "sheltered-grazer", climate as ClimateForces, deepTime);
-  const rugged = populationSite(heightAt, "ridge-grazer", climate as ClimateForces, deepTime, sheltered);
-  sheltered.visible = totalYears >= 100;
-  rugged.visible = totalYears >= 1000;
+  const shelteredResolution = resolveLineage(snapshot, previousHistory.lineages[0], jumpYears, deepTime);
+  const ruggedResolution = resolveLineage(
+    snapshot,
+    previousHistory.lineages[1],
+    jumpYears,
+    deepTime,
+    shelteredResolution.scored,
+  );
 
   const coastalCandidates: Array<CoastalAnimalOutcome & { score: number }> = [];
   const freshwaterCandidates: Array<FreshwaterOutcome & { score: number }> = [];
@@ -277,10 +415,16 @@ export function resolveLanding(snapshot: WorldSnapshot): LandingOutcome {
     Math.hypot(tree.x - pool.x, tree.z - pool.z) < pool.radius + 3
   )));
   return {
-    trees: freshwaterEdges,
-    populations: [sheltered, rugged],
-    freshwater,
-    coastalAnimals,
-    aerial,
+    outcome: {
+      trees: freshwaterEdges,
+      populations: [shelteredResolution.outcome, ruggedResolution.outcome],
+      freshwater,
+      coastalAnimals,
+      aerial,
+    },
+    nextHistory: {
+      lineages: [shelteredResolution.next, ruggedResolution.next],
+    },
+    changes: [shelteredResolution.change, ruggedResolution.change],
   };
 }

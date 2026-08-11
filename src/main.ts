@@ -16,6 +16,7 @@ import { SkyMesh } from "three/addons/objects/SkyMesh.js";
 import { FFTOcean } from "./fft-ocean";
 import { createFFTOceanMesh } from "./fft-water";
 import { createLandingState } from "./landing-state";
+import type { LineageChange } from "./lineage-history";
 import {
   DEFAULT_CLIMATE,
   SEA_LEVEL,
@@ -29,6 +30,7 @@ import {
 } from "./climate";
 
 const statusEl = document.getElementById("status")!;
+const lineagePanelEl = document.getElementById("lineage-panel")!;
 const appEl = document.getElementById("app")!;
 const experienceEl = document.getElementById("experience")!;
 const epochCardEl = document.getElementById("epoch-card")!;
@@ -114,6 +116,31 @@ function landingSummary(years: number, forces: ClimateForces): string {
   return `Ancient descendants · ${climateLabel(forces)} deep-time coast`;
 }
 
+function signed(value: number): string {
+  return `${value >= 0 ? "+" : ""}${value.toFixed(4)}`;
+}
+
+function renderLineageReport(changes: readonly LineageChange[], traitDistance?: number): void {
+  const names = { "sheltered-grazer": "Sheltered grazer", "ridge-grazer": "Ridge grazer" } as const;
+  const rows = changes.map((change) => {
+    if (change.status !== "active") {
+      return `<section><strong>${names[change.identity]}</strong><span>${change.status.replace("-", " ")}</span></section>`;
+    }
+    const movement = change.previousStatus === "active"
+      ? `${change.reanchored ? "site re-anchored" : "site moved"} ${change.moved.toFixed(1)} units`
+      : "lineage established";
+    const traits = [change.bodyMass && ["mass", change.bodyMass], change.insulation && ["insulation", change.insulation]]
+      .filter((entry): entry is [string, { before: number; after: number }] => entry !== undefined)
+      .map(([label, trait]) => (
+        `<span>${label}: ${trait.before.toFixed(3)} → ${trait.after.toFixed(3)} (${signed(trait.after - trait.before)})</span>`
+      )).join("");
+    return `<section><strong>${names[change.identity]}</strong><span>${movement}</span>${traits}</section>`;
+  }).join("");
+  const divergence = traitDistance === undefined ? "" : `<footer>trait distance ${traitDistance.toFixed(3)}</footer>`;
+  lineagePanelEl.innerHTML = rows + divergence;
+  lineagePanelEl.classList.add("visible");
+}
+
 function readClimate(): ClimateForces {
   return {
     rainfall: rainfallEl.value as RainfallRegime,
@@ -190,7 +217,8 @@ jumpButtonEl.addEventListener("click", () => {
   jumpVeilEl.classList.add("active");
   window.setTimeout(() => {
     totalYears += jumpYears;
-    landingState.advance(jumpYears, totalYears, committedClimate);
+    const lineageReport = landingState.advance(jumpYears, totalYears, committedClimate);
+    renderLineageReport(lineageReport.changes, lineageReport.traitDistance);
     applyOceanForces(committedClimate);
     worldAgeEl.textContent = `Year ${totalYears.toLocaleString()}`;
     landingSummaryEl.textContent = landingSummary(totalYears, committedClimate);

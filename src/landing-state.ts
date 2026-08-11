@@ -14,11 +14,17 @@ import {
   PlaneGeometry,
   Quaternion,
   RedFormat,
+  RingGeometry,
   Scene,
   SphereGeometry,
   Vector3,
 } from "three/webgpu";
-import { resolveLanding } from "./outcome-resolver";
+import { resolveLanding, type LandingOutcome } from "./outcome-resolver";
+import {
+  createLineageHistory,
+  populationTraitDistance,
+  type LineageChange,
+} from "./lineage-history";
 import type { PopulationTraits } from "./population-traits";
 import {
   createTerrainHistory,
@@ -257,6 +263,20 @@ function addEvolvedHerds(scene: Group): Group[] {
   return animals;
 }
 
+function addPreviousSiteMarkers(scene: Group): Mesh[] {
+  return [0xb58a58, 0x8e765f].map((color) => {
+    const marker = new Mesh(
+      new RingGeometry(2.6, 3.4, 28),
+      new MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.35, roughness: 0.7 }),
+    );
+    marker.rotation.x = -Math.PI / 2;
+    marker.visible = false;
+    marker.receiveShadow = true;
+    scene.add(marker);
+    return marker;
+  });
+}
+
 function addCoastalSwimmers(scene: Group): Group[] {
   const skin = new MeshStandardMaterial({ color: 0x79a8ad, roughness: 0.42 });
   return Array.from({ length: 10 }, (_, index) => {
@@ -319,8 +339,13 @@ export interface WorldExperience {
   terrain: Mesh;
   terrainHeightTexture: DataTexture;
   sculpt: (point: Vector3, direction: 1 | -1) => void;
-  advance: (years: number, totalYears: number, climate: ClimateForces) => void;
+  advance: (years: number, totalYears: number, climate: ClimateForces) => LineageReport;
   update: (elapsed: number) => void;
+}
+
+export interface LineageReport {
+  changes: readonly LineageChange[];
+  traitDistance?: number;
 }
 
 export function createLandingState(scene: Scene): WorldExperience {
@@ -333,6 +358,7 @@ export function createLandingState(scene: Scene): WorldExperience {
   life.visible = false;
   const forest = addForest(life);
   const animals = addEvolvedHerds(life);
+  const previousSiteMarkers = addPreviousSiteMarkers(life);
   const freshwaterPools = addFreshwaterPools(life);
   const coastalAnimals = addCoastalSwimmers(life);
   const aerialAnimals = addAerialAnimals(life);
@@ -346,6 +372,7 @@ export function createLandingState(scene: Scene): WorldExperience {
   const initialHeights = new Float32Array(terrainPositions.count);
   for (let i = 0; i < terrainPositions.count; i++) initialHeights[i] = terrainPositions.getY(i);
   let terrainHistory = createTerrainHistory(initialHeights, TERRAIN_SIDE, TERRAIN_SIZE);
+  let lineageHistory = createLineageHistory();
 
   function heightAt(x: number, z: number): number {
     const gx = Math.max(0, Math.min(TERRAIN_SEGMENTS, (x + TERRAIN_HALF) / TERRAIN_STEP));
@@ -363,7 +390,7 @@ export function createLandingState(scene: Scene): WorldExperience {
     return (a + (b - a) * tx) + ((c + (d - c) * tx) - (a + (b - a) * tx)) * tz;
   }
 
-  let currentOutcome: ReturnType<typeof resolveLanding> | undefined;
+  let currentOutcome: LandingOutcome | undefined;
 
   function syncShoreSurface(): void {
     const source = terrain.geometry.attributes.position;
@@ -441,6 +468,9 @@ export function createLandingState(scene: Scene): WorldExperience {
       const resolved = currentOutcome.freshwater[index];
       pool.position.y = heightAt(resolved.x, resolved.z) + 0.1;
     });
+    previousSiteMarkers.forEach((marker) => {
+      if (marker.visible) marker.position.y = heightAt(marker.position.x, marker.position.z) + 0.18;
+    });
   }
 
   function sculpt(point: Vector3, direction: 1 | -1): void {
@@ -504,7 +534,9 @@ export function createLandingState(scene: Scene): WorldExperience {
       syncShoreSurface();
       life.visible = true;
       const snapshot = captureWorldSnapshot(heightAt, totalYears, climate);
-      const outcome = resolveLanding(snapshot);
+      const resolution = resolveLanding(snapshot, lineageHistory, years);
+      const { outcome } = resolution;
+      lineageHistory = resolution.nextHistory;
       currentOutcome = outcome;
       terrainHistory = withVegetationProtection(terrainHistory, outcome.trees);
       const matrix = new Matrix4();
@@ -526,19 +558,32 @@ export function createLandingState(scene: Scene): WorldExperience {
       animals.forEach((animal, index) => {
         const population = animal.userData.population as number;
         const herdIndex = animal.userData.herdIndex as number;
-        const site = outcome.populations[population];
-        applyGrazerTraits(animal, site.traits);
+        const lineage = outcome.populations[population];
+        const site = lineage.site;
+        if (!site || !lineage.traits) {
+          animal.visible = false;
+          return;
+        }
+        applyGrazerTraits(animal, lineage.traits);
         const angle = hash(herdIndex, population + 92) * Math.PI * 2;
         const radius = 4 + hash(herdIndex, population + 103) * 13;
         const x = site.x + Math.cos(angle) * radius;
         const z = site.z + Math.sin(angle) * radius;
         animal.position.set(x, heightAt(x, z), z);
-        animal.visible = site.visible;
+        animal.visible = lineage.visible;
         animal.scale.setScalar(1.65);
         const state = navigation[index];
         state.path = [];
         state.waypoint = 0;
         state.journey = 0;
+      });
+      previousSiteMarkers.forEach((marker, population) => {
+        const lineage = outcome.populations[population];
+        const previous = lineage.previousSite;
+        marker.visible = lineage.visible && previous !== undefined && lineage.site !== undefined
+          && Math.hypot(lineage.site.x - previous.x, lineage.site.z - previous.z) > 0.25;
+        if (!marker.visible || !previous) return;
+        marker.position.set(previous.x, heightAt(previous.x, previous.z) + 0.18, previous.z);
       });
       coastalAnimals.forEach((animal, index) => {
         const resolved = outcome.coastalAnimals[index];
@@ -563,6 +608,13 @@ export function createLandingState(scene: Scene): WorldExperience {
         bird.userData.phase = (index / aerialAnimals.length) * Math.PI * 2;
         bird.scale.setScalar(1.45 + hash(index, 241) * 0.45);
       });
+      const [first, second] = lineageHistory.lineages;
+      return {
+        changes: resolution.changes,
+        traitDistance: first.traits && second.traits
+          ? populationTraitDistance(first.traits, second.traits)
+          : undefined,
+      };
     },
     update(elapsed: number) {
       flushTerrainChanges();
