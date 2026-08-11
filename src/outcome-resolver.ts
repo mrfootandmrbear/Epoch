@@ -42,6 +42,21 @@ export interface TreeOutcome {
   z: number;
   scale: number;
   rotation: number;
+  morphology: VegetationMorphology;
+}
+
+export type VegetationGuild = "broadleaf" | "conifer" | "windswept";
+
+export interface VegetationMorphology {
+  guild: VegetationGuild;
+  height: number;
+  crownWidth: number;
+  crownDepth: number;
+  trunkWidth: number;
+  lean: number;
+  foliageHue: number;
+  foliageSaturation: number;
+  foliageLightness: number;
 }
 
 export interface PopulationOutcome {
@@ -342,6 +357,23 @@ export function resolveLanding(
       scale: (0.62 + hash(i, 18) * 1.5) * (0.55 + succession * 0.45)
         * (1 + deepTime * (0.18 + hash(i, 61) * 0.28)),
       rotation: hash(i, 31) * Math.PI * 2,
+      morphology: (() => {
+        const coldOrHigh = climate.temperature === "cold" || ecosystem.elevation > treeLine * 0.68;
+        const windswept = ecosystem.exposure > 0.58 || ecosystem.slope > 0.72;
+        const guild: VegetationGuild = windswept ? "windswept" : coldOrHigh ? "conifer" : "broadleaf";
+        const windSign = WIND[climate.wind].x === 0 ? 0 : -WIND[climate.wind].x;
+        return {
+          guild,
+          height: guild === "windswept" ? 3.6 : guild === "conifer" ? 6.8 : 5.4,
+          crownWidth: guild === "windswept" ? 1.7 : guild === "conifer" ? 1.25 : 1.75,
+          crownDepth: guild === "windswept" ? 0.72 : guild === "conifer" ? 1.15 : 1.5,
+          trunkWidth: 0.16 + ecosystem.exposure * 0.08,
+          lean: guild === "windswept" ? windSign * (0.2 + ecosystem.exposure * 0.22) : windSign * 0.035,
+          foliageHue: guild === "conifer" ? 0.39 : 0.29 + ecosystem.moisture * 0.055,
+          foliageSaturation: 0.34 + ecosystem.moisture * 0.28,
+          foliageLightness: 0.19 + (1 - ecosystem.moisture) * 0.12 + hash(i, 67) * 0.035,
+        };
+      })(),
     });
   }
 

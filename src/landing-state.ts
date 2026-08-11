@@ -6,13 +6,10 @@ import {
   DataTexture,
   FloatType,
   Group,
-  InstancedMesh,
   LinearFilter,
-  Matrix4,
   Mesh,
   MeshStandardMaterial,
   PlaneGeometry,
-  Quaternion,
   RedFormat,
   RingGeometry,
   Scene,
@@ -31,6 +28,7 @@ import {
   resolveTerrainHistory,
   withVegetationProtection,
 } from "./terrain-history";
+import { createVegetationRenderer } from "./vegetation-renderer";
 import { captureWorldSnapshot } from "./world-snapshot";
 import { findTerrainPath, isWalkable } from "./animal-navigation";
 import {
@@ -40,7 +38,6 @@ import {
   type ClimateForces,
 } from "./climate";
 
-const UP = new Vector3(0, 1, 0);
 const TERRAIN_SIZE = 380;
 const TERRAIN_HALF = TERRAIN_SIZE / 2;
 const TERRAIN_SEGMENTS = 180;
@@ -151,30 +148,6 @@ function makeWetShore(terrain: Mesh): Mesh {
   result.renderOrder = 2;
   result.receiveShadow = true;
   return result;
-}
-
-function addForest(scene: Group): { canopy: InstancedMesh; trunks: InstancedMesh } {
-  const canopyGeometry = new ConeGeometry(1, 4.5, 7);
-  canopyGeometry.translate(0, 2.8, 0);
-  const trunkGeometry = new CylinderGeometry(0.18, 0.28, 2.4, 6);
-  trunkGeometry.translate(0, 1.2, 0);
-  const canopy = new InstancedMesh(
-    canopyGeometry,
-    new MeshStandardMaterial({ color: 0x1c512d, roughness: 0.88 }),
-    420,
-  );
-  const trunks = new InstancedMesh(
-    trunkGeometry,
-    new MeshStandardMaterial({ color: 0x5b3924, roughness: 1 }),
-    420,
-  );
-  canopy.count = 0;
-  trunks.count = 0;
-  canopy.castShadow = true;
-  canopy.receiveShadow = true;
-  trunks.castShadow = true;
-  scene.add(trunks, canopy);
-  return { canopy, trunks };
 }
 
 function makeGrazer(): Group {
@@ -356,7 +329,7 @@ export function createLandingState(scene: Scene): WorldExperience {
   scene.add(wetShore);
   const life = new Group();
   life.visible = false;
-  const forest = addForest(life);
+  const vegetation = createVegetationRenderer(life);
   const animals = addEvolvedHerds(life);
   const previousSiteMarkers = addPreviousSiteMarkers(life);
   const freshwaterPools = addFreshwaterPools(life);
@@ -434,23 +407,7 @@ export function createLandingState(scene: Scene): WorldExperience {
 
   function groundLife(): void {
     if (currentOutcome) {
-      const matrix = new Matrix4();
-      const rotation = new Quaternion();
-      currentOutcome.trees.forEach((tree, index) => {
-        rotation.setFromAxisAngle(UP, tree.rotation);
-        const y = heightAt(tree.x, tree.z);
-        const aboveSea = y >= SEA_LEVEL[activeClimate.seaLevel] + 0.8;
-        const scale = aboveSea ? tree.scale : 0;
-        matrix.compose(
-          new Vector3(tree.x, y, tree.z),
-          rotation,
-          new Vector3(scale, scale, scale),
-        );
-        forest.canopy.setMatrixAt(index, matrix);
-        forest.trunks.setMatrixAt(index, matrix);
-      });
-      forest.canopy.instanceMatrix.needsUpdate = true;
-      forest.trunks.instanceMatrix.needsUpdate = true;
+      vegetation.setTrees(currentOutcome.trees, heightAt, SEA_LEVEL[activeClimate.seaLevel]);
     }
     animals.forEach((animal, index) => {
       animal.position.y = heightAt(animal.position.x, animal.position.z);
@@ -539,22 +496,7 @@ export function createLandingState(scene: Scene): WorldExperience {
       lineageHistory = resolution.nextHistory;
       currentOutcome = outcome;
       terrainHistory = withVegetationProtection(terrainHistory, outcome.trees);
-      const matrix = new Matrix4();
-      const rotation = new Quaternion();
-      outcome.trees.forEach((tree, index) => {
-        rotation.setFromAxisAngle(UP, tree.rotation);
-        matrix.compose(
-          new Vector3(tree.x, tree.y, tree.z),
-          rotation,
-          new Vector3(tree.scale, tree.scale, tree.scale),
-        );
-        forest.canopy.setMatrixAt(index, matrix);
-        forest.trunks.setMatrixAt(index, matrix);
-      });
-      forest.canopy.count = outcome.trees.length;
-      forest.trunks.count = outcome.trees.length;
-      forest.canopy.instanceMatrix.needsUpdate = true;
-      forest.trunks.instanceMatrix.needsUpdate = true;
+      vegetation.setTrees(outcome.trees, heightAt, SEA_LEVEL[activeClimate.seaLevel]);
       animals.forEach((animal, index) => {
         const population = animal.userData.population as number;
         const herdIndex = animal.userData.herdIndex as number;
