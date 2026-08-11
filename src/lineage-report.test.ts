@@ -45,4 +45,14 @@ describe("lineage report", () => {
   it("escapes lineage identifiers before rendering", () => {
     expect(buildLineageReportHtml([{ ...root, id: "<unsafe>" }])).toContain("&lt;unsafe&gt;");
   });
+
+  it("makes population condition legible", () => {
+    const html = buildLineageReportHtml([{
+      ...root,
+      abundance: { before: 0.7, after: 0.42 },
+      energy: { before: 0.6, after: 0.31 },
+    }]);
+    expect(html).toContain("population 42%");
+    expect(html).toContain("energy 31%");
+  });
 });

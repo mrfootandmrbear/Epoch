@@ -18,6 +18,7 @@ import { SkyMesh } from "three/addons/objects/SkyMesh.js";
 import { FFTOcean } from "./fft-ocean";
 import { createFFTOceanMesh } from "./fft-water";
 import { createLandingState } from "./landing-state";
+import { loadTreeGeometryAssets } from "./tree-geometry-assets";
 import type { LineageChange } from "./lineage-history";
 import { buildLineageReportHtml } from "./lineage-report";
 import { createPresentationController, isGoldenShotName } from "./presentation";
@@ -145,6 +146,7 @@ function updateAtmosphere(elapsed: number): void {
   renderPipeline?.setProfile(profile);
 }
 
+await loadTreeGeometryAssets();
 const landingState = createLandingState(scene);
 const raycaster = new Raycaster();
 const pointer = new Vector2();
@@ -339,6 +341,7 @@ function applyOceanForces(forces: ClimateForces): void {
       sunDirection,
       sunColor: new Color(0xfff2d9),
       terrainHeightTexture: landingState.terrainHeightTexture,
+      oceanMaskTexture: landingState.oceanMaskTexture,
     });
     entry = { ocean, mesh };
     oceanCache.set(forces.wind, entry);
@@ -375,7 +378,7 @@ async function start() {
   if (captureMode) {
     const captureYears = Number(captureParams.get("years") ?? 10_000);
     landingState.advance(captureYears, captureYears, DEFAULT_CLIMATE);
-    landingState.update(captureTime);
+    landingState.update(captureTime, camera.position);
   }
 
   let frameCount = 0;
@@ -388,7 +391,7 @@ async function start() {
     }
     fftOcean?.update(elapsed);
     updateAtmosphere(elapsed);
-    landingState.update(elapsed);
+    landingState.update(elapsed, camera.position);
     presentation.update(elapsed);
     if (!presentation.active) controls.update();
     renderPipeline!.render();

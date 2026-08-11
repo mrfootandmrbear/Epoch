@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "id": "epoch-canopy-tree",
+  "displayName": "Epoch Canopy Tree Family",
+  "category": "plant",
+  "stage": "candidate",
+  "role": "persistent woody cover that protects soil and supplies terrestrial forage structure",
+  "habitats": ["temperate sheltered lowland", "cold or high conifer ground", "wind-exposed ridge", "warm saltwater intertidal shore"],
+  "realWorldReferents": ["oak-like spreading deciduous crowns", "spruce-like layered conifers", "krummholz wind-shaped trees", "red mangrove stilt roots"],
+  "silhouette": "A seeded trunk-to-branch hierarchy carrying a faceted clustered crown; sheltered trees spread, conifers taper, exposed trees trail downwind, and mangroves stand above saltwater on radial stilt roots.",
+  "paletteFamily": "epoch-temperate-canopy",
+  "scaleMeters": { "min": 3.6, "max": 9.5 },
+  "traits": {
+    "continuous": [
+      { "name": "height", "driver": "succession age, temperature, and elevation", "range": [3.6, 9.5] },
+      { "name": "crownWidth", "driver": "moisture and shelter", "range": [1.25, 1.75] },
+      { "name": "lean", "driver": "prevailing wind exposure", "range": [-0.42, 0.42] },
+      { "name": "foliageColor", "driver": "moisture, temperature, and local variation", "range": [0.19, 0.35] }
+    ],
+    "discrete": [
+      { "name": "growthGuild", "driver": "temperature, elevation, exposure, slope, salinity, and inundation", "variants": ["broadleaf", "conifer", "windswept", "mangrove"] }
+    ]
+  },
+  "source": {
+    "tool": "@dgreenheck/ez-tree pinned at dcf309bd86bd521083d9c70f01f2de45fdc7c457 plus Epoch build-time foliage/root meshing",
+    "files": ["source/generate-ez-tree.mjs", "source/tree-family.json", "source/EZ-TREE-LICENSE.txt"],
+    "procedure": "Run npm run asset:tree:generate. The script bundles the pinned ez-tree source only during authoring, maps four Epoch habitat guilds onto seeded skeleton parameters, adds mangrove stilt roots, converts leaf anchors to Epoch faceted clusters, emits shared-skeleton near/far buffers, and records triangle budgets."
+  },
+  "previews": [
+    "previews/front-forest-interior.png",
+    "previews/side-shoreline.png",
+    "previews/top-whole-island.png",
+    "previews/game-distance-ridge.png",
+    "previews/wind-storm.png",
+    "previews/mangrove-saltwater.png"
+  ],
+  "exports": ["runtime/ez-tree-geometries.json", "runtime/ez-tree-summary.json"],
+  "lods": [
+    { "name": "near", "file": "runtime/ez-tree-geometries.json", "maxTriangles": 6592 },
+    { "name": "far", "file": "runtime/ez-tree-geometries.json", "maxTriangles": 3688 }
+  ],
+  "animations": { "required": [] },
+  "showcase": "previews/front-forest-interior.png",
+  "acceptance": { "verdict": "" }
+}

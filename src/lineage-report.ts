@@ -54,6 +54,13 @@ function strongestTraits(change: LineageChange): string {
   )).join("")}</div>`;
 }
 
+function populationState(change: LineageChange): string {
+  if (!change.abundance || !change.energy) return "";
+  const abundance = Math.round(change.abundance.after * 100);
+  const energy = Math.round(change.energy.after * 100);
+  return `<div class="lineage-population"><span>population ${abundance}%</span><span>energy ${energy}%</span></div>`;
+}
+
 function lineageDepth(change: LineageChange, byId: ReadonlyMap<string, LineageChange>): number {
   let depth = 0;
   let parentId = change.parentId;
@@ -97,6 +104,7 @@ export function buildLineageReportHtml(
       + `<span class="lineage-event ${escapeHtml(change.event ?? change.status)}">${escapeHtml(eventLabel(change))}</span></div>`
       + `<span class="lineage-id">${escapeHtml(change.id)}</span>`
       + (habitat ? `<span class="lineage-habitat">${escapeHtml(habitat)}</span>` : "")
+      + populationState(change)
       + strongestTraits(change)
       + `</section>`;
   }).join("");

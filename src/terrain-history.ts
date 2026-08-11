@@ -13,6 +13,7 @@ export interface TerrainHistory {
   readonly elevations: Float32Array;
   readonly disturbance: Float32Array;
   readonly vegetationProtection: Float32Array;
+  readonly forage: Float32Array;
 }
 
 function clamp01(value: number): number {
@@ -30,6 +31,7 @@ export function createTerrainHistory(
     elevations: elevations.slice(),
     disturbance: new Float32Array(elevations.length),
     vegetationProtection: new Float32Array(elevations.length),
+    forage: new Float32Array(elevations.length).fill(0.62),
   };
 }
 
@@ -42,6 +44,7 @@ export function resolveTerrainHistory(
   const { side, extent } = previous;
   const nextElevations = previous.elevations.slice();
   const nextDisturbance = new Float32Array(previous.disturbance.length);
+  const nextForage = previous.forage.slice();
   const duration = clamp01(Math.log10(Math.max(1, jumpYears) + 1) / 6);
   const erosion = RAINFALL[climate.rainfall].erosion;
   const wind = WIND[climate.wind].exposure;
@@ -70,6 +73,10 @@ export function resolveTerrainHistory(
       const activity = clamp01((relief * 0.1 + coastal * 0.32) * erosion * exposed + duration * wind * 0.06);
       const recovery = duration * (0.08 + protection * 0.42 + Math.max(0, RAINFALL[climate.rainfall].moisture) * 0.2);
       nextDisturbance[index] = clamp01(previous.disturbance[index]! * (1 - recovery) + activity);
+      const moisture = RAINFALL[climate.rainfall].moisture;
+      const potential = clamp01(0.48 + moisture * 0.55 + protection * 0.42 - nextDisturbance[index]! * 0.38);
+      const regrowth = duration * (0.12 + Math.max(0, moisture) * 0.16);
+      nextForage[index] = clamp01(previous.forage[index]! + (potential - previous.forage[index]!) * regrowth);
     }
   }
 
@@ -81,7 +88,44 @@ export function resolveTerrainHistory(
     // Protection describes the vegetation present during this jump. It is
     // replaced after the new landing resolves, rather than inferred mid-jump.
     vegetationProtection: previous.vegetationProtection.slice(),
+    forage: nextForage,
   };
+}
+
+export interface GrazingPopulation {
+  readonly site?: Readonly<{ x: number; z: number }>;
+  readonly abundance?: number;
+}
+
+/** Record the coarse grazing pressure that the next epoch will inherit. */
+export function withGrazingPressure(
+  history: TerrainHistory,
+  populations: readonly GrazingPopulation[],
+  jumpYears: number,
+): TerrainHistory {
+  const forage = history.forage.slice();
+  const step = history.extent / (history.side - 1);
+  const half = history.extent / 2;
+  const duration = clamp01(Math.log10(Math.max(1, jumpYears) + 1) / 6);
+  for (const population of populations) {
+    if (!population.site || !population.abundance) continue;
+    const centerX = Math.round((population.site.x + half) / step);
+    const centerZ = Math.round((population.site.z + half) / step);
+    const radius = Math.max(2, Math.ceil((12 + population.abundance * 16) / step));
+    for (let dz = -radius; dz <= radius; dz++) {
+      for (let dx = -radius; dx <= radius; dx++) {
+        const x = centerX + dx;
+        const z = centerZ + dz;
+        if (x < 0 || x >= history.side || z < 0 || z >= history.side) continue;
+        const falloff = 1 - Math.hypot(dx, dz) / radius;
+        if (falloff <= 0) continue;
+        const index = z * history.side + x;
+        const consumed = duration * population.abundance * falloff * 0.58;
+        forage[index] = clamp01(forage[index]! - consumed);
+      }
+    }
+  }
+  return { ...history, forage };
 }
 
 export function withVegetationProtection(

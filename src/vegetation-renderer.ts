@@ -1,141 +1,161 @@
 import {
   Color,
-  BufferGeometry,
-  ConeGeometry,
-  CylinderGeometry,
+  DoubleSide,
   Group,
+  InstancedBufferAttribute,
   InstancedMesh,
   Matrix4,
   MeshStandardMaterial,
   Quaternion,
-  SphereGeometry,
   Vector3,
 } from "three/webgpu";
-import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import type { TreeOutcome, VegetationGuild } from "./outcome-resolver";
+import { treeGeometry } from "./tree-geometry-assets";
 
 const MAX_TREES_PER_GUILD = 420;
+const NEAR_TREE_DISTANCE = 92;
+const LOD_REPARTITION_DISTANCE = 8;
 const UP = new Vector3(0, 1, 0);
 
 interface VegetationBatch {
-  trunk: InstancedMesh;
-  crown: InstancedMesh;
+  branches: InstancedMesh;
+  leaves: InstancedMesh;
+}
+
+interface GuildBatches {
+  near: VegetationBatch;
+  far: VegetationBatch;
 }
 
 export interface VegetationRenderer {
   setTrees: (trees: readonly TreeOutcome[], heightAt: (x: number, z: number) => number, seaLevel: number) => void;
+  updateLod: (viewPosition: Readonly<Vector3>) => void;
 }
 
-function instanced(geometry: BufferGeometry, material: MeshStandardMaterial): InstancedMesh {
+function instanced(geometry: ReturnType<typeof treeGeometry>, material: MeshStandardMaterial): InstancedMesh {
   const mesh = new InstancedMesh(geometry, material, MAX_TREES_PER_GUILD);
+  mesh.instanceColor = new InstancedBufferAttribute(new Float32Array(MAX_TREES_PER_GUILD * 3).fill(1), 3);
   mesh.count = 0;
   mesh.castShadow = true;
   mesh.receiveShadow = true;
   return mesh;
 }
 
-function crownGeometry(guild: VegetationGuild): BufferGeometry {
-  const parts: BufferGeometry[] = [];
-  if (guild === "conifer") {
-    for (let layer = 0; layer < 3; layer++) {
-      const cone = new ConeGeometry(1 - layer * 0.2, 0.48, 8);
-      cone.translate(0, 0.2 + layer * 0.18, 0);
-      parts.push(cone);
-    }
-  } else {
-    const offsets = guild === "windswept"
-      ? [[0.05, 0.42, 0], [0.48, 0.5, 0.06], [0.9, 0.43, -0.08]]
-      : [[-0.25, 0.48, 0], [0.24, 0.57, 0.08], [0, 0.7, -0.12]];
-    offsets.forEach(([x, y, z], index) => {
-      const sphere = new SphereGeometry(1, 9, 6);
-      sphere.scale(index === 1 ? 0.78 : 0.66, guild === "windswept" ? 0.34 : 0.52, index === 1 ? 0.74 : 0.62);
-      sphere.translate(x, y, z);
-      parts.push(sphere);
-    });
-  }
-  return mergeGeometries(parts, false)!;
+function makeBatch(
+  scene: Group,
+  guild: VegetationGuild,
+  level: "near" | "far",
+  bark: MeshStandardMaterial,
+  foliage: MeshStandardMaterial,
+): VegetationBatch {
+  const branches = instanced(treeGeometry(guild, level, "branches"), bark);
+  const leaves = instanced(treeGeometry(guild, level, "leaves"), foliage);
+  scene.add(branches, leaves);
+  return { branches, leaves };
 }
 
-function makeBatch(scene: Group, guild: VegetationGuild): VegetationBatch {
+function makeGuildBatches(scene: Group, guild: VegetationGuild): GuildBatches {
   const bark = new MeshStandardMaterial({
-    color: guild === "windswept" ? 0x554537 : 0x513724,
+    color: guild === "mangrove" ? 0x66503b : guild === "windswept" ? 0x554537 : 0x513724,
     roughness: 0.96,
+    flatShading: true,
   });
   const foliage = new MeshStandardMaterial({
-    color: guild === "conifer" ? 0x173e2b : guild === "windswept" ? 0x53663a : 0x285d35,
+    color: 0xffffff,
     roughness: 0.84,
+    side: DoubleSide,
+    flatShading: true,
   });
-  const trunk = instanced(new CylinderGeometry(0.5, 0.72, 1, 7), bark);
-  const crown = instanced(crownGeometry(guild), foliage);
-  scene.add(trunk, crown);
-  return { trunk, crown };
+  return {
+    near: makeBatch(scene, guild, "near", bark, foliage),
+    far: makeBatch(scene, guild, "far", bark, foliage),
+  };
 }
 
 export function createVegetationRenderer(scene: Group): VegetationRenderer {
-  const batches: Record<VegetationGuild, VegetationBatch> = {
-    broadleaf: makeBatch(scene, "broadleaf"),
-    conifer: makeBatch(scene, "conifer"),
-    windswept: makeBatch(scene, "windswept"),
+  const batches: Record<VegetationGuild, GuildBatches> = {
+    broadleaf: makeGuildBatches(scene, "broadleaf"),
+    conifer: makeGuildBatches(scene, "conifer"),
+    windswept: makeGuildBatches(scene, "windswept"),
+    mangrove: makeGuildBatches(scene, "mangrove"),
   };
   const matrix = new Matrix4();
   const rotation = new Quaternion();
   const position = new Vector3();
   const scale = new Vector3();
   const color = new Color();
+  const lastViewPosition = new Vector3(Number.POSITIVE_INFINITY, 0, 0);
+  let currentTrees: readonly TreeOutcome[] = [];
+  let currentHeightAt: (x: number, z: number) => number = () => 0;
+  let currentSeaLevel = 0;
 
-  function setPart(
+  function setTreePart(
     mesh: InstancedMesh,
     index: number,
     tree: TreeOutcome,
-    y: number,
-    localX: number,
-    localY: number,
-    localZ: number,
-    sx: number,
-    sy: number,
-    sz: number,
+    ground: number,
+    width: number,
+    height: number,
+    depth: number,
   ): void {
-    const cosine = Math.cos(tree.rotation);
-    const sine = Math.sin(tree.rotation);
-    position.set(
-      tree.x + localX * cosine - localZ * sine,
-      y + localY,
-      tree.z + localX * sine + localZ * cosine,
-    );
+    position.set(tree.x, ground, tree.z);
     rotation.setFromAxisAngle(UP, tree.rotation);
-    scale.set(sx, sy, sz);
+    scale.set(width, height, depth);
     matrix.compose(position, rotation, scale);
     mesh.setMatrixAt(index, matrix);
   }
 
+  function renderLods(viewPosition: Readonly<Vector3>): void {
+    const counts: Record<VegetationGuild, { near: number; far: number }> = {
+      broadleaf: { near: 0, far: 0 },
+      conifer: { near: 0, far: 0 },
+      windswept: { near: 0, far: 0 },
+      mangrove: { near: 0, far: 0 },
+    };
+    for (const tree of currentTrees) {
+      const { morphology } = tree;
+      const distance = Math.hypot(tree.x - viewPosition.x, tree.z - viewPosition.z);
+      const level = distance < NEAR_TREE_DISTANCE ? "near" : "far";
+      const batch = batches[morphology.guild][level];
+      const index = counts[morphology.guild][level]++;
+      const ground = currentHeightAt(tree.x, tree.z);
+      const visible = morphology.guild === "mangrove"
+        ? ground >= currentSeaLevel - 0.9 && ground <= currentSeaLevel + 1.5
+        : ground >= currentSeaLevel + 0.8;
+      const height = visible ? tree.scale * morphology.height * 1.24 : 0;
+      const width = visible ? tree.scale * morphology.crownWidth : 0;
+      const depth = visible ? tree.scale * morphology.crownDepth : 0;
+      const horizontalSpread = morphology.guild === "conifer" ? 1.25 : morphology.guild === "windswept" ? 1.75 : 1.65;
+      setTreePart(batch.branches, index, tree, ground, width * horizontalSpread, height, depth * horizontalSpread);
+      setTreePart(batch.leaves, index, tree, ground, width * horizontalSpread, height, depth * horizontalSpread);
+      color.setHSL(morphology.foliageHue, morphology.foliageSaturation, morphology.foliageLightness);
+      batch.leaves.setColorAt(index, color);
+    }
+
+    for (const [guild, levels] of Object.entries(batches) as Array<[VegetationGuild, GuildBatches]>) {
+      for (const level of ["near", "far"] as const) {
+        const batch = levels[level];
+        const count = counts[guild][level];
+        for (const mesh of [batch.branches, batch.leaves]) {
+          mesh.count = count;
+          mesh.instanceMatrix.needsUpdate = true;
+        }
+        if (batch.leaves.instanceColor) batch.leaves.instanceColor.needsUpdate = true;
+      }
+    }
+  }
+
   return {
     setTrees(trees, heightAt, seaLevel) {
-      const counts: Record<VegetationGuild, number> = { broadleaf: 0, conifer: 0, windswept: 0 };
-      for (const tree of trees) {
-        const { morphology } = tree;
-        const batch = batches[morphology.guild];
-        const index = counts[morphology.guild]++;
-        const ground = heightAt(tree.x, tree.z);
-        const visible = ground >= seaLevel + 0.8;
-        const height = visible ? tree.scale * morphology.height : 0;
-        const width = visible ? tree.scale * morphology.crownWidth : 0;
-        const depth = visible ? tree.scale * morphology.crownDepth : 0;
-        const trunkWidth = visible ? tree.scale * morphology.trunkWidth : 0;
-        const lean = morphology.lean * height;
-        setPart(batch.trunk, index, tree, ground, lean * 0.18, height * 0.42, 0, trunkWidth, height * 0.84, trunkWidth);
-
-        setPart(batch.crown, index, tree, ground, lean, height * 0.38, 0, width, height, depth);
-        color.setHSL(morphology.foliageHue, morphology.foliageSaturation, morphology.foliageLightness);
-        batch.crown.setColorAt(index, color);
-      }
-
-      for (const [guild, batch] of Object.entries(batches) as Array<[VegetationGuild, VegetationBatch]>) {
-        batch.trunk.count = counts[guild];
-        batch.trunk.instanceMatrix.needsUpdate = true;
-        batch.crown.count = counts[guild];
-        batch.crown.instanceMatrix.needsUpdate = true;
-        if (batch.crown.instanceColor) batch.crown.instanceColor.needsUpdate = true;
-      }
+      currentTrees = trees;
+      currentHeightAt = heightAt;
+      currentSeaLevel = seaLevel;
+      lastViewPosition.set(Number.POSITIVE_INFINITY, 0, 0);
+    },
+    updateLod(viewPosition) {
+      if (lastViewPosition.distanceTo(viewPosition) < LOD_REPARTITION_DISTANCE) return;
+      lastViewPosition.copy(viewPosition);
+      renderLods(viewPosition);
     },
   };
 }

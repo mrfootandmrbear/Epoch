@@ -77,6 +77,12 @@ function validateLineage(value: unknown, ids: Set<string>, index: number): Linea
   if (lineage.traits !== undefined) {
     assertPopulationTraits(lineage.traits as Readonly<PopulationTraits>, `${context}.traits`);
   }
+  for (const field of ["abundance", "energy"] as const) {
+    const entry = lineage[field];
+    if (entry !== undefined && (!Number.isFinite(entry) || (entry as number) < 0 || (entry as number) > 1)) {
+      throw new RangeError(`${context}.${field} must be finite and within [0, 1]`);
+    }
+  }
   return lineage as unknown as LineageState;
 }
 
@@ -97,6 +103,7 @@ export function validateWorldHistory(value: unknown): asserts value is WorldHist
   validateFloat32Field(terrain.elevations, expectedLength, "world history terrain.elevations");
   validateFloat32Field(terrain.disturbance, expectedLength, "world history terrain.disturbance", true);
   validateFloat32Field(terrain.vegetationProtection, expectedLength, "world history terrain.vegetationProtection", true);
+  validateFloat32Field(terrain.forage, expectedLength, "world history terrain.forage", true);
 
   const lineageHistory = requireRecord(history.lineages, "world history lineage history");
   if (!Array.isArray(lineageHistory.lineages)) throw new TypeError("world history lineages must be an array");

@@ -52,6 +52,7 @@ export interface FFTWaterOptions {
   sunDirection: Vector3;
   sunColor?: Color;
   terrainHeightTexture: DataTexture;
+  oceanMaskTexture: DataTexture;
   terrainSize?: number;
 }
 
@@ -111,8 +112,16 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): M
   const distV = vec2(positionLocal.x, positionLocal.z).sub(cameraPosition.xz).length();
   const swell = swellField(positionLocal.x, positionLocal.z);
   const chop = chopField(positionLocal.x, positionLocal.z, distV);
-  const wave = swell.add(chop).toVar("wave");
+  const waterUv = positionLocal.xz.div(terrainSize).add(0.5);
+  const insideWaterDomain = smoothstep(0, 0.015, waterUv.x)
+    .mul(float(1).sub(smoothstep(0.985, 1, waterUv.x)))
+    .mul(smoothstep(0, 0.015, waterUv.y))
+    .mul(float(1).sub(smoothstep(0.985, 1, waterUv.y)));
+  const oceanMask = mix(float(1), texture(options.oceanMaskTexture, waterUv).r, insideWaterDomain);
+  const wave = swell.add(chop).mul(oceanMask).toVar("wave");
   material.positionNode = positionLocal.add(vec3(0, wave.x, 0));
+  material.opacityNode = oceanMask;
+  material.alphaTestNode = float(0.5);
 
   const vWave = varying(wave, "vWave");
   const waveNormal = normalize(vec3(vWave.y.negate(), 1.0, vWave.z.negate()));
@@ -196,7 +205,12 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): M
     );
 
     const reflectDir = normalize(reflect(sunDir.negate(), shadingNormal));
-    const specular = pow(max(dot(eyeDir, reflectDir), 0.0), 200).mul(sunColorNode).mul(3.0);
+    // A broader, energy-limited sun path reads as reflected light near the
+    // surface instead of isolated white discs at shoreline camera height.
+    const specularStrength = mix(float(0.58), float(1.45), distFade);
+    const specular = pow(max(dot(eyeDir, reflectDir), 0.0), 112)
+      .mul(sunColorNode)
+      .mul(specularStrength);
 
     const albedo = mix(baseWater, mirror.rgb, fresnel).add(specular);
 

@@ -5,12 +5,14 @@
   "type": "module",
   "scripts": {
     "asset:check": "node .agents/skills/generate-ecosystem-asset/scripts/validate-asset.mjs",
+    "asset:tree:generate": "node assets/ecosystem/epoch-canopy-tree/source/generate-ez-tree.mjs",
     "dev": "vite",
     "build": "tsc && vite build",
     "test": "vitest run",
     "preview": "vite preview"
   },
   "devDependencies": {
+    "@dgreenheck/ez-tree": "github:dgreenheck/ez-tree#dcf309bd86bd521083d9c70f01f2de45fdc7c457",
     "@types/three": "^0.185.1",
     "typescript": "~5.9.3",
     "vite": "^6.3.5",

@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "lod": "near",
+  "geometry": ["tapered trunk", "five tapered branches", "two or three faceted foliage clusters per branch tip"],
+  "materials": ["epoch bark", "habitat-resolved foliage instance color"],
+  "instancedBy": "growthGuild",
+  "maxTriangles": 850
+}

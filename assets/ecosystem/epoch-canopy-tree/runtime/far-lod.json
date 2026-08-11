@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "lod": "far",
+  "geometry": ["six-sided tapered trunk", "three merged crown masses"],
+  "materials": ["epoch bark", "habitat-resolved foliage instance color"],
+  "instancedBy": "growthGuild",
+  "maxTriangles": 240
+}

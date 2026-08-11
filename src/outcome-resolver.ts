@@ -5,7 +5,8 @@ import {
   WIND,
   type ClimateForces,
 } from "./climate";
-import { snapshotHeightAt, type WorldSnapshot } from "./world-snapshot";
+import { snapshotForageAt, snapshotHeightAt, type WorldSnapshot } from "./world-snapshot";
+import { resolveFreshwaterField, type FreshwaterField } from "./freshwater-basins";
 import { lineageSeed, populationArchetype } from "./population-archetypes";
 import {
   assertPopulationTraits,
@@ -38,6 +39,7 @@ export interface EcosystemSample extends HabitatSample {
   coastalProductivity: number;
   nesting: number;
   lift: number;
+  forage: number;
 }
 
 export interface TreeOutcome {
@@ -49,7 +51,7 @@ export interface TreeOutcome {
   morphology: VegetationMorphology;
 }
 
-export type VegetationGuild = "broadleaf" | "conifer" | "windswept";
+export type VegetationGuild = "broadleaf" | "conifer" | "windswept" | "mangrove";
 
 export interface VegetationMorphology {
   guild: VegetationGuild;
@@ -76,6 +78,8 @@ export interface PopulationOutcome {
     habitat: EcosystemSample;
   };
   traits?: PopulationTraits;
+  abundance?: number;
+  energy?: number;
 }
 
 export interface CoastalAnimalOutcome {
@@ -104,6 +108,7 @@ export interface LandingOutcome {
   trees: TreeOutcome[];
   populations: readonly PopulationOutcome[];
   freshwater: FreshwaterOutcome[];
+  freshwaterField: FreshwaterField;
   coastalAnimals: CoastalAnimalOutcome[];
   aerial: AerialPopulationOutcome;
 }
@@ -157,6 +162,7 @@ export function sampleEcosystem(
   x: number,
   z: number,
   climate: ClimateForces,
+  forageAt: HeightAt = () => 1,
 ): EcosystemSample {
   const habitat = sampleHabitat(heightAt, x, z, climate);
   const step = 5;
@@ -181,7 +187,7 @@ export function sampleEcosystem(
   const lift = habitat.elevation > sea
     ? clamp01(habitat.exposure * 0.65 + habitat.slope * 0.55) * WIND[climate.wind].exposure
     : 0;
-  return { ...habitat, drainage, coastalProductivity, nesting, lift };
+  return { ...habitat, drainage, coastalProductivity, nesting, lift, forage: clamp01(forageAt(x, z)) };
 }
 
 interface ScoredSite {
@@ -212,7 +218,8 @@ function siteScore(
   return habitat.moisture * (niche.moisture + deepTime * niche.moistureDeepTime)
     + habitat.drainage * niche.drainage
     + habitat.slope * (niche.slope + deepTime * niche.slopeDeepTime)
-    + habitat.exposure * (niche.exposure + deepTime * niche.exposureDeepTime);
+    + habitat.exposure * (niche.exposure + deepTime * niche.exposureDeepTime)
+    + habitat.forage * 1.4;
 }
 
 function isViableSite(habitat: EcosystemSample, climate: ClimateForces): boolean {
@@ -221,6 +228,7 @@ function isViableSite(habitat: EcosystemSample, climate: ClimateForces): boolean
 
 function foundingSite(
   heightAt: HeightAt,
+  forageAt: HeightAt,
   identity: PopulationIdentity,
   climate: ClimateForces,
   deepTime: number,
@@ -234,7 +242,7 @@ function foundingSite(
     const radius = Math.sqrt(hash(i, 83)) * worldRadius;
     const x = Math.cos(angle) * radius;
     const z = Math.sin(angle) * radius;
-    const habitat = sampleEcosystem(heightAt, x, z, climate);
+    const habitat = sampleEcosystem(heightAt, x, z, climate, forageAt);
     if (!isViableSite(habitat, climate)) continue;
     let score = siteScore(habitat, identity, deepTime);
     score += separationBonus(x, z, occupied);
@@ -245,6 +253,7 @@ function foundingSite(
 
 function migratedSite(
   heightAt: HeightAt,
+  forageAt: HeightAt,
   lineage: LineageState,
   climate: ClimateForces,
   deepTime: number,
@@ -254,7 +263,7 @@ function migratedSite(
 ): ScoredSite | undefined {
   if (!lineage.site) return undefined;
   const origin = lineage.site;
-  const originHabitat = sampleEcosystem(heightAt, origin.x, origin.z, climate);
+  const originHabitat = sampleEcosystem(heightAt, origin.x, origin.z, climate, forageAt);
   const originValid = isViableSite(originHabitat, climate);
   const normalRadius = migrationRadius(jumpYears);
   const maximumRadius = originValid ? normalRadius : extent;
@@ -268,7 +277,7 @@ function migratedSite(
     const z = origin.z + Math.sin(angle) * radius;
     const sampleBoundary = extent / 2 - 5;
     if (Math.abs(x) > sampleBoundary || Math.abs(z) > sampleBoundary) continue;
-    const habitat = sampleEcosystem(heightAt, x, z, climate);
+    const habitat = sampleEcosystem(heightAt, x, z, climate, forageAt);
     if (!isViableSite(habitat, climate)) continue;
     const displacement = Math.hypot(x - origin.x, z - origin.z);
     const score = siteScore(habitat, lineage.identity, deepTime)
@@ -287,6 +296,7 @@ function resolveLineage(
   occupied: readonly ScoredSite[] = [],
 ): { outcome: PopulationOutcome; next: LineageState; change: LineageChange; scored?: ScoredSite } {
   const heightAt = (x: number, z: number) => snapshotHeightAt(snapshot, x, z);
+  const forageAt = (x: number, z: number) => snapshotForageAt(snapshot, x, z);
   const emergenceAge = populationArchetype(previous.identity).emergenceAge;
   if (previous.status === "extinct" || snapshot.totalYears < emergenceAge) {
     const status = previous.status;
@@ -307,6 +317,7 @@ function resolveLineage(
   const scored = previous.status === "active"
     ? migratedSite(
       heightAt,
+      forageAt,
       previous,
       snapshot.climate as ClimateForces,
       deepTime,
@@ -316,6 +327,7 @@ function resolveLineage(
     )
     : foundingSite(
       heightAt,
+      forageAt,
       previous.identity,
       snapshot.climate as ClimateForces,
       deepTime,
@@ -349,22 +361,35 @@ function resolveLineage(
     : target;
   if (import.meta.env.DEV) assertPopulationTraits(traits, `lineage ${previous.id} resolved traits`);
   const moved = previous.site ? Math.hypot(scored.x - previous.site.x, scored.z - previous.site.z) : 0;
+  const duration = clamp01(Math.log10(Math.max(1, jumpYears) + 1) / 6);
+  const beforeEnergy = previous.energy ?? 0.62;
+  const beforeAbundance = previous.abundance ?? 0.34;
+  const intake = scored.habitat.forage * (0.75 + scored.habitat.moisture * 0.25);
+  const energy = clamp01(beforeEnergy + (intake - 0.48) * duration * 0.9);
+  const abundance = clamp01(beforeAbundance + (
+    (intake - 0.52) * 0.8 + (energy - 0.45) * 0.15
+  ) * duration);
+  const starved = previous.status === "active" && abundance < 0.025 && energy < 0.08;
   const next: LineageState = {
     ...previous,
     identity: previous.identity,
-    status: "active",
+    status: starved ? "extinct" : "active",
     site: { x: scored.x, z: scored.z },
     traits,
+    abundance,
+    energy,
   };
   return {
     outcome: {
       id: previous.id,
       identity: previous.identity,
-      status: "active",
-      visible: true,
+      status: starved ? "extinct" : "active",
+      visible: !starved,
       previousSite: previous.site,
       site: { x: scored.x, y: scored.y, z: scored.z, habitat: scored.habitat },
       traits,
+      abundance,
+      energy,
     },
     next,
     scored,
@@ -373,12 +398,14 @@ function resolveLineage(
       parentId: previous.parentId,
       identity: previous.identity,
       previousStatus: previous.status,
-      status: "active",
+      status: starved ? "extinct" : "active",
       moved,
       reanchored: scored.reanchored,
-      event: previous.status !== "active" ? "established" : scored.reanchored ? "reanchored" : "migrated",
+      event: starved ? "extinct" : previous.status !== "active" ? "established" : scored.reanchored ? "reanchored" : "migrated",
       habitat: scored.habitat,
       traits: populationTraitChanges(previous.traits, traits),
+      abundance: { before: beforeAbundance, after: abundance },
+      energy: { before: beforeEnergy, after: energy },
     },
   };
 }
@@ -405,9 +432,11 @@ function resolveSpeciation(
   if (!parentResolution?.next.site || !parentResolution.next.traits) return undefined;
 
   const heightAt = (x: number, z: number) => snapshotHeightAt(snapshot, x, z);
+  const forageAt = (x: number, z: number) => snapshotForageAt(snapshot, x, z);
   const occupied = resolved.flatMap(({ scored }) => scored ? [scored] : []);
   const alternate = foundingSite(
     heightAt,
+    forageAt,
     parentResolution.next.identity,
     snapshot.climate as ClimateForces,
     deepTime,
@@ -444,6 +473,8 @@ function resolveSpeciation(
     status: "active",
     site: { x: alternate.x, z: alternate.z },
     traits,
+    abundance: Math.max(0.12, (parentResolution.next.abundance ?? 0.34) * 0.42),
+    energy: parentResolution.next.energy ?? 0.62,
   };
   return {
     outcome: {
@@ -454,6 +485,8 @@ function resolveSpeciation(
       previousSite: parentResolution.next.site,
       site: { x: alternate.x, y: alternate.y, z: alternate.z, habitat: alternate.habitat },
       traits,
+      abundance: child.abundance,
+      energy: child.energy,
     },
     next: child,
     scored: alternate,
@@ -467,6 +500,8 @@ function resolveSpeciation(
       event: "speciated",
       habitat: alternate.habitat,
       traits: populationTraitChanges(parentResolution.next.traits, traits),
+      abundance: { before: 0, after: child.abundance ?? 0 },
+      energy: { before: 0, after: child.energy ?? 0 },
     },
   };
 }
@@ -477,6 +512,7 @@ export function resolveLanding(
   jumpYears = snapshot.totalYears,
 ): LandingResolution {
   const heightAt = (x: number, z: number) => snapshotHeightAt(snapshot, x, z);
+  const forageAt = (x: number, z: number) => snapshotForageAt(snapshot, x, z);
   const { climate, totalYears } = snapshot;
   const trees: TreeOutcome[] = [];
   const succession = clamp01(Math.log10(Math.max(1, totalYears)) / 3);
@@ -489,12 +525,13 @@ export function resolveLanding(
     const radius = Math.sqrt(hash(i, 9)) * 150;
     const x = Math.cos(angle) * radius;
     const z = Math.sin(angle) * radius;
-    const ecosystem = sampleEcosystem(heightAt, x, z, climate as ClimateForces);
+    const ecosystem = sampleEcosystem(heightAt, x, z, climate as ClimateForces, forageAt);
     if (ecosystem.elevation < seaLevel + 2 || ecosystem.elevation > treeLine || ecosystem.slope > 1.15) continue;
     const suitability = (
       clamp01(1 - Math.abs(ecosystem.moisture - 0.66) * 1.55) * 0.8
       + ecosystem.drainage * 0.2
-    ) * clamp01(1 - ecosystem.exposure * 0.48) * succession * growth;
+    ) * clamp01(1 - ecosystem.exposure * 0.48) * succession * growth
+      * (0.22 + ecosystem.forage * 0.78);
     if (hash(i, 47) < deepTime * 0.2 || hash(i, 28) > suitability * (0.88 - deepTime * 0.08)) continue;
     trees.push({
       x,
@@ -523,6 +560,43 @@ export function resolveLanding(
     });
   }
 
+  // Mangroves occupy saltwater intertidal ground, not freshwater basin
+  // edges. Basin filtering below removes any candidate that overlaps an
+  // enclosed freshwater pool after the shared hydrology pass resolves.
+  if (climate.temperature === "warm" && climate.rainfall !== "arid" && totalYears >= 100) {
+    for (let i = 0; i < 900 && trees.length < 490; i++) {
+      const angle = hash(i, 701) * Math.PI * 2;
+      const radius = Math.sqrt(hash(i, 709)) * 152;
+      const x = Math.cos(angle) * radius;
+      const z = Math.sin(angle) * radius;
+      const ecosystem = sampleEcosystem(heightAt, x, z, climate as ClimateForces, forageAt);
+      const intertidal = ecosystem.elevation >= seaLevel - 0.75 && ecosystem.elevation <= seaLevel + 1.35;
+      if (!intertidal || ecosystem.slope > 0.58 || ecosystem.exposure > 0.78) continue;
+      const suitability = clamp01(0.52 + ecosystem.moisture * 0.34 - ecosystem.exposure * 0.26)
+        * succession * growth;
+      if (hash(i, 719) > suitability * 0.58) continue;
+      const windSign = WIND[climate.wind].x === 0 ? 0 : -WIND[climate.wind].x;
+      trees.push({
+        x,
+        y: ecosystem.elevation,
+        z,
+        scale: (0.58 + hash(i, 727) * 0.82) * (0.65 + succession * 0.35),
+        rotation: hash(i, 733) * Math.PI * 2,
+        morphology: {
+          guild: "mangrove",
+          height: 4.5,
+          crownWidth: 1.65,
+          crownDepth: 1.5,
+          trunkWidth: 0.22,
+          lean: windSign * ecosystem.exposure * 0.1,
+          foliageHue: 0.32 + ecosystem.moisture * 0.025,
+          foliageSaturation: 0.48 + ecosystem.moisture * 0.12,
+          foliageLightness: 0.23 + hash(i, 739) * 0.055,
+        },
+      });
+    }
+  }
+
   const lineageResolutions: Array<ReturnType<typeof resolveLineage>> = [];
   for (const lineage of previousHistory.lineages) {
     lineageResolutions.push(resolveLineage(
@@ -543,7 +617,6 @@ export function resolveLanding(
   if (speciation) lineageResolutions.push(speciation);
 
   const coastalCandidates: Array<CoastalAnimalOutcome & { score: number }> = [];
-  const freshwaterCandidates: Array<FreshwaterOutcome & { score: number }> = [];
   let aerialBest = { x: 0, z: 0, altitude: 22, radius: 24, visible: false, score: -Infinity };
   for (let i = 0; i < 900; i++) {
     const angle = hash(i, 141) * Math.PI * 2;
@@ -558,15 +631,6 @@ export function resolveLanding(
         heading: hash(i, 173) * Math.PI * 2,
         scale: 0.75 + ecosystem.coastalProductivity * 0.7,
         score: ecosystem.coastalProductivity + hash(i, 181) * 0.12,
-      });
-    }
-    if (ecosystem.drainage > 0.68 && ecosystem.elevation > seaLevel + 1.2) {
-      freshwaterCandidates.push({
-        x,
-        y: ecosystem.elevation,
-        z,
-        radius: 2.4 + ecosystem.drainage * 4.2,
-        score: ecosystem.drainage * 1.3 - ecosystem.slope * 0.55 - ecosystem.exposure * 0.2,
       });
     }
     const nearbyCoast = ecosystem.elevation > seaLevel + 1
@@ -590,13 +654,8 @@ export function resolveLanding(
     }
   }
   coastalCandidates.sort((a, b) => b.score - a.score);
-  freshwaterCandidates.sort((a, b) => b.score - a.score);
-  const freshwater: FreshwaterOutcome[] = [];
-  for (const { score: _score, ...pool } of freshwaterCandidates) {
-    if (freshwater.some((other) => Math.hypot(pool.x - other.x, pool.z - other.z) < 24)) continue;
-    freshwater.push(pool);
-    if (freshwater.length >= (climate.rainfall === "wet" ? 5 : climate.rainfall === "temperate" ? 3 : 1)) break;
-  }
+  const freshwaterField = resolveFreshwaterField(snapshot, seaLevel, climate.rainfall);
+  const freshwater = freshwaterField.basins;
   const coastalAnimals = coastalCandidates.slice(0, totalYears >= 100 ? 10 : 0).map(({ score: _score, ...animal }) => animal);
   const { score: _aerialScore, ...aerial } = aerialBest;
   const freshwaterEdges = trees.filter((tree) => !freshwater.some((pool) => (
@@ -607,6 +666,7 @@ export function resolveLanding(
       trees: freshwaterEdges,
       populations: lineageResolutions.map((resolution) => resolution.outcome),
       freshwater,
+      freshwaterField,
       coastalAnimals,
       aerial,
     },

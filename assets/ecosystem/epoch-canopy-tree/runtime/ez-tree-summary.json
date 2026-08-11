@@ -1,0 +1,21 @@
+{
+  "commit": "dcf309bd86bd521083d9c70f01f2de45fdc7c457",
+  "triangles": {
+    "broadleaf": {
+      "near": 5012,
+      "far": 2936
+    },
+    "conifer": {
+      "near": 4540,
+      "far": 2208
+    },
+    "windswept": {
+      "near": 4282,
+      "far": 2572
+    },
+    "mangrove": {
+      "near": 6592,
+      "far": 3688
+    }
+  }
+}

@@ -4,6 +4,7 @@ export interface WorldSnapshot {
   readonly gridSize: number;
   readonly extent: number;
   readonly elevations: Float32Array;
+  readonly forage?: Float32Array;
   readonly climate: Readonly<ClimateForces>;
   readonly totalYears: number;
 }
@@ -17,25 +18,29 @@ export function captureWorldSnapshot(
   climate: ClimateForces,
   gridSize = 96,
   extent = 300,
+  forageAt: HeightAt = () => 1,
 ): WorldSnapshot {
   const elevations = new Float32Array(gridSize * gridSize);
+  const forage = new Float32Array(gridSize * gridSize);
   for (let z = 0; z < gridSize; z++) {
     for (let x = 0; x < gridSize; x++) {
       const worldX = (x / (gridSize - 1) - 0.5) * extent;
       const worldZ = (z / (gridSize - 1) - 0.5) * extent;
       elevations[z * gridSize + x] = heightAt(worldX, worldZ);
+      forage[z * gridSize + x] = Math.min(1, Math.max(0, forageAt(worldX, worldZ)));
     }
   }
   return {
     gridSize,
     extent,
     elevations,
+    forage,
     climate: Object.freeze({ ...climate }),
     totalYears,
   };
 }
 
-export function snapshotHeightAt(snapshot: WorldSnapshot, x: number, z: number): number {
+function sampleSnapshotField(snapshot: WorldSnapshot, field: Float32Array, x: number, z: number): number {
   const max = snapshot.gridSize - 1;
   const gx = Math.max(0, Math.min(max, (x / snapshot.extent + 0.5) * max));
   const gz = Math.max(0, Math.min(max, (z / snapshot.extent + 0.5) * max));
@@ -45,11 +50,19 @@ export function snapshotHeightAt(snapshot: WorldSnapshot, x: number, z: number):
   const z1 = Math.min(max, z0 + 1);
   const tx = gx - x0;
   const tz = gz - z0;
-  const a = snapshot.elevations[z0 * snapshot.gridSize + x0]!;
-  const b = snapshot.elevations[z0 * snapshot.gridSize + x1]!;
-  const c = snapshot.elevations[z1 * snapshot.gridSize + x0]!;
-  const d = snapshot.elevations[z1 * snapshot.gridSize + x1]!;
+  const a = field[z0 * snapshot.gridSize + x0]!;
+  const b = field[z0 * snapshot.gridSize + x1]!;
+  const c = field[z1 * snapshot.gridSize + x0]!;
+  const d = field[z1 * snapshot.gridSize + x1]!;
   const north = a + (b - a) * tx;
   const south = c + (d - c) * tx;
   return north + (south - north) * tz;
+}
+
+export function snapshotHeightAt(snapshot: WorldSnapshot, x: number, z: number): number {
+  return sampleSnapshotField(snapshot, snapshot.elevations, x, z);
+}
+
+export function snapshotForageAt(snapshot: WorldSnapshot, x: number, z: number): number {
+  return snapshot.forage ? sampleSnapshotField(snapshot, snapshot.forage, x, z) : 1;
 }

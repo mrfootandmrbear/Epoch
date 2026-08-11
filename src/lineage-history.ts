@@ -16,6 +16,8 @@ export interface LineageState {
   readonly status: LineageStatus;
   readonly site?: Readonly<{ x: number; z: number }>;
   readonly traits?: Readonly<PopulationTraits>;
+  readonly abundance?: number;
+  readonly energy?: number;
 }
 
 export interface LineageHistory {
@@ -51,6 +53,8 @@ export interface LineageChange {
   readonly event?: LineageEvent;
   readonly habitat?: LineageHabitat;
   readonly traits?: Partial<Readonly<Record<keyof PopulationTraits, TraitChange>>>;
+  readonly abundance?: TraitChange;
+  readonly energy?: TraitChange;
 }
 
 export function createLineageHistory(): LineageHistory {

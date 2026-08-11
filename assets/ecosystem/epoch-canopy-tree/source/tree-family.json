@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "status": "fallback-pre-ez-tree-reference",
+  "note": "Retained as the original procedural grammar reference; runtime candidates are generated from the pinned ez-tree source described in asset.json.",
+  "coordinateSystem": "normalized local tree space, +Y up, prevailing wind displacement along +X",
+  "shared": {
+    "radialSegments": 5,
+    "foliagePrimitive": "icosahedron-detail-1",
+    "clustersPerTip": 3,
+    "lodSwitchDistance": 92,
+    "lodRepartitionDistance": 8
+  },
+  "guilds": {
+    "broadleaf": { "tips": [[-0.48, 0.62, 0.05], [0.5, 0.68, 0.1], [-0.2, 0.82, -0.38], [0.18, 0.91, 0.32], [-0.05, 1, 0]] },
+    "conifer": { "tips": [[-0.42, 0.45, 0], [0.38, 0.54, 0.12], [-0.3, 0.65, -0.18], [0.25, 0.75, 0.12], [0, 0.96, 0]], "clustersPerTip": 2 },
+    "windswept": { "tips": [[0.35, 0.5, 0.08], [0.66, 0.62, -0.14], [0.88, 0.7, 0.12], [1.08, 0.77, -0.06], [0.55, 0.87, 0]], "foliageYScale": 0.56 }
+  }
+}

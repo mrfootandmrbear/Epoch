@@ -20,8 +20,10 @@ import { resolveLanding, type LandingOutcome } from "./outcome-resolver";
 import { populationTraitDistance, type LineageChange } from "./lineage-history";
 import { lineageSeed, type PopulationIdentity } from "./population-archetypes";
 import type { PopulationTraits } from "./population-traits";
-import { resolveTerrainHistory, withVegetationProtection } from "./terrain-history";
+import { resolveTerrainHistory, withGrazingPressure, withVegetationProtection } from "./terrain-history";
 import { createVegetationRenderer } from "./vegetation-renderer";
+import { createFreshwaterRenderer } from "./freshwater-renderer";
+import { resolveFreshwaterField } from "./freshwater-basins";
 import { captureWorldSnapshot } from "./world-snapshot";
 import { createWorldHistory, validateWorldHistory } from "./world-history";
 import { findTerrainPath, isWalkable } from "./animal-navigation";
@@ -119,6 +121,20 @@ function makeHeightTexture(terrain: Mesh): DataTexture {
   for (let i = 0; i < positions.count; i++) data[i] = positions.getY(i);
   const side = Math.round(Math.sqrt(positions.count));
   const result = new DataTexture(data, side, side, RedFormat, FloatType);
+  result.minFilter = LinearFilter;
+  result.magFilter = LinearFilter;
+  result.needsUpdate = true;
+  return result;
+}
+
+function makeOceanMaskTexture(): DataTexture {
+  const result = new DataTexture(
+    new Float32Array(TERRAIN_SIDE * TERRAIN_SIDE),
+    TERRAIN_SIDE,
+    TERRAIN_SIDE,
+    RedFormat,
+    FloatType,
+  );
   result.minFilter = LinearFilter;
   result.magFilter = LinearFilter;
   result.needsUpdate = true;
@@ -234,7 +250,7 @@ function createLineageRenderState(
   const animals = Array.from({ length: 7 }, (_, herdIndex) => {
     const animal = makeGrazer();
     animal.visible = false;
-    animal.scale.setScalar(1.65);
+    animal.scale.setScalar(0.9);
     animal.userData.lineageId = id;
     animal.userData.herdIndex = herdIndex;
     scene.add(animal);
@@ -304,29 +320,13 @@ function addAerialAnimals(scene: Group): Group[] {
   });
 }
 
-function addFreshwaterPools(scene: Group): Mesh[] {
-  const material = new MeshStandardMaterial({
-    color: 0x397984,
-    roughness: 0.22,
-    metalness: 0.08,
-    transparent: true,
-    opacity: 0.88,
-  });
-  return Array.from({ length: 5 }, () => {
-    const pool = new Mesh(new SphereGeometry(1, 24, 8), material);
-    pool.visible = false;
-    pool.renderOrder = 3;
-    scene.add(pool);
-    return pool;
-  });
-}
-
 export interface WorldExperience {
   terrain: Mesh;
   terrainHeightTexture: DataTexture;
+  oceanMaskTexture: DataTexture;
   sculpt: (point: Vector3, direction: 1 | -1) => void;
   advance: (years: number, totalYears: number, climate: ClimateForces) => LineageReport;
-  update: (elapsed: number) => void;
+  update: (elapsed: number, viewPosition?: Readonly<Vector3>) => void;
 }
 
 export interface LineageReport {
@@ -338,13 +338,14 @@ export function createLandingState(scene: Scene): WorldExperience {
   const terrain = makeTerrain();
   scene.add(terrain);
   const terrainHeightTexture = makeHeightTexture(terrain);
+  const oceanMaskTexture = makeOceanMaskTexture();
   const wetShore = makeWetShore(terrain);
   scene.add(wetShore);
   const life = new Group();
   life.visible = false;
   const vegetation = createVegetationRenderer(life);
   const lineageRenderers = new Map<string, LineageRenderState>();
-  const freshwaterPools = addFreshwaterPools(life);
+  const freshwater = createFreshwaterRenderer(life);
   const coastalAnimals = addCoastalSwimmers(life);
   const aerialAnimals = addAerialAnimals(life);
   scene.add(life);
@@ -373,7 +374,41 @@ export function createLandingState(scene: Scene): WorldExperience {
     return (a + (b - a) * tx) + ((c + (d - c) * tx) - (a + (b - a) * tx)) * tz;
   }
 
+  function forageAt(x: number, z: number): number {
+    const gx = Math.max(0, Math.min(TERRAIN_SEGMENTS, (x + TERRAIN_HALF) / TERRAIN_STEP));
+    const gz = Math.max(0, Math.min(TERRAIN_SEGMENTS, (z + TERRAIN_HALF) / TERRAIN_STEP));
+    const x0 = Math.floor(gx);
+    const z0 = Math.floor(gz);
+    const x1 = Math.min(TERRAIN_SEGMENTS, x0 + 1);
+    const z1 = Math.min(TERRAIN_SEGMENTS, z0 + 1);
+    const tx = gx - x0;
+    const tz = gz - z0;
+    const field = worldHistory.terrain.forage;
+    const a = field[z0 * TERRAIN_SIDE + x0]!;
+    const b = field[z0 * TERRAIN_SIDE + x1]!;
+    const c = field[z1 * TERRAIN_SIDE + x0]!;
+    const d = field[z1 * TERRAIN_SIDE + x1]!;
+    return (a + (b - a) * tx) + ((c + (d - c) * tx) - (a + (b - a) * tx)) * tz;
+  }
+
   let currentOutcome: LandingOutcome | undefined;
+
+  function currentSnapshot(totalYears = 0) {
+    return captureWorldSnapshot(heightAt, totalYears, activeClimate, TERRAIN_SIDE, TERRAIN_SIZE, forageAt);
+  }
+
+  function refreshFreshwater(totalYears = 0): void {
+    const field = resolveFreshwaterField(
+      currentSnapshot(totalYears),
+      SEA_LEVEL[activeClimate.seaLevel],
+      activeClimate.rainfall,
+    );
+    freshwater.setField(field);
+    if (currentOutcome) {
+      currentOutcome.freshwaterField = field;
+      currentOutcome.freshwater = field.basins;
+    }
+  }
 
   function rendererFor(id: string, identity: PopulationIdentity): LineageRenderState {
     const existing = lineageRenderers.get(id);
@@ -402,7 +437,35 @@ export function createLandingState(scene: Scene): WorldExperience {
       const wetness = Math.max(0, Math.min(1, 1 - Math.abs(y - (sea + 0.75)) / 1.15));
       wetColors.setXYZW(i, 0.16, 0.12, 0.075, wetness * wetness);
     }
+    // Flood from the boundary so enclosed depressions remain freshwater
+    // instead of receiving the same displaced surface as the open ocean.
+    const oceanData = oceanMaskTexture.image.data as Float32Array;
+    oceanData.fill(0);
+    const queue = new Int32Array(TERRAIN_SIDE * TERRAIN_SIDE);
+    let head = 0;
+    let tail = 0;
+    const visit = (index: number): void => {
+      if (oceanData[index] !== 0 || heightData[index]! > sea) return;
+      oceanData[index] = 1;
+      queue[tail++] = index;
+    };
+    for (let i = 0; i < TERRAIN_SIDE; i++) {
+      visit(i);
+      visit((TERRAIN_SIDE - 1) * TERRAIN_SIDE + i);
+      visit(i * TERRAIN_SIDE);
+      visit(i * TERRAIN_SIDE + TERRAIN_SIDE - 1);
+    }
+    while (head < tail) {
+      const index = queue[head++]!;
+      const x = index % TERRAIN_SIDE;
+      const z = Math.floor(index / TERRAIN_SIDE);
+      if (x > 0) visit(index - 1);
+      if (x < TERRAIN_SIDE - 1) visit(index + 1);
+      if (z > 0) visit(index - TERRAIN_SIDE);
+      if (z < TERRAIN_SIDE - 1) visit(index + TERRAIN_SIDE);
+    }
     terrainHeightTexture.needsUpdate = true;
+    oceanMaskTexture.needsUpdate = true;
     wetPositions.needsUpdate = true;
     wetColors.needsUpdate = true;
     wetShore.geometry.computeVertexNormals();
@@ -441,11 +504,7 @@ export function createLandingState(scene: Scene): WorldExperience {
         }
       });
     }
-    freshwaterPools.forEach((pool, index) => {
-      if (!pool.visible || !currentOutcome?.freshwater[index]) return;
-      const resolved = currentOutcome.freshwater[index];
-      pool.position.y = heightAt(resolved.x, resolved.z) + 0.1;
-    });
+    refreshFreshwater();
     lineageRenderers.forEach(({ previousSiteMarker: marker }) => {
       if (marker.visible) marker.position.y = heightAt(marker.position.x, marker.position.z) + 0.18;
     });
@@ -490,6 +549,7 @@ export function createLandingState(scene: Scene): WorldExperience {
   return {
     terrain,
     terrainHeightTexture,
+    oceanMaskTexture,
     sculpt,
     advance(years: number, totalYears: number, climate: ClimateForces) {
       revealed = true;
@@ -515,13 +575,15 @@ export function createLandingState(scene: Scene): WorldExperience {
       terrain.geometry.computeVertexNormals();
       syncShoreSurface();
       life.visible = true;
-      const snapshot = captureWorldSnapshot(heightAt, totalYears, climate);
+      const snapshot = currentSnapshot(totalYears);
       const resolution = resolveLanding(snapshot, worldHistory.lineages, years);
       const { outcome } = resolution;
       currentOutcome = outcome;
+      freshwater.setField(outcome.freshwaterField);
+      const protectedTerrain = withVegetationProtection(worldHistory.terrain, outcome.trees);
       worldHistory = {
         ...worldHistory,
-        terrain: withVegetationProtection(worldHistory.terrain, outcome.trees),
+        terrain: withGrazingPressure(protectedTerrain, outcome.populations, years),
         lineages: resolution.nextHistory,
       };
       validateWorldHistory(worldHistory);
@@ -540,6 +602,7 @@ export function createLandingState(scene: Scene): WorldExperience {
           renderer.previousSiteMarker.visible = false;
           return;
         }
+        const visibleAnimals = Math.max(1, Math.ceil((lineage.abundance ?? 0.34) * renderer.animals.length));
         renderer.animals.forEach((animal, herdIndex) => {
           applyGrazerTraits(animal, lineage.traits!);
           const angle = hash(herdIndex, renderer.seed + 92) * Math.PI * 2;
@@ -547,8 +610,8 @@ export function createLandingState(scene: Scene): WorldExperience {
           const x = site.x + Math.cos(angle) * radius;
           const z = site.z + Math.sin(angle) * radius;
           animal.position.set(x, heightAt(x, z), z);
-          animal.visible = lineage.visible;
-          animal.scale.setScalar(1.65);
+          animal.visible = lineage.visible && herdIndex < visibleAnimals;
+          animal.scale.setScalar(0.9);
           const state = renderer.navigation[herdIndex]!;
           state.path = [];
           state.waypoint = 0;
@@ -569,20 +632,12 @@ export function createLandingState(scene: Scene): WorldExperience {
         animal.userData.baseZ = resolved.z;
         animal.position.set(resolved.x, SEA_LEVEL[climate.seaLevel] + 0.2, resolved.z);
         animal.rotation.y = resolved.heading;
-        animal.scale.setScalar(resolved.scale * 1.45);
-      });
-      freshwaterPools.forEach((pool, index) => {
-        const resolved = outcome.freshwater[index];
-        pool.visible = resolved !== undefined;
-        if (!resolved) return;
-        pool.position.set(resolved.x, resolved.y + 0.13, resolved.z);
-        pool.rotation.y = hash(index, 283) * Math.PI;
-        pool.scale.set(resolved.radius * 1.35, 0.16, resolved.radius);
+        animal.scale.setScalar(resolved.scale);
       });
       aerialAnimals.forEach((bird, index) => {
         bird.visible = outcome.aerial.visible;
         bird.userData.phase = (index / aerialAnimals.length) * Math.PI * 2;
-        bird.scale.setScalar(1.45 + hash(index, 241) * 0.45);
+        bird.scale.setScalar(0.78 + hash(index, 241) * 0.2);
       });
       const [first, second] = worldHistory.lineages.lineages;
       return {
@@ -592,7 +647,8 @@ export function createLandingState(scene: Scene): WorldExperience {
           : undefined,
       };
     },
-    update(elapsed: number) {
+    update(elapsed: number, viewPosition?: Readonly<Vector3>) {
+      if (viewPosition) vegetation.updateLod(viewPosition);
       flushTerrainChanges();
       if (!revealed) return;
       const delta = Math.min(0.05, Math.max(0, elapsed - lastElapsed));
