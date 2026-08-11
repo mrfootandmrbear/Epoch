@@ -1,5 +1,7 @@
 # Emergent Food Web — Design Brief for Implementation
 
+> **Status note (2026-08-11):** This document preserves the original proposal and rationale. Steps 2 and 5 have substantially landed through persistent forage, forage-aware site scoring, grazing pressure, regrowth, lineage energy, abundance, and starvation. Use [WILDLIFE-ROADMAP.md](WILDLIFE-ROADMAP.md) for canonical status and current sequencing, including marine animals and coral.
+
 Animals should follow food sources. This creates emergent gameplay: complex, unscripted outcomes from simple rules interacting. The core idea is that every ecosystem layer (land, sea, air) references the others through food and habitat, forming feedback loops the player never directly controls but can influence through terrain sculpting and climate.
 
 ## The feedback loop
