@@ -20,6 +20,11 @@ import {
 } from "three/webgpu";
 import { resolveLanding } from "./outcome-resolver";
 import type { PopulationTraits } from "./population-traits";
+import {
+  createTerrainHistory,
+  resolveTerrainHistory,
+  withVegetationProtection,
+} from "./terrain-history";
 import { captureWorldSnapshot } from "./world-snapshot";
 import { findTerrainPath, isWalkable } from "./animal-navigation";
 import {
@@ -51,16 +56,30 @@ function terrainHeight(x: number, z: number): number {
   return island * (7 + ridge + highlands * island + weathering) - river * island - 3.2;
 }
 
-function terrainColor(height: number, x: number, z: number, climate: ClimateForces): Color {
+function terrainColor(
+  height: number,
+  x: number,
+  z: number,
+  climate: ClimateForces,
+  disturbance = 0,
+): Color {
   const variation = (hash(Math.floor(x / 8), Math.floor(z / 8)) - 0.5) * 0.07;
   const seaLevel = SEA_LEVEL[climate.seaLevel];
   const wetness = RAINFALL[climate.rainfall].moisture;
   const cold = climate.temperature === "cold";
   if (height < seaLevel + 0.8) return new Color(0.46 + variation, 0.38 + variation, 0.23);
   if (cold && height > 16) return new Color(0.72 + variation, 0.76 + variation, 0.72 + variation);
-  if (height < 8) return new Color(0.19 - wetness * 0.12 + variation, 0.32 + wetness * 0.2 + variation, 0.14);
-  if (height < 24) return new Color(0.12 - wetness * 0.08 + variation, 0.25 + wetness * 0.2 + variation, 0.1);
-  return new Color(0.27 + variation, 0.28 + variation, 0.22 + variation);
+  if (height < 8) return new Color(
+    0.19 - wetness * 0.12 + variation + disturbance * 0.2,
+    0.32 + wetness * 0.2 + variation - disturbance * 0.12,
+    0.14 - disturbance * 0.04,
+  );
+  if (height < 24) return new Color(
+    0.12 - wetness * 0.08 + variation + disturbance * 0.19,
+    0.25 + wetness * 0.2 + variation - disturbance * 0.1,
+    0.1,
+  );
+  return new Color(0.27 + variation + disturbance * 0.12, 0.28 + variation - disturbance * 0.08, 0.22);
 }
 
 function formedTerrainColor(height: number, x: number, z: number): Color {
@@ -321,14 +340,14 @@ export function createLandingState(scene: Scene): WorldExperience {
   scene.add(life);
   let revealed = false;
   let activeClimate: ClimateForces = { ...DEFAULT_CLIMATE };
-  let resolvedYears = 0;
   let lastElapsed = 0;
   let terrainDirty = false;
   const terrainPositions = terrain.geometry.attributes.position;
-  const formedHeights = new Float32Array(terrainPositions.count);
-  for (let i = 0; i < terrainPositions.count; i++) formedHeights[i] = terrainPositions.getY(i);
+  const initialHeights = new Float32Array(terrainPositions.count);
+  for (let i = 0; i < terrainPositions.count; i++) initialHeights[i] = terrainPositions.getY(i);
+  let terrainHistory = createTerrainHistory(initialHeights, TERRAIN_SIDE, TERRAIN_SIZE);
 
-  function formedHeightAt(x: number, z: number): number {
+  function heightAt(x: number, z: number): number {
     const gx = Math.max(0, Math.min(TERRAIN_SEGMENTS, (x + TERRAIN_HALF) / TERRAIN_STEP));
     const gz = Math.max(0, Math.min(TERRAIN_SEGMENTS, (z + TERRAIN_HALF) / TERRAIN_STEP));
     const x0 = Math.floor(gx);
@@ -337,27 +356,11 @@ export function createLandingState(scene: Scene): WorldExperience {
     const z1 = Math.min(TERRAIN_SEGMENTS, z0 + 1);
     const tx = gx - x0;
     const tz = gz - z0;
-    const a = formedHeights[z0 * TERRAIN_SIDE + x0]!;
-    const b = formedHeights[z0 * TERRAIN_SIDE + x1]!;
-    const c = formedHeights[z1 * TERRAIN_SIDE + x0]!;
-    const d = formedHeights[z1 * TERRAIN_SIDE + x1]!;
+    const a = terrainHistory.elevations[z0 * TERRAIN_SIDE + x0]!;
+    const b = terrainHistory.elevations[z0 * TERRAIN_SIDE + x1]!;
+    const c = terrainHistory.elevations[z1 * TERRAIN_SIDE + x0]!;
+    const d = terrainHistory.elevations[z1 * TERRAIN_SIDE + x1]!;
     return (a + (b - a) * tx) + ((c + (d - c) * tx) - (a + (b - a) * tx)) * tz;
-  }
-
-  function heightAt(x: number, z: number): number {
-    const formed = formedHeightAt(x, z);
-    const deepTime = Math.min(1, Math.max(0, (Math.log10(Math.max(1, resolvedYears)) - 3) / 3));
-    if (deepTime <= 0) return formed;
-    const step = 4;
-    const neighborhood = (
-      formedHeightAt(x + step, z) + formedHeightAt(x - step, z)
-      + formedHeightAt(x, z + step) + formedHeightAt(x, z - step)
-    ) * 0.25;
-    const erosion = RAINFALL[activeClimate.rainfall].erosion;
-    const smoothed = formed + (neighborhood - formed) * deepTime * Math.min(0.42, erosion * 0.2);
-    const sea = SEA_LEVEL[activeClimate.seaLevel];
-    const coastalRetreat = smoothed < sea + 5 ? deepTime * erosion * 1.15 : 0;
-    return Math.max(-5, smoothed - coastalRetreat);
   }
 
   let currentOutcome: ReturnType<typeof resolveLanding> | undefined;
@@ -458,14 +461,18 @@ export function createLandingState(scene: Scene): WorldExperience {
         const distance = Math.hypot(x - point.x, z - point.z);
         if (distance >= affectedRadius) continue;
         if (distance < radius) {
-          formedHeights[i] = Math.max(
+          terrainHistory.elevations[i] = Math.max(
             -5,
-            formedHeights[i]! + direction * 1.25 * Math.pow(1 - distance / radius, 2),
+            terrainHistory.elevations[i]! + direction * 1.25 * Math.pow(1 - distance / radius, 2),
           );
+          terrainHistory.disturbance[i] = 1;
+          terrainHistory.vegetationProtection[i] = 0;
         }
         const y = heightAt(x, z);
         positions.setY(i, y);
-        color.copy(revealed ? terrainColor(y, x, z, activeClimate) : formedTerrainColor(y, x, z));
+        color.copy(revealed
+          ? terrainColor(y, x, z, activeClimate, terrainHistory.disturbance[i])
+          : formedTerrainColor(y, x, z));
         colors.setXYZ(i, color.r, color.g, color.b);
       }
     }
@@ -476,19 +483,19 @@ export function createLandingState(scene: Scene): WorldExperience {
     terrain,
     terrainHeightTexture,
     sculpt,
-    advance(_years: number, totalYears: number, climate: ClimateForces) {
+    advance(years: number, totalYears: number, climate: ClimateForces) {
       revealed = true;
       activeClimate = { ...climate };
-      resolvedYears = totalYears;
+      terrainHistory = resolveTerrainHistory(terrainHistory, years, climate);
       const positions = terrain.geometry.attributes.position;
       const colors = terrain.geometry.attributes.color;
       const color = new Color();
       for (let i = 0; i < positions.count; i++) {
         const x = positions.getX(i);
         const z = positions.getZ(i);
-        const y = heightAt(x, z);
+        const y = terrainHistory.elevations[i]!;
         positions.setY(i, y);
-        color.copy(terrainColor(y, x, z, climate));
+        color.copy(terrainColor(y, x, z, climate, terrainHistory.disturbance[i]));
         colors.setXYZ(i, color.r, color.g, color.b);
       }
       colors.needsUpdate = true;
@@ -499,6 +506,7 @@ export function createLandingState(scene: Scene): WorldExperience {
       const snapshot = captureWorldSnapshot(heightAt, totalYears, climate);
       const outcome = resolveLanding(snapshot);
       currentOutcome = outcome;
+      terrainHistory = withVegetationProtection(terrainHistory, outcome.trees);
       const matrix = new Matrix4();
       const rotation = new Quaternion();
       outcome.trees.forEach((tree, index) => {

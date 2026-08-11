@@ -1,0 +1,111 @@
+import { RAINFALL, SEA_LEVEL, WIND, type ClimateForces } from "./climate";
+
+export interface VegetationSite {
+  x: number;
+  z: number;
+  scale: number;
+}
+
+/** Mutable world history is kept separate from immutable jump snapshots. */
+export interface TerrainHistory {
+  readonly side: number;
+  readonly extent: number;
+  readonly elevations: Float32Array;
+  readonly disturbance: Float32Array;
+  readonly vegetationProtection: Float32Array;
+}
+
+function clamp01(value: number): number {
+  return Math.min(1, Math.max(0, value));
+}
+
+export function createTerrainHistory(
+  elevations: Float32Array,
+  side: number,
+  extent: number,
+): TerrainHistory {
+  return {
+    side,
+    extent,
+    elevations: elevations.slice(),
+    disturbance: new Float32Array(elevations.length),
+    vegetationProtection: new Float32Array(elevations.length),
+  };
+}
+
+/** Apply one bounded, duration-scaled geomorphic pass to the previous landing. */
+export function resolveTerrainHistory(
+  previous: TerrainHistory,
+  jumpYears: number,
+  climate: Readonly<ClimateForces>,
+): TerrainHistory {
+  const { side, extent } = previous;
+  const nextElevations = previous.elevations.slice();
+  const nextDisturbance = new Float32Array(previous.disturbance.length);
+  const duration = clamp01(Math.log10(Math.max(1, jumpYears) + 1) / 6);
+  const erosion = RAINFALL[climate.rainfall].erosion;
+  const wind = WIND[climate.wind].exposure;
+  const sea = SEA_LEVEL[climate.seaLevel];
+
+  for (let z = 1; z < side - 1; z++) {
+    for (let x = 1; x < side - 1; x++) {
+      const index = z * side + x;
+      const elevation = previous.elevations[index]!;
+      const neighborhood = (
+        previous.elevations[index - 1]! + previous.elevations[index + 1]!
+        + previous.elevations[index - side]! + previous.elevations[index + side]!
+      ) * 0.25;
+      const relief = Math.abs(neighborhood - elevation);
+      const protection = previous.vegetationProtection[index]!;
+      const exposed = 1 - protection * 0.78;
+      const transport = duration * erosion * exposed * (0.055 + relief * 0.012);
+      const coastal = elevation < sea + 5
+        ? duration * erosion * exposed * clamp01((sea + 5 - elevation) / 7) * 0.72
+        : 0;
+      nextElevations[index] = Math.max(
+        -5,
+        elevation + (neighborhood - elevation) * Math.min(0.34, transport) - coastal,
+      );
+
+      const activity = clamp01((relief * 0.1 + coastal * 0.32) * erosion * exposed + duration * wind * 0.06);
+      const recovery = duration * (0.08 + protection * 0.42 + Math.max(0, RAINFALL[climate.rainfall].moisture) * 0.2);
+      nextDisturbance[index] = clamp01(previous.disturbance[index]! * (1 - recovery) + activity);
+    }
+  }
+
+  return {
+    side,
+    extent,
+    elevations: nextElevations,
+    disturbance: nextDisturbance,
+    // Protection describes the vegetation present during this jump. It is
+    // replaced after the new landing resolves, rather than inferred mid-jump.
+    vegetationProtection: previous.vegetationProtection.slice(),
+  };
+}
+
+export function withVegetationProtection(
+  history: TerrainHistory,
+  vegetation: readonly VegetationSite[],
+): TerrainHistory {
+  const protection = new Float32Array(history.elevations.length);
+  const step = history.extent / (history.side - 1);
+  const half = history.extent / 2;
+  for (const plant of vegetation) {
+    const centerX = Math.round((plant.x + half) / step);
+    const centerZ = Math.round((plant.z + half) / step);
+    const radius = Math.max(2, Math.ceil((4 + plant.scale * 1.8) / step));
+    for (let dz = -radius; dz <= radius; dz++) {
+      for (let dx = -radius; dx <= radius; dx++) {
+        const x = centerX + dx;
+        const z = centerZ + dz;
+        if (x < 0 || x >= history.side || z < 0 || z >= history.side) continue;
+        const distance = Math.hypot(dx, dz) / radius;
+        if (distance >= 1) continue;
+        const index = z * history.side + x;
+        protection[index] = Math.max(protection[index]!, (1 - distance) * 0.86);
+      }
+    }
+  }
+  return { ...history, vegetationProtection: protection };
+}
