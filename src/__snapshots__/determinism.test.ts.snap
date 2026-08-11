@@ -1,0 +1,166 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`epoch jump determinism > preserves the committed ecological baseline 1`] = `
+[
+  {
+    "lineages": [
+      {
+        "identity": "sheltered-grazer",
+        "site": {
+          "x": 22.953499521800225,
+          "z": 105.01824732107349,
+        },
+        "status": "active",
+        "traits": {
+          "bodyMass": 1.1700522142172713,
+          "coatLightness": 0.399482694007599,
+          "coatWarmth": 0.2441374502646168,
+          "footWidth": 1.2352835427476343,
+          "hornLength": 0.8558056849203483,
+          "insulation": 0.45363003237293886,
+          "legLength": 1.1199550566774454,
+        },
+      },
+      {
+        "identity": "ridge-grazer",
+        "status": "not-established",
+      },
+    ],
+    "totalYears": 100,
+  },
+  {
+    "lineages": [
+      {
+        "identity": "sheltered-grazer",
+        "site": {
+          "x": -112.18873258975368,
+          "z": -37.94855454916123,
+        },
+        "status": "active",
+        "traits": {
+          "bodyMass": 1.1436253100267952,
+          "coatLightness": 0.39459618001584174,
+          "coatWarmth": 0.2716417734202022,
+          "footWidth": 1.228144706614505,
+          "hornLength": 0.8761453030818904,
+          "insulation": 0.3874920635124962,
+          "legLength": 1.1273145854527953,
+        },
+      },
+      {
+        "identity": "ridge-grazer",
+        "site": {
+          "x": -4.267096948818859,
+          "z": 33.08982954453995,
+        },
+        "status": "active",
+        "traits": {
+          "bodyMass": 0.93,
+          "coatLightness": 0.6799999999999999,
+          "coatWarmth": 0.72,
+          "footWidth": 0.8750499298305723,
+          "hornLength": 1.2999999999999998,
+          "insulation": 0.34,
+          "legLength": 1.1846583116142246,
+        },
+      },
+    ],
+    "totalYears": 1100,
+  },
+  {
+    "lineages": [
+      {
+        "identity": "sheltered-grazer",
+        "site": {
+          "x": -111.57683405764446,
+          "z": -62.05162804688656,
+        },
+        "status": "active",
+        "traits": {
+          "bodyMass": 1.2018272063500273,
+          "coatLightness": 0.4177855871638444,
+          "coatWarmth": 0.24191550287135327,
+          "footWidth": 1.1895450771680682,
+          "hornLength": 0.8717922693588139,
+          "insulation": 0.5723547914121317,
+          "legLength": 1.1073239906399546,
+        },
+      },
+      {
+        "identity": "ridge-grazer",
+        "site": {
+          "x": -4.267096948818859,
+          "z": 33.08982954453995,
+        },
+        "status": "active",
+        "traits": {
+          "bodyMass": 1.0421541369225436,
+          "coatLightness": 0.6776071021834418,
+          "coatWarmth": 0.6072865196357744,
+          "footWidth": 0.8741549803238808,
+          "hornLength": 1.2935116160764866,
+          "insulation": 0.6115575180275162,
+          "legLength": 1.1808547762107857,
+        },
+      },
+    ],
+    "totalYears": 26100,
+  },
+  {
+    "lineages": [
+      {
+        "identity": "sheltered-grazer",
+        "site": {
+          "x": 29.33743733854591,
+          "z": -93.58147314286475,
+        },
+        "status": "active",
+        "traits": {
+          "bodyMass": 1.1654920803874111,
+          "coatLightness": 0.4065730132738115,
+          "coatWarmth": 0.26230265707888833,
+          "footWidth": 1.198155626643957,
+          "hornLength": 0.7832797851158169,
+          "insulation": 0.477573350798131,
+          "legLength": 1.0649918142391863,
+        },
+      },
+      {
+        "identity": "ridge-grazer",
+        "site": {
+          "x": -4.267096948818859,
+          "z": 33.08982954453995,
+        },
+        "status": "active",
+        "traits": {
+          "bodyMass": 1.0390385342306359,
+          "coatLightness": 0.7199017755458604,
+          "coatWarmth": 0.6108216299089436,
+          "footWidth": 0.8748261924538994,
+          "hornLength": 1.2983779040191215,
+          "insulation": 0.6508893795068791,
+          "legLength": 1.1837074277633648,
+        },
+      },
+      {
+        "identity": "sheltered-grazer",
+        "site": {
+          "x": 22.953499521800225,
+          "z": 105.01824732107349,
+        },
+        "status": "active",
+        "traits": {
+          "bodyMass": 1.1689121807598064,
+          "coatLightness": 0.40125527382415216,
+          "coatWarmth": 0.24867875196818467,
+          "footWidth": 1.226001563721715,
+          "hornLength": 0.8376742099692154,
+          "insulation": 0.4596158619792369,
+          "legLength": 1.1062142460678808,
+        },
+      },
+    ],
+    "totalYears": 1026100,
+  },
+]
+`;

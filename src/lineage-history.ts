@@ -1,8 +1,17 @@
-import type { PopulationIdentity, PopulationTraits } from "./population-traits";
+import {
+  clampPopulationTraits,
+  POPULATION_TRAIT_KEYS,
+  type PopulationIdentity,
+  type PopulationTraits,
+} from "./population-traits";
 
 export type LineageStatus = "not-established" | "active" | "extinct";
 
 export interface LineageState {
+  readonly id: string;
+  readonly parentId?: string;
+  readonly originAge: number;
+  readonly generation: number;
   readonly identity: PopulationIdentity;
   readonly status: LineageStatus;
   readonly site?: Readonly<{ x: number; z: number }>;
@@ -10,7 +19,7 @@ export interface LineageState {
 }
 
 export interface LineageHistory {
-  readonly lineages: readonly [LineageState, LineageState];
+  readonly lineages: readonly LineageState[];
 }
 
 export interface TraitChange {
@@ -18,21 +27,49 @@ export interface TraitChange {
   readonly after: number;
 }
 
+export type LineageEvent = "established" | "migrated" | "reanchored" | "speciated" | "extinct";
+
+export interface LineageHabitat {
+  readonly elevation: number;
+  readonly slope: number;
+  readonly moisture: number;
+  readonly exposure: number;
+  readonly drainage: number;
+  readonly coastalProductivity: number;
+  readonly nesting: number;
+  readonly lift: number;
+}
+
 export interface LineageChange {
+  readonly id: string;
+  readonly parentId?: string;
   readonly identity: PopulationIdentity;
   readonly previousStatus: LineageStatus;
   readonly status: LineageStatus;
   readonly moved: number;
   readonly reanchored?: boolean;
-  readonly bodyMass?: TraitChange;
-  readonly insulation?: TraitChange;
+  readonly event?: LineageEvent;
+  readonly habitat?: LineageHabitat;
+  readonly traits?: Partial<Readonly<Record<keyof PopulationTraits, TraitChange>>>;
 }
 
 export function createLineageHistory(): LineageHistory {
   return {
     lineages: [
-      { identity: "sheltered-grazer", status: "not-established" },
-      { identity: "ridge-grazer", status: "not-established" },
+      {
+        id: "sheltered-grazer:0",
+        originAge: 0,
+        generation: 0,
+        identity: "sheltered-grazer",
+        status: "not-established",
+      },
+      {
+        id: "ridge-grazer:0",
+        originAge: 0,
+        generation: 0,
+        identity: "ridge-grazer",
+        status: "not-established",
+      },
     ],
   };
 }
@@ -56,7 +93,7 @@ export function blendPopulationTraits(
   rate: number,
 ): PopulationTraits {
   const blend = (before: number, after: number) => before + (after - before) * rate;
-  return {
+  return clampPopulationTraits({
     bodyMass: blend(inherited.bodyMass, target.bodyMass),
     legLength: blend(inherited.legLength, target.legLength),
     footWidth: blend(inherited.footWidth, target.footWidth),
@@ -64,16 +101,23 @@ export function blendPopulationTraits(
     coatLightness: blend(inherited.coatLightness, target.coatLightness),
     coatWarmth: blend(inherited.coatWarmth, target.coatWarmth),
     hornLength: blend(inherited.hornLength, target.hornLength),
-  };
+  });
 }
 
 export function populationTraitDistance(
   first: Readonly<PopulationTraits>,
   second: Readonly<PopulationTraits>,
 ): number {
-  const keys: Array<keyof PopulationTraits> = [
-    "bodyMass", "legLength", "footWidth", "insulation",
-    "coatLightness", "coatWarmth", "hornLength",
-  ];
-  return Math.hypot(...keys.map((key) => first[key] - second[key]));
+  return Math.hypot(...POPULATION_TRAIT_KEYS.map((key) => first[key] - second[key]));
+}
+
+export function populationTraitChanges(
+  before: Readonly<PopulationTraits> | undefined,
+  after: Readonly<PopulationTraits>,
+): Partial<Readonly<Record<keyof PopulationTraits, TraitChange>>> | undefined {
+  if (!before) return undefined;
+  return Object.fromEntries(POPULATION_TRAIT_KEYS.map((key) => [
+    key,
+    { before: before[key], after: after[key] },
+  ])) as Partial<Readonly<Record<keyof PopulationTraits, TraitChange>>>;
 }

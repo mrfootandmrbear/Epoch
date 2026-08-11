@@ -1,0 +1,110 @@
+import { createLineageHistory, type LineageHistory, type LineageState } from "./lineage-history";
+import { assertPopulationTraits, type PopulationTraits } from "./population-traits";
+import { isPopulationIdentity } from "./population-archetypes";
+import { createTerrainHistory, type TerrainHistory } from "./terrain-history";
+
+export const WORLD_HISTORY_VERSION = 1 as const;
+
+export interface WorldHistory {
+  readonly version: typeof WORLD_HISTORY_VERSION;
+  readonly terrain: TerrainHistory;
+  readonly lineages: LineageHistory;
+}
+
+export function createWorldHistory(
+  elevations: Float32Array,
+  side: number,
+  extent: number,
+): WorldHistory {
+  return {
+    version: WORLD_HISTORY_VERSION,
+    terrain: createTerrainHistory(elevations, side, extent),
+    lineages: createLineageHistory(),
+  };
+}
+
+function requireRecord(value: unknown, context: string): Record<string, unknown> {
+  if (typeof value !== "object" || value === null) throw new TypeError(`${context} must be an object`);
+  return value as Record<string, unknown>;
+}
+
+function validateFloat32Field(
+  value: unknown,
+  expectedLength: number,
+  context: string,
+  unitInterval = false,
+): asserts value is Float32Array {
+  if (!(value instanceof Float32Array)) throw new TypeError(`${context} must be a Float32Array`);
+  if (value.length !== expectedLength) {
+    throw new RangeError(`${context} length must be ${expectedLength}, received ${value.length}`);
+  }
+  for (let index = 0; index < value.length; index++) {
+    const entry = value[index]!;
+    if (!Number.isFinite(entry) || (unitInterval && (entry < 0 || entry > 1))) {
+      const range = unitInterval ? "finite and within [0, 1]" : "finite";
+      throw new RangeError(`${context}[${index}] must be ${range}, received ${entry}`);
+    }
+  }
+}
+
+function validateLineage(value: unknown, ids: Set<string>, index: number): LineageState {
+  const context = `world history lineages[${index}]`;
+  const lineage = requireRecord(value, context);
+  if (typeof lineage.id !== "string" || lineage.id.length === 0) throw new TypeError(`${context}.id must be a non-empty string`);
+  if (ids.has(lineage.id)) throw new RangeError(`${context}.id duplicates ${lineage.id}`);
+  ids.add(lineage.id);
+  if (lineage.parentId !== undefined && typeof lineage.parentId !== "string") {
+    throw new TypeError(`${context}.parentId must be a string when present`);
+  }
+  if (!Number.isFinite(lineage.originAge) || (lineage.originAge as number) < 0) {
+    throw new RangeError(`${context}.originAge must be a non-negative finite number`);
+  }
+  if (!Number.isInteger(lineage.generation) || (lineage.generation as number) < 0) {
+    throw new RangeError(`${context}.generation must be a non-negative integer`);
+  }
+  if (!isPopulationIdentity(lineage.identity)) {
+    throw new RangeError(`${context}.identity is not recognized`);
+  }
+  if (lineage.status !== "not-established" && lineage.status !== "active" && lineage.status !== "extinct") {
+    throw new RangeError(`${context}.status is not recognized`);
+  }
+  if (lineage.site !== undefined) {
+    const site = requireRecord(lineage.site, `${context}.site`);
+    if (!Number.isFinite(site.x) || !Number.isFinite(site.z)) {
+      throw new RangeError(`${context}.site coordinates must be finite`);
+    }
+  }
+  if (lineage.traits !== undefined) {
+    assertPopulationTraits(lineage.traits as Readonly<PopulationTraits>, `${context}.traits`);
+  }
+  return lineage as unknown as LineageState;
+}
+
+export function validateWorldHistory(value: unknown): asserts value is WorldHistory {
+  const history = requireRecord(value, "world history");
+  if (history.version !== WORLD_HISTORY_VERSION) {
+    throw new RangeError(`world history version must be ${WORLD_HISTORY_VERSION}, received ${String(history.version)}`);
+  }
+
+  const terrain = requireRecord(history.terrain, "world history terrain");
+  if (!Number.isInteger(terrain.side) || (terrain.side as number) < 2) {
+    throw new RangeError("world history terrain.side must be an integer of at least 2");
+  }
+  if (!Number.isFinite(terrain.extent) || (terrain.extent as number) <= 0) {
+    throw new RangeError("world history terrain.extent must be a positive finite number");
+  }
+  const expectedLength = (terrain.side as number) ** 2;
+  validateFloat32Field(terrain.elevations, expectedLength, "world history terrain.elevations");
+  validateFloat32Field(terrain.disturbance, expectedLength, "world history terrain.disturbance", true);
+  validateFloat32Field(terrain.vegetationProtection, expectedLength, "world history terrain.vegetationProtection", true);
+
+  const lineageHistory = requireRecord(history.lineages, "world history lineage history");
+  if (!Array.isArray(lineageHistory.lineages)) throw new TypeError("world history lineages must be an array");
+  const ids = new Set<string>();
+  const validated = lineageHistory.lineages.map((lineage, index) => validateLineage(lineage, ids, index));
+  for (const [index, lineage] of validated.entries()) {
+    if (lineage.parentId !== undefined && !ids.has(lineage.parentId)) {
+      throw new RangeError(`world history lineages[${index}].parentId references missing ${lineage.parentId}`);
+    }
+  }
+}

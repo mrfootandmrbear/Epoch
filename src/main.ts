@@ -17,6 +17,8 @@ import { FFTOcean } from "./fft-ocean";
 import { createFFTOceanMesh } from "./fft-water";
 import { createLandingState } from "./landing-state";
 import type { LineageChange } from "./lineage-history";
+import { populationArchetype } from "./population-archetypes";
+import { POPULATION_TRAIT_KEYS } from "./population-traits";
 import {
   DEFAULT_CLIMATE,
   SEA_LEVEL,
@@ -121,20 +123,34 @@ function signed(value: number): string {
 }
 
 function renderLineageReport(changes: readonly LineageChange[], traitDistance?: number): void {
-  const names = { "sheltered-grazer": "Sheltered grazer", "ridge-grazer": "Ridge grazer" } as const;
+  const lineageName = (change: LineageChange): string => {
+    const label = populationArchetype(change.identity).label;
+    return change.id === `${change.identity}:0` ? label : `${label} · ${change.id}`;
+  };
   const rows = changes.map((change) => {
     if (change.status !== "active") {
-      return `<section><strong>${names[change.identity]}</strong><span>${change.status.replace("-", " ")}</span></section>`;
+      return `<section><strong>${lineageName(change)}</strong><span>${change.status.replace("-", " ")}</span></section>`;
     }
-    const movement = change.previousStatus === "active"
+    const movement = change.event === "speciated"
+      ? `branched from ${change.parentId} · isolated ${change.moved.toFixed(1)} units`
+      : change.previousStatus === "active"
       ? `${change.reanchored ? "site re-anchored" : "site moved"} ${change.moved.toFixed(1)} units`
       : "lineage established";
-    const traits = [change.bodyMass && ["mass", change.bodyMass], change.insulation && ["insulation", change.insulation]]
-      .filter((entry): entry is [string, { before: number; after: number }] => entry !== undefined)
-      .map(([label, trait]) => (
-        `<span>${label}: ${trait.before.toFixed(3)} → ${trait.after.toFixed(3)} (${signed(trait.after - trait.before)})</span>`
+    const traitLabels = {
+      bodyMass: "mass",
+      legLength: "legs",
+      footWidth: "feet",
+      insulation: "insulation",
+      coatLightness: "coat lightness",
+      coatWarmth: "coat warmth",
+      hornLength: "horns",
+    } as const;
+    const traits = POPULATION_TRAIT_KEYS
+      .flatMap((key) => change.traits?.[key] ? [[key, change.traits[key]] as const] : [])
+      .map(([key, trait]) => (
+        `<span>${traitLabels[key]}: ${trait.before.toFixed(3)} → ${trait.after.toFixed(3)} (${signed(trait.after - trait.before)})</span>`
       )).join("");
-    return `<section><strong>${names[change.identity]}</strong><span>${movement}</span>${traits}</section>`;
+    return `<section><strong>${lineageName(change)}</strong><span>${movement}</span>${traits}</section>`;
   }).join("");
   const divergence = traitDistance === undefined ? "" : `<footer>trait distance ${traitDistance.toFixed(3)}</footer>`;
   lineagePanelEl.innerHTML = rows + divergence;
