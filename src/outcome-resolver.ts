@@ -26,6 +26,7 @@ import {
   type LineageState,
   type LineageStatus,
 } from "./lineage-history";
+import { createMarineLineageHistory, resolveMarineLineages, type MarineLineageChange, type MarineLineageHistory, type MarinePopulationOutcome } from "./marine-lineage";
 
 export interface HabitatSample {
   elevation: number;
@@ -84,6 +85,7 @@ export interface PopulationOutcome {
 
 export interface CoastalAnimalOutcome {
   x: number;
+  y: number;
   z: number;
   heading: number;
   scale: number;
@@ -117,6 +119,13 @@ export interface AerialPopulationOutcome {
   visible: boolean;
 }
 
+export interface MarineEnergyExchange {
+  readonly primaryProductivity: number;
+  readonly nurseryCapacity: number;
+  readonly preyAvailability: number;
+  readonly shorelineSubsidy: number;
+}
+
 export interface LandingOutcome {
   trees: TreeOutcome[];
   seagrass: SeagrassOutcome[];
@@ -124,6 +133,8 @@ export interface LandingOutcome {
   freshwater: FreshwaterOutcome[];
   freshwaterField: FreshwaterField;
   coastalAnimals: CoastalAnimalOutcome[];
+  marinePopulations: readonly MarinePopulationOutcome[];
+  marineEnergy: MarineEnergyExchange;
   aerial: AerialPopulationOutcome;
 }
 
@@ -131,6 +142,8 @@ export interface LandingResolution {
   outcome: LandingOutcome;
   nextHistory: LineageHistory;
   changes: readonly LineageChange[];
+  nextMarineHistory: MarineLineageHistory;
+  marineChanges: readonly MarineLineageChange[];
 }
 
 type HeightAt = (x: number, z: number) => number;
@@ -524,6 +537,7 @@ export function resolveLanding(
   snapshot: WorldSnapshot,
   previousHistory: LineageHistory = createLineageHistory(),
   jumpYears = snapshot.totalYears,
+  previousMarineHistory: MarineLineageHistory = createMarineLineageHistory(),
 ): LandingResolution {
   const heightAt = (x: number, z: number) => snapshotHeightAt(snapshot, x, z);
   const forageAt = (x: number, z: number) => snapshotForageAt(snapshot, x, z);
@@ -659,22 +673,22 @@ export function resolveLanding(
   );
   if (speciation) lineageResolutions.push(speciation);
 
-  const coastalCandidates: Array<CoastalAnimalOutcome & { score: number }> = [];
+  const marineResolution = resolveMarineLineages(snapshot, previousMarineHistory, jumpYears);
+  const marineAbundance = marineResolution.outcomes.reduce((sum, population) => sum + (population.abundance ?? 0), 0)
+    / Math.max(1, marineResolution.outcomes.length);
+
   let aerialBest = { x: 0, z: 0, altitude: 22, radius: 24, visible: false, score: -Infinity };
+  let coastalEnergy = 0;
+  let coastalSamples = 0;
   for (let i = 0; i < 900; i++) {
     const angle = hash(i, 141) * Math.PI * 2;
     const radius = Math.sqrt(hash(i, 157)) * 148;
     const x = Math.cos(angle) * radius;
     const z = Math.sin(angle) * radius;
     const ecosystem = sampleEcosystem(heightAt, x, z, climate as ClimateForces);
-    if (ecosystem.coastalProductivity > 0.28) {
-      coastalCandidates.push({
-        x,
-        z,
-        heading: hash(i, 173) * Math.PI * 2,
-        scale: 0.75 + ecosystem.coastalProductivity * 0.7,
-        score: ecosystem.coastalProductivity + hash(i, 181) * 0.12,
-      });
+    if (ecosystem.elevation < seaLevel) {
+      coastalEnergy += ecosystem.coastalProductivity;
+      coastalSamples++;
     }
     const nearbyCoast = ecosystem.elevation > seaLevel + 1
       ? Math.max(
@@ -684,7 +698,8 @@ export function resolveLanding(
         sampleEcosystem(heightAt, x, z - 22, climate as ClimateForces).coastalProductivity,
       )
       : 0;
-    const aerialScore = ecosystem.nesting * 0.9 + ecosystem.lift * 0.55 + nearbyCoast * 0.85;
+    const aerialScore = ecosystem.nesting * 0.9 + ecosystem.lift * 0.55
+      + nearbyCoast * 0.62 + marineAbundance * 0.34;
     if (aerialScore > aerialBest.score) {
       aerialBest = {
         x,
@@ -696,14 +711,33 @@ export function resolveLanding(
       };
     }
   }
-  coastalCandidates.sort((a, b) => b.score - a.score);
   const freshwaterField = resolveFreshwaterField(snapshot, seaLevel, climate.rainfall);
   const freshwater = freshwaterField.basins;
   const saltwaterSeagrass = seagrass.filter((tuft) => !freshwater.some((pool) => (
     Math.hypot(tuft.x - pool.x, tuft.z - pool.z) < pool.radius + 2
   )));
-  const coastalAnimals = coastalCandidates.slice(0, totalYears >= 100 ? 10 : 0).map(({ score: _score, ...animal }) => animal);
+  const marine = marineResolution.outcomes.find((population) => population.visible && population.site);
+  const coastalAnimals = marine?.site
+    ? Array.from({ length: Math.max(1, Math.ceil((marine.abundance ?? 0.3) * 10)) }, (_, index) => ({
+      x: marine.site!.x + Math.cos(index * 2.399) * (2 + index * 0.65),
+      y: marine.site!.y,
+      z: marine.site!.z + Math.sin(index * 2.399) * (2 + index * 0.65),
+      heading: index * 2.399,
+      scale: 0.72 + (marine.traits?.bodySize ?? 0.5) * 0.72,
+    }))
+    : [];
   const { score: _aerialScore, ...aerial } = aerialBest;
+  const primaryProductivity = clamp01(coastalEnergy / Math.max(1, coastalSamples));
+  const nurseryCapacity = clamp01(primaryProductivity * 0.55 + saltwaterSeagrass.length / 900 * 0.45);
+  const preyAvailability = clamp01(primaryProductivity * 0.42 + nurseryCapacity * 0.28 + marineAbundance * 0.3);
+  const marineEnergy: MarineEnergyExchange = {
+    primaryProductivity,
+    nurseryCapacity,
+    preyAvailability,
+    // This is available to future shoreline scavengers, nesting colonies,
+    // and nutrient transport. Grazers do not consume it directly.
+    shorelineSubsidy: clamp01(preyAvailability * 0.24 + primaryProductivity * 0.12),
+  };
   const freshwaterEdges = trees.filter((tree) => !freshwater.some((pool) => (
     Math.hypot(tree.x - pool.x, tree.z - pool.z) < pool.radius + 3
   )));
@@ -715,11 +749,15 @@ export function resolveLanding(
       freshwater,
       freshwaterField,
       coastalAnimals,
+      marinePopulations: marineResolution.outcomes,
+      marineEnergy,
       aerial,
     },
     nextHistory: {
       lineages: lineageResolutions.map((resolution) => resolution.next),
     },
     changes: lineageResolutions.map((resolution) => resolution.change),
+    nextMarineHistory: marineResolution.history,
+    marineChanges: marineResolution.changes,
   };
 }

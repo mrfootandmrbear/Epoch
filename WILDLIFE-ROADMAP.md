@@ -38,14 +38,15 @@ Domains exchange shared signals such as forage, coastal productivity, nutrients,
 | Layer | Status | Present contract | Next proof |
 |---|---|---|---|
 | Shared snapshot | **Built** | One sampled terrain/climate/forage state supplies land, freshwater, coast, and air scoring. | Add explicit marine nutrient, wave-stress, and benthic substrate fields only when their first consumer is implemented. |
+| Water-volume habitat | **Built** as a bounded proof | Surface, midwater, and benthic nodes connect horizontally through open water and vertically within columns; body size controls shallow clearance. A separate benthic field records coral-facing depth, light, slope, and substrate stability. | Add current direction, oxygen, and persistent nutrients when the first consumer needs each field. |
 | Terrestrial lineages | **Built** | Persistent identity, site, seven-trait means, inheritance, migration, energy, abundance, extinction, and bounded deep-time speciation. | Replace primitive embodiment with one real fauna family and verify that trait extremes remain readable at gameplay distance. |
 | Play-speed land behavior | **Built** | Terrain-aware paths, herd cohesion/separation, and walkability are renderer-side embodiments of resolved populations. | Bias destination choice toward current forage without making local movement authoritative over epoch history. |
 | Freshwater | **Built** as habitat; **planned** as ecology | Drainage-fed basins are derived from the shared snapshot. | Define one ecological consumer before adding nutrient transport or freshwater wildlife. |
-| Marine animals | **Experimenting** | Coastal productivity places ephemeral swimmers; no persistent marine lineage exists. | Prove one persistent fish lineage driven by food, depth, temperature, and wave cost. |
+| Marine animals | **Built** for one lineage | A coastal-forager persists in connected 3D water bands with body-size clearance, depth choice, streamlining, maneuverability, depth control, thermal tolerance, energy, abundance, migration, and extinction. | Validate open-water and structurally complex trait extremes before authoring the fish brief. |
 | Aerial animals | **Planned** | Nesting, lift, and nearby coastal food place one ephemeral flock. | Generalize the population contract after the marine experiment; add ancestry only after an aerial trait/energy model works. |
 | Reef succession | **Planned** | No reef-site history or coral renderer exists. Seagrass proves submerged instancing, not reef ecology. | Prove colonization, persistent framework, disturbance, and recovery with one bounded coral growth family. |
-| Cross-domain food web | **Experimenting** | Forage drives land site choice, energy, abundance, grazing depletion, and regrowth. Other links remain heuristic. | Feed land vegetation/runoff into marine productivity, then expose fish food availability for birds. |
-| Lineage/colony history UI | **Built** for land reporting; **planned** beyond land | Land changes and ancestry are reported textually. | Add a readable branching view only after a second domain shares the history contract. |
+| Cross-domain food web | **Experimenting** | Forage drives land dynamics. Marine primary productivity, nursery capacity, fish abundance, prey availability, and shoreline subsidy form an explicit energy exchange; nesting aerial outcomes already read marine abundance. | Make runoff/nutrients persistent, then add one land or aerial consumer of prey/subsidy without feeding grazers implausibly. |
+| Lineage/colony history UI | **Built** for land and first fish reporting; **planned** for reefs | Land ancestry and fish condition/adaptation are reported textually. | Add domain-aware reef succession after the reef-site contract exists; defer a richer branching view until then. |
 
 ## Asset ledger
 
@@ -60,7 +61,7 @@ Domains exchange shared signals such as forage, coastal productivity, nutrients,
 
 No fauna or coral asset is currently a visual candidate. Primitive grazers, swimmers, and birds are integration adapters, not accepted wildlife.
 
-## Active experiment: persistent marine lineage
+## Completed experiment: persistent marine lineage
 
 **Hypothesis:** the existing population-level land machinery can generalize to water without per-frame swimming physics or a parallel simulation silo.
 
@@ -75,6 +76,10 @@ No fauna or coral asset is currently a visual candidate. Primitive grazers, swim
 5. Trait extremes form a viable brief for one fish asset family and remain legible in a gameplay-distance comparison.
 
 **Stop condition:** if marine needs cannot use a domain adapter over the existing lineage/history concepts, record the mismatch before generalizing further. Do not force fish into land-only types merely to claim reuse.
+
+**Result:** accepted as a separate marine domain adapter over shared migration/adaptation concepts. The first coastal-forager persists renderer-independent state, reacts predictably to sea-level and temperature change, becomes extinct without viable food habitat, validates in world history, replays deterministically, reports its condition after each jump, and drives the primitive swimmer adapter. Its semantic traits are body size, streamlining, depth preference, thermal tolerance, and the discrete tail-propulsion plan.
+
+The spatial follow-up replaced point-site movement with a coarse three-band water graph. Submerged relief can remove benthic or midwater passage without blocking surface passage; fish can route around closed columns; body size controls shallow-channel access. Maneuverability and depth control now complement streamlining, so reef-complexity and open-water pressures can reward different descendants. Marine state also records an origin domain and optional terrestrial ancestor seam, reserving credible grazer-to-amphibious-to-aquatic ancestry without triggering that transition before intermediate fitness is modeled.
 
 ## Next experiment: reef succession
 
@@ -125,14 +130,14 @@ The first asset family should still select one ecologically legible framework-bu
 
 ## Planned sequence
 
-1. **Marine population contract:** implement and test the active fish-lineage experiment.
-2. **Marine visual proof:** advance one fish family from brief through candidate; require owner visual judgment before acceptance.
+1. **Marine population contract — built:** the first coastal-forager lineage is persistent and tested.
+2. **Marine visual proof — next:** advance one fish family from brief through candidate; require owner visual judgment before acceptance.
 3. **Reef-site contract:** add persistent substrate suitability, recruitment, living cover, composition, framework, stress, competition, and connectivity.
 4. **Reef succession proof:** show bare connected substrate progressing through pioneers toward a young reef, then test one disturbance and its conditional recovery across later jumps.
 5. **Coral visual proof:** advance one reef-builder family through colony and gameplay-distance previews, seabed seating, living/bleached/dead states, candidate integration, and owner verdict.
 6. **Marine food exchange:** let vegetation/runoff and coral/seagrass habitat affect productivity; let fish consumption feed back at epoch scale.
 7. **Aerial persistence:** reuse the settled population concepts with nesting, lift, metabolic cost, and marine prey availability.
-8. **Cross-domain branching:** only then test rare land/coastal-to-air ancestry. It is a deep-time outcome, not a prerequisite for credible birds.
+8. **Cross-domain branching:** test rare land-to-water and land/coastal-to-air ancestry only through viable intermediate populations. Hippo-like semi-aquatic grazers and whale-like fully aquatic descendants should be divergent outcomes of shared ancestry, not archetype swaps.
 9. **History visualization:** present land, fish, bird, and reef histories with domain-appropriate relationships; reef succession should not be mislabeled as animal speciation.
 
 ## Deferred until earned

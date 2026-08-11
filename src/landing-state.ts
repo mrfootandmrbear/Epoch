@@ -27,6 +27,7 @@ import { createFreshwaterRenderer } from "./freshwater-renderer";
 import { resolveFreshwaterField } from "./freshwater-basins";
 import { captureWorldSnapshot } from "./world-snapshot";
 import { createWorldHistory, validateWorldHistory } from "./world-history";
+import type { MarineLineageChange } from "./marine-lineage";
 import { findTerrainPath, isWalkable } from "./animal-navigation";
 import {
   DEFAULT_CLIMATE,
@@ -333,6 +334,7 @@ export interface WorldExperience {
 
 export interface LineageReport {
   changes: readonly LineageChange[];
+  marineChanges: readonly MarineLineageChange[];
   traitDistance?: number;
 }
 
@@ -593,7 +595,7 @@ export function createLandingState(scene: Scene): WorldExperience {
       syncShoreSurface();
       life.visible = true;
       const snapshot = currentSnapshot(totalYears);
-      const resolution = resolveLanding(snapshot, worldHistory.lineages, years);
+      const resolution = resolveLanding(snapshot, worldHistory.lineages, years, worldHistory.marineLineages);
       const { outcome } = resolution;
       currentOutcome = outcome;
       freshwater.setField(outcome.freshwaterField);
@@ -602,6 +604,7 @@ export function createLandingState(scene: Scene): WorldExperience {
         ...worldHistory,
         terrain: withGrazingPressure(protectedTerrain, outcome.populations, years),
         lineages: resolution.nextHistory,
+        marineLineages: resolution.nextMarineHistory,
       };
       validateWorldHistory(worldHistory);
       vegetation.setTrees(outcome.trees, heightAt, SEA_LEVEL[activeClimate.seaLevel]);
@@ -648,7 +651,8 @@ export function createLandingState(scene: Scene): WorldExperience {
         if (!resolved) return;
         animal.userData.baseX = resolved.x;
         animal.userData.baseZ = resolved.z;
-        animal.position.set(resolved.x, SEA_LEVEL[climate.seaLevel] + 0.2, resolved.z);
+        animal.userData.baseY = resolved.y;
+        animal.position.set(resolved.x, resolved.y, resolved.z);
         animal.rotation.y = resolved.heading;
         animal.scale.setScalar(resolved.scale);
       });
@@ -660,6 +664,7 @@ export function createLandingState(scene: Scene): WorldExperience {
       const [first, second] = worldHistory.lineages.lineages;
       return {
         changes: resolution.changes,
+        marineChanges: resolution.marineChanges,
         traitDistance: first?.traits && second?.traits
           ? populationTraitDistance(first.traits, second.traits)
           : undefined,
@@ -744,15 +749,15 @@ export function createLandingState(scene: Scene): WorldExperience {
         animal.rotation.y = Math.atan2(-dz, dx);
         animal.position.y += Math.sin(elapsed * 7 + index) * 0.035;
       }));
-      const sea = SEA_LEVEL[activeClimate.seaLevel];
       coastalAnimals.forEach((animal, index) => {
         if (!animal.visible) return;
         const phase = elapsed * (0.22 + (index % 3) * 0.035) + index * 1.7;
         const baseX = animal.userData.baseX as number;
         const baseZ = animal.userData.baseZ as number;
+        const baseY = animal.userData.baseY as number;
         animal.position.x = baseX + Math.cos(phase) * 3.2;
         animal.position.z = baseZ + Math.sin(phase) * 2.1;
-        animal.position.y = sea + 0.16 + Math.sin(phase * 2) * 0.18;
+        animal.position.y = baseY + Math.sin(phase * 2) * 0.18;
         animal.rotation.y = -phase;
       });
       if (currentOutcome?.aerial.visible) {

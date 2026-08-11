@@ -16,9 +16,29 @@ describe("world history validation", () => {
     expect(() => validateWorldHistory(validHistory())).not.toThrow();
   });
 
+  it("rejects invalid persistent marine condition", () => {
+    const history = validHistory();
+    expect(() => validateWorldHistory({
+      ...history,
+      marineLineages: { lineages: [{ ...history.marineLineages.lineages[0], energy: 2 }] },
+    })).toThrow("world history marine lineages[0].energy must be within [0, 1]");
+  });
+
+  it("requires cross-domain marine ancestry to reference retained terrestrial history", () => {
+    const history = validHistory();
+    expect(() => validateWorldHistory({
+      ...history,
+      marineLineages: { lineages: [{
+        ...history.marineLineages.lineages[0],
+        originDomain: "terrestrial-transition",
+        ancestorLineageId: "missing-grazer:0",
+      }] },
+    })).toThrow("ancestorLineageId references missing terrestrial lineage");
+  });
+
   it("rejects state from another schema version", () => {
     expect(() => validateWorldHistory({ ...validHistory(), version: 0 }))
-      .toThrow("world history version must be 1, received 0");
+      .toThrow("world history version must be 3, received 0");
   });
 
   it("rejects terrain arrays that do not match the declared grid", () => {

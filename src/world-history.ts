@@ -2,13 +2,15 @@ import { createLineageHistory, type LineageHistory, type LineageState } from "./
 import { assertPopulationTraits, type PopulationTraits } from "./population-traits";
 import { isPopulationIdentity } from "./population-archetypes";
 import { createTerrainHistory, type TerrainHistory } from "./terrain-history";
+import { createMarineLineageHistory, validateMarineLineageHistory, type MarineLineageHistory } from "./marine-lineage";
 
-export const WORLD_HISTORY_VERSION = 1 as const;
+export const WORLD_HISTORY_VERSION = 3 as const;
 
 export interface WorldHistory {
   readonly version: typeof WORLD_HISTORY_VERSION;
   readonly terrain: TerrainHistory;
   readonly lineages: LineageHistory;
+  readonly marineLineages: MarineLineageHistory;
 }
 
 export function createWorldHistory(
@@ -21,6 +23,7 @@ export function createWorldHistory(
     version: WORLD_HISTORY_VERSION,
     terrain: createTerrainHistory(elevations, side, extent),
     lineages: includeTerrestrialFounders ? createLineageHistory() : { lineages: [] },
+    marineLineages: createMarineLineageHistory(),
   };
 }
 
@@ -113,6 +116,14 @@ export function validateWorldHistory(value: unknown): asserts value is WorldHist
   for (const [index, lineage] of validated.entries()) {
     if (lineage.parentId !== undefined && !ids.has(lineage.parentId)) {
       throw new RangeError(`world history lineages[${index}].parentId references missing ${lineage.parentId}`);
+    }
+  }
+  validateMarineLineageHistory(history.marineLineages);
+  const terrestrialIds = new Set(validated.map((lineage) => lineage.id));
+  for (const [index, marine] of history.marineLineages.lineages.entries()) {
+    if (marine.originDomain === "terrestrial-transition"
+      && (!marine.ancestorLineageId || !terrestrialIds.has(marine.ancestorLineageId))) {
+      throw new RangeError(`world history marine lineages[${index}].ancestorLineageId references missing terrestrial lineage`);
     }
   }
 }

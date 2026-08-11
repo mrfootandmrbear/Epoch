@@ -22,6 +22,8 @@ import { loadTreeGeometryAssets } from "./tree-geometry-assets";
 import { loadSeagrassGeometryAssets } from "./seagrass-geometry-assets";
 import type { LineageChange } from "./lineage-history";
 import { buildLineageReportHtml } from "./lineage-report";
+import { buildMarineLineageReportHtml } from "./marine-lineage-report";
+import type { MarineLineageChange } from "./marine-lineage";
 import { buildEpochStory } from "./epoch-story";
 import { createPresentationController, isGoldenShotName } from "./presentation";
 import {
@@ -211,8 +213,8 @@ function landingSummary(years: number, forces: ClimateForces, hasTerrestrialFoun
   return `Ancient descendants · ${climateLabel(forces)} deep-time coast`;
 }
 
-function renderLineageReport(changes: readonly LineageChange[], traitDistance?: number): void {
-  lineagePanelEl.innerHTML = buildLineageReportHtml(changes, traitDistance);
+function renderLineageReport(changes: readonly LineageChange[], marineChanges: readonly MarineLineageChange[], traitDistance?: number): void {
+  lineagePanelEl.innerHTML = buildLineageReportHtml(changes, traitDistance) + buildMarineLineageReportHtml(marineChanges);
   lineagePanelEl.classList.add("visible");
 }
 
@@ -333,11 +335,11 @@ jumpButtonEl.addEventListener("click", () => {
     const previousAge = totalYears;
     totalYears += jumpYears;
     const lineageReport = landingState.advance(jumpYears, totalYears, committedClimate);
-    renderLineageReport(lineageReport.changes, lineageReport.traitDistance);
+    renderLineageReport(lineageReport.changes, lineageReport.marineChanges, lineageReport.traitDistance);
     applyOceanForces(committedClimate);
     worldAgeEl.textContent = `Year ${totalYears.toLocaleString()}`;
     landingSummaryEl.textContent = landingSummary(totalYears, committedClimate, terrestrialFoundersIntroduced);
-    epochStoryEl.textContent = buildEpochStory(previousAge, lineageReport.changes, committedClimate);
+    epochStoryEl.textContent = buildEpochStory(previousAge, lineageReport.changes, committedClimate, lineageReport.marineChanges);
     epochCardEl.classList.add("visible");
   }, () => {
     jumped = false;

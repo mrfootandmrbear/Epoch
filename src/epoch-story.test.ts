@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_CLIMATE, type ClimateForces } from "./climate";
 import { buildEpochStory } from "./epoch-story";
 import type { LineageChange } from "./lineage-history";
+import type { MarineLineageChange } from "./marine-lineage";
 
 const change = (event: LineageChange["event"]): LineageChange => ({
   id: "sheltered-grazer:0",
@@ -27,5 +28,13 @@ describe("buildEpochStory", () => {
     const harsh: ClimateForces = { rainfall: "arid", temperature: "warm", wind: "easterly", seaLevel: "high" };
     expect(buildEpochStory(1_000, [change("reanchored"), { ...change("speciated"), id: "sheltered-grazer:0/a", parentId: "sheltered-grazer:0" }], harsh))
       .toBe("Since Year 1,000, heat and aridity reshaped the coast; 1 lineage found new ground, 1 new branch emerged.");
+  });
+
+  it("includes marine movement in the later landing summary", () => {
+    const marine: MarineLineageChange = {
+      id: "coastal-forager:0", previousStatus: "active", status: "active", moved: 38, event: "migrated",
+    };
+    expect(buildEpochStory(1_000, [], DEFAULT_CLIMATE, [marine]))
+      .toBe("Since Year 1,000, mild temperatures and seasonal rain reshaped the coast; 1 marine lineage shifted along the coast.");
   });
 });
