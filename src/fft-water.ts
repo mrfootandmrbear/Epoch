@@ -22,7 +22,6 @@ import {
   smoothstep,
   sub,
   texture,
-  time,
   transformNormalToView,
   varying,
   vec2,
@@ -65,6 +64,7 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): M
   const n = ocean.size;
   const patch = ocean.patchSize;
   const terrainSize = options.terrainSize ?? 380;
+  const sceneTime = ocean.clock;
 
   const geometry = new PlaneGeometry(size, size, segments, segments);
   geometry.rotateX(-Math.PI / 2);
@@ -91,7 +91,7 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): M
       const fadeEnd = layer.wavelength * 13;
 
       const layerFade = float(1.0).sub(smoothstep(fadeStart, fadeEnd, distV));
-      const phase = x.mul(kx).add(z.mul(kz)).add(time.mul(omega));
+      const phase = x.mul(kx).add(z.mul(kz)).add(sceneTime.mul(omega));
       h.addAssign(sin(phase).mul(layer.amplitude).mul(layerFade));
       dHdx.addAssign(cos(phase).mul(layer.amplitude * kx).mul(layerFade));
       dHdz.addAssign(cos(phase).mul(layer.amplitude * kz).mul(layerFade));
@@ -159,16 +159,16 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): M
     const amp = float(0.5).toVar();
     const freq = vec2(p).toVar();
 
-    value.addAssign(noise2(freq.add(vec2(time.mul(0.6), time.mul(-0.4)))).mul(amp));
+    value.addAssign(noise2(freq.add(vec2(sceneTime.mul(0.6), sceneTime.mul(-0.4)))).mul(amp));
     freq.mulAssign(2.17);
     amp.mulAssign(0.55);
-    value.addAssign(noise2(freq.add(vec2(time.mul(-0.9), time.mul(0.5)))).mul(amp));
+    value.addAssign(noise2(freq.add(vec2(sceneTime.mul(-0.9), sceneTime.mul(0.5)))).mul(amp));
     freq.mulAssign(2.31);
     amp.mulAssign(0.55);
-    value.addAssign(noise2(freq.add(vec2(time.mul(1.3), time.mul(0.8)))).mul(amp));
+    value.addAssign(noise2(freq.add(vec2(sceneTime.mul(1.3), sceneTime.mul(0.8)))).mul(amp));
     freq.mulAssign(2.05);
     amp.mulAssign(0.55);
-    value.addAssign(noise2(freq.add(vec2(time.mul(-1.6), time.mul(-1.1)))).mul(amp));
+    value.addAssign(noise2(freq.add(vec2(sceneTime.mul(-1.6), sceneTime.mul(-1.1)))).mul(amp));
 
     return value;
   });
@@ -220,7 +220,7 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): M
     const intersectionBand = smoothstep(0.03, 0.2, waterDepth)
       .mul(float(1).sub(smoothstep(0.2, 0.95, waterDepth)))
       .mul(insideTerrain);
-    const shorePulse = sin(time.mul(1.35).add(positionWorld.x.mul(0.045)).add(positionWorld.z.mul(0.03)))
+    const shorePulse = sin(sceneTime.mul(1.35).add(positionWorld.x.mul(0.045)).add(positionWorld.z.mul(0.03)))
       .mul(0.16).add(0.58);
     const shoreBreakup = smoothstep(0.58, 0.88, turb.add(shorePulse));
     const shoreFoam = intersectionBand.mul(shoreBreakup).mul(0.86)

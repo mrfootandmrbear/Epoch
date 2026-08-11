@@ -11,7 +11,7 @@ import {
   select,
   sin,
   sqrt,
-  time,
+  uniform,
   uint,
   vec2,
 } from "three/tsl";
@@ -128,6 +128,7 @@ export class FFTOcean {
   readonly heightBuffer: StorageBufferNode<"float">;
   readonly slopeXBuffer: StorageBufferNode<"float">;
   readonly slopeZBuffer: StorageBufferNode<"float">;
+  readonly clock = uniform(0);
 
   private renderer: WebGPURenderer;
   private perFramePasses: ComputeNode[] = [];
@@ -235,7 +236,7 @@ export class FFTOcean {
       const kz = float(signedIndex(y)).mul(twoPiOverPatch);
       const k = vec2(kx, kz).length().max(1e-6);
       const omega = sqrt(float(GRAVITY).mul(k));
-      const theta = omega.mul(time);
+      const theta = omega.mul(this.clock);
       const cosT = cos(theta);
       const sinT = sin(theta);
 
@@ -350,10 +351,11 @@ export class FFTOcean {
     this.perFramePasses = [evolvePass, ...heightPipeline, ...slopeXPipeline, ...slopeZPipeline];
   }
 
-  update(): void {
+  update(elapsed?: number): void {
     // One call with the whole array batches all passes into a single
     // command encoder/submit. Looping renderer.compute() per pass (the
     // original version of this) issued 58 separate submits every frame.
+    if (elapsed !== undefined) this.clock.value = elapsed;
     this.renderer.compute(this.perFramePasses);
   }
 }

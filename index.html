@@ -32,23 +32,70 @@
         top: 46px;
         left: 8px;
         z-index: 10;
-        width: 238px;
-        padding: 10px 12px;
+        width: 278px;
+        max-height: min(66vh, 620px);
+        overflow-y: auto;
+        padding: 11px 12px 12px;
         border: 1px solid rgba(255,255,255,.14);
         border-radius: 7px;
         color: rgba(245,240,229,.82);
         background: rgba(5,13,14,.66);
         backdrop-filter: blur(10px);
         font: 11px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
-        pointer-events: none;
+        pointer-events: auto;
         opacity: 0;
         transition: opacity 500ms ease;
       }
       #lineage-panel.visible { opacity: 1; }
-      #lineage-panel section + section { margin-top: 9px; }
-      #lineage-panel strong, #lineage-panel span { display: block; }
-      #lineage-panel strong { color: #f5f0e5; font: 600 11px/1.4 system-ui, sans-serif; }
+      #lineage-panel > header {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        margin-bottom: 9px;
+        color: rgba(245,240,229,.6);
+        font: 600 9px/1.2 system-ui, sans-serif;
+        letter-spacing: .16em;
+        text-transform: uppercase;
+      }
+      #lineage-panel > header strong { color: rgba(245,240,229,.86); letter-spacing: .04em; }
+      .lineage-node {
+        position: relative;
+        margin-left: calc(var(--depth) * 20px);
+        padding: 7px 8px 7px 10px;
+        border-left: 1px solid rgba(173,204,161,.34);
+        border-radius: 0 5px 5px 0;
+        background: rgba(255,255,255,.035);
+      }
+      .lineage-node + .lineage-node { margin-top: 6px; }
+      .lineage-node:not([style="--depth:0"])::before {
+        content: "";
+        position: absolute;
+        top: -7px;
+        left: -21px;
+        width: 19px;
+        height: 20px;
+        border-left: 1px solid rgba(173,204,161,.34);
+        border-bottom: 1px solid rgba(173,204,161,.34);
+        border-radius: 0 0 0 6px;
+      }
+      .lineage-node.extinct { opacity: .48; border-left-color: rgba(212,142,119,.6); }
+      .lineage-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+      .lineage-heading strong { color: #f5f0e5; font: 600 11px/1.35 system-ui, sans-serif; }
+      .lineage-event { color: rgba(190,218,176,.85); font-size: 9px; text-align: right; }
+      .lineage-event.speciated { color: #e8d99f; }
+      .lineage-event.extinct { color: #d99880; }
+      .lineage-id, .lineage-habitat { display: block; color: rgba(245,240,229,.45); font-size: 9px; }
+      .lineage-habitat { margin-top: 2px; color: rgba(173,204,190,.72); }
+      .lineage-traits { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 5px; }
+      .lineage-traits span {
+        padding: 2px 5px;
+        border-radius: 999px;
+        color: rgba(245,240,229,.76);
+        background: rgba(255,255,255,.07);
+        font-size: 9px;
+      }
       #lineage-panel footer { margin-top: 9px; padding-top: 7px; border-top: 1px solid rgba(255,255,255,.12); }
+      #lineage-panel footer strong { color: #f5f0e5; }
       #epoch-card {
         position: fixed;
         right: 28px;
@@ -106,6 +153,24 @@
         opacity: 0;
         transform: translate(-50%, 18px);
         pointer-events: none;
+      }
+      body.attract-mode #experience,
+      body.attract-mode #status,
+      body.attract-mode #lineage-panel,
+      body.attract-mode #epoch-card,
+      body.capture-mode #experience,
+      body.capture-mode #status,
+      body.capture-mode #lineage-panel,
+      body.capture-mode #epoch-card {
+        opacity: 0;
+        pointer-events: none;
+      }
+      body.capture-mode #experience,
+      body.capture-mode #status,
+      body.capture-mode #lineage-panel,
+      body.capture-mode #epoch-card {
+        visibility: hidden;
+        transition: none;
       }
       #form-title {
         margin: 0 0 5px;

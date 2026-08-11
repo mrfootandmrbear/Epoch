@@ -17,8 +17,8 @@ import { FFTOcean } from "./fft-ocean";
 import { createFFTOceanMesh } from "./fft-water";
 import { createLandingState } from "./landing-state";
 import type { LineageChange } from "./lineage-history";
-import { populationArchetype } from "./population-archetypes";
-import { POPULATION_TRAIT_KEYS } from "./population-traits";
+import { buildLineageReportHtml } from "./lineage-report";
+import { createPresentationController, isGoldenShotName } from "./presentation";
 import {
   DEFAULT_CLIMATE,
   SEA_LEVEL,
@@ -78,6 +78,26 @@ controls.maxPolarAngle = Math.PI / 2 + 0.3;
 controls.zoomToCursor = true;
 controls.zoomSpeed = 1.25;
 
+const captureParams = new URLSearchParams(window.location.search);
+const captureShot = captureParams.get("shot");
+const captureMode = isGoldenShotName(captureShot);
+const captureTime = Number(captureParams.get("time") ?? 42);
+let lastInteraction = performance.now() / 1000;
+const presentation = createPresentationController(camera, controls, (active) => {
+  document.body.classList.toggle("attract-mode", active);
+});
+if (captureMode) {
+  presentation.applyShot(captureShot);
+  document.body.classList.add("capture-mode");
+}
+
+for (const eventName of ["pointerdown", "wheel", "keydown", "touchstart"] as const) {
+  window.addEventListener(eventName, () => {
+    lastInteraction = performance.now() / 1000;
+    if (presentation.active) presentation.setActive(false);
+  }, { passive: true });
+}
+
 const sky = new SkyMesh();
 sky.scale.setScalar(10000);
 sky.sunPosition.value.copy(sunDirection).multiplyScalar(400000);
@@ -118,42 +138,8 @@ function landingSummary(years: number, forces: ClimateForces): string {
   return `Ancient descendants · ${climateLabel(forces)} deep-time coast`;
 }
 
-function signed(value: number): string {
-  return `${value >= 0 ? "+" : ""}${value.toFixed(4)}`;
-}
-
 function renderLineageReport(changes: readonly LineageChange[], traitDistance?: number): void {
-  const lineageName = (change: LineageChange): string => {
-    const label = populationArchetype(change.identity).label;
-    return change.id === `${change.identity}:0` ? label : `${label} · ${change.id}`;
-  };
-  const rows = changes.map((change) => {
-    if (change.status !== "active") {
-      return `<section><strong>${lineageName(change)}</strong><span>${change.status.replace("-", " ")}</span></section>`;
-    }
-    const movement = change.event === "speciated"
-      ? `branched from ${change.parentId} · isolated ${change.moved.toFixed(1)} units`
-      : change.previousStatus === "active"
-      ? `${change.reanchored ? "site re-anchored" : "site moved"} ${change.moved.toFixed(1)} units`
-      : "lineage established";
-    const traitLabels = {
-      bodyMass: "mass",
-      legLength: "legs",
-      footWidth: "feet",
-      insulation: "insulation",
-      coatLightness: "coat lightness",
-      coatWarmth: "coat warmth",
-      hornLength: "horns",
-    } as const;
-    const traits = POPULATION_TRAIT_KEYS
-      .flatMap((key) => change.traits?.[key] ? [[key, change.traits[key]] as const] : [])
-      .map(([key, trait]) => (
-        `<span>${traitLabels[key]}: ${trait.before.toFixed(3)} → ${trait.after.toFixed(3)} (${signed(trait.after - trait.before)})</span>`
-      )).join("");
-    return `<section><strong>${lineageName(change)}</strong><span>${movement}</span>${traits}</section>`;
-  }).join("");
-  const divergence = traitDistance === undefined ? "" : `<footer>trait distance ${traitDistance.toFixed(3)}</footer>`;
-  lineagePanelEl.innerHTML = rows + divergence;
+  lineagePanelEl.innerHTML = buildLineageReportHtml(changes, traitDistance);
   lineagePanelEl.classList.add("visible");
 }
 
@@ -307,15 +293,26 @@ async function start() {
 
   rendererReady = true;
   applyOceanForces(DEFAULT_CLIMATE);
+  if (captureMode) {
+    const captureYears = Number(captureParams.get("years") ?? 10_000);
+    landingState.advance(captureYears, captureYears, DEFAULT_CLIMATE);
+    landingState.update(captureTime);
+  }
 
   let frameCount = 0;
   let fpsWindowStart = performance.now();
 
   renderer.setAnimationLoop(() => {
-    fftOcean?.update();
-    landingState.update(performance.now() / 1000);
-    controls.update();
+    const elapsed = captureMode ? captureTime : performance.now() / 1000;
+    if (!captureMode && !presentation.active && elapsed - lastInteraction >= 25 && formTool === "look" && !jumped) {
+      presentation.setActive(true, elapsed);
+    }
+    fftOcean?.update(elapsed);
+    landingState.update(elapsed);
+    presentation.update(elapsed);
+    if (!presentation.active) controls.update();
     renderer.render(scene, camera);
+    if (captureMode) document.documentElement.dataset.captureReady = "true";
 
     // requestAnimationFrame (which this runs on) is suspended by the browser
     // for hidden/unfocused tabs, so this reading is only meaningful in a
