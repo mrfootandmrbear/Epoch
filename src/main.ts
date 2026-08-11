@@ -20,6 +20,7 @@ import type { LineageChange } from "./lineage-history";
 import { buildLineageReportHtml } from "./lineage-report";
 import { createPresentationController, isGoldenShotName } from "./presentation";
 import { sampleAtmosphere, type AtmosphereProfile } from "./atmosphere";
+import { createEpochRenderPipeline, readPostProcessingOptions } from "./post-processing";
 import {
   DEFAULT_CLIMATE,
   SEA_LEVEL,
@@ -83,6 +84,7 @@ const captureParams = new URLSearchParams(window.location.search);
 const captureShot = captureParams.get("shot");
 const captureMode = isGoldenShotName(captureShot);
 const captureTime = Number(captureParams.get("time") ?? 42);
+const postProcessingOptions = readPostProcessingOptions(captureParams);
 let lastInteraction = performance.now() / 1000;
 const presentation = createPresentationController(camera, controls, (active) => {
   document.body.classList.toggle("attract-mode", active);
@@ -135,6 +137,7 @@ function updateAtmosphere(elapsed: number): void {
   ambientLight.intensity = state.ambientIntensity;
   scene.fog?.color.copy(state.fogColor);
   renderer.toneMappingExposure = state.exposure;
+  renderPipeline?.setProfile(profile);
 }
 
 const landingState = createLandingState(scene);
@@ -261,6 +264,7 @@ jumpButtonEl.addEventListener("click", () => {
 let fftOcean: FFTOcean | undefined;
 let oceanMesh: ReturnType<typeof createFFTOceanMesh> | undefined;
 let rendererReady = false;
+let renderPipeline: ReturnType<typeof createEpochRenderPipeline> | undefined;
 const oceanCache = new Map<WindRegime, {
   ocean: FFTOcean;
   mesh: ReturnType<typeof createFFTOceanMesh>;
@@ -278,6 +282,7 @@ function applyOceanForces(forces: ClimateForces): void {
       windDirectionDeg: wind.x < 0 ? 180 : 0,
       fetch: 800000,
       amplitudeScale: 1,
+      randomSeed: captureMode ? 0xe90c4 : undefined,
     });
     const mesh = createFFTOceanMesh(ocean, {
       sunDirection,
@@ -305,6 +310,7 @@ window.addEventListener("resize", resize);
 async function start() {
   try {
     await renderer.init();
+    renderPipeline = createEpochRenderPipeline(renderer, scene, camera, postProcessingOptions);
     const isWebGPU = (renderer.backend as { isWebGPUBackend?: boolean }).isWebGPUBackend === true;
     statusEl.textContent = `backend: ${isWebGPU ? "WebGPU" : "WebGL2 (fallback)"}`;
   } catch (err) {
@@ -334,7 +340,7 @@ async function start() {
     landingState.update(elapsed);
     presentation.update(elapsed);
     if (!presentation.active) controls.update();
-    renderer.render(scene, camera);
+    renderPipeline!.render();
     if (captureMode) document.documentElement.dataset.captureReady = "true";
 
     // requestAnimationFrame (which this runs on) is suspended by the browser

@@ -62,13 +62,25 @@ function bitReverse(x: number, bits: number): number {
   return result;
 }
 
+// Mulberry32 is compact and stable across browsers; it is not for simulation identity.
+export function createSeededRandom(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state += 0x6d2b79f5;
+    let value = state;
+    value = Math.imul(value ^ (value >>> 15), value | 1);
+    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 // Box-Muller: two independent standard normal samples per grid point.
-function buildGaussianNoise(n: number): Float32Array {
+function buildGaussianNoise(n: number, random: () => number): Float32Array {
   const data = new Float32Array(n * n * 2);
   for (let i = 0; i < n * n; i++) {
-    let u1 = Math.random();
-    while (u1 <= Number.EPSILON) u1 = Math.random();
-    const u2 = Math.random();
+    let u1 = random();
+    while (u1 <= Number.EPSILON) u1 = random();
+    const u2 = random();
     const r = Math.sqrt(-2 * Math.log(u1));
     data[i * 2 + 0] = r * Math.cos(2 * Math.PI * u2);
     data[i * 2 + 1] = r * Math.sin(2 * Math.PI * u2);
@@ -119,6 +131,7 @@ export interface FFTOceanOptions {
   windSharpness?: number; // directional-spreading exponent
   fetch?: number; // meters, JONSWAP fetch
   amplitudeScale?: number; // tunable overall wave-height multiplier
+  randomSeed?: number; // fixed initial spectrum for deterministic captures
 }
 
 export class FFTOcean {
@@ -152,7 +165,8 @@ export class FFTOcean {
     for (let i = 0; i < n; i++) bitrev[i] = bitReverse(i, Math.log2(n));
 
     // --- buffers ---
-    const noise = instancedArray(buildGaussianNoise(n), "vec2");
+    const random = options.randomSeed === undefined ? Math.random : createSeededRandom(options.randomSeed);
+    const noise = instancedArray(buildGaussianNoise(n, random), "vec2");
     const bitrevBuf = instancedArray(bitrev, "uint");
     const lutIdx = instancedArray(lut.indices, "uvec2");
     const lutTwid = instancedArray(lut.twiddles, "vec2");

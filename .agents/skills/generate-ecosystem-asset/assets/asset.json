@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "replace-me",
+  "displayName": "Replace Me",
+  "category": "animal",
+  "stage": "brief",
+  "role": "grazing herbivore",
+  "habitats": ["temperate lowland"],
+  "realWorldReferents": ["a familiar real-world analogue"],
+  "silhouette": "Describe the gameplay-distance silhouette.",
+  "paletteFamily": "epoch-natural-a",
+  "scaleMeters": { "min": 1, "max": 2 },
+  "traits": {
+    "continuous": [],
+    "discrete": []
+  },
+  "source": {
+    "tool": "unselected",
+    "files": [],
+    "procedure": "To be selected during the source stage."
+  },
+  "previews": [],
+  "exports": [],
+  "lods": [],
+  "animations": { "required": ["idle", "walk"] },
+  "showcase": "",
+  "acceptance": { "verdict": "" }
+}

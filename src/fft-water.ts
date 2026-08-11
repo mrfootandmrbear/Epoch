@@ -46,8 +46,6 @@ const CHOP_LAYERS: ChopLayer[] = [
   { angleDeg: 205, amplitude: 0.18, wavelength: 5, speed: 2.7 },
   { angleDeg: 33, amplitude: 0.12, wavelength: 3.6, speed: 3.1 },
 ];
-const MAX_CHOP_HEIGHT = CHOP_LAYERS.reduce((sum, layer) => sum + layer.amplitude, 0);
-
 export interface FFTWaterOptions {
   size?: number;
   segments?: number;
@@ -202,20 +200,10 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): M
 
     const albedo = mix(baseWater, mirror.rgb, fresnel).add(specular);
 
-    // High sea state: turbulence is the actual foam *shape* (a threshold on
-    // just 3-4 clean sine layers reads as a repeating interference lattice
-    // no matter how it's post-processed — tried that first, kept the
-    // polka-dot grid at any distance). Chop crest/slope only biases *where*
-    // foam is more likely, it doesn't draw the pattern itself.
+    // Turbulence only breaks up the shoreline ribbon below. Thresholding it
+    // across open water produces isolated pale blobs that read as polka dots
+    // from the island cameras, even when biased toward active wave crests.
     const turb = foamTurbulence(vec2(positionWorld.x.mul(0.018), positionWorld.z.mul(0.072)));
-    const chopSlope = vec2(chop.y, chop.z).length();
-    const waveActivity = clamp(
-      chop.x.div(MAX_CHOP_HEIGHT * 0.4).add(chopSlope.mul(1.2)),
-      0,
-      1.0,
-    );
-    const foamMask = smoothstep(0.76, 0.98, turb.add(waveActivity.mul(0.28)));
-    const openWaterFoam = foamMask.mul(0.58).mul(float(1.0).sub(distFade));
 
     // A broken, moving ribbon where the displaced water surface meets land.
     const intersectionBand = smoothstep(0.03, 0.2, waterDepth)
@@ -226,7 +214,7 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): M
     const shoreBreakup = smoothstep(0.58, 0.88, turb.add(shorePulse));
     const shoreFoam = intersectionBand.mul(shoreBreakup).mul(0.86)
       .mul(float(1).sub(distFade.mul(0.55)));
-    const foamFactor = max(openWaterFoam, shoreFoam);
+    const foamFactor = shoreFoam;
 
     return mix(albedo, foamColor, foamFactor);
   })();

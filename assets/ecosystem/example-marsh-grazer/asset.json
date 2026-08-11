@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "id": "example-marsh-grazer",
+  "displayName": "Example Marsh Grazer",
+  "category": "animal",
+  "stage": "brief",
+  "role": "wetland grazing herbivore",
+  "habitats": ["seasonally inundated marsh", "wet meadow"],
+  "realWorldReferents": ["capybara for a low amphibious body", "marsh deer for long wet-ground limbs"],
+  "silhouette": "A low barrel body carried on visibly long legs, with a blunt grazing head and no ornamental anatomy.",
+  "paletteFamily": "epoch-marsh-umber",
+  "scaleMeters": { "min": 1.1, "max": 1.8 },
+  "traits": {
+    "continuous": [
+      {
+        "name": "limbLength",
+        "driver": "inundation depth and soft substrate",
+        "range": [0.85, 1.25]
+      }
+    ],
+    "discrete": [
+      {
+        "name": "footPlan",
+        "driver": "persistent inundation",
+        "variants": ["compact hoof", "splayed wet-ground hoof"]
+      }
+    ]
+  },
+  "source": {
+    "tool": "unselected",
+    "files": [],
+    "procedure": "Select Foxel and define the shared rig when this example advances to source."
+  },
+  "previews": [],
+  "exports": [],
+  "lods": [],
+  "animations": { "required": ["idle", "walk"] },
+  "showcase": "",
+  "acceptance": { "verdict": "" }
+}

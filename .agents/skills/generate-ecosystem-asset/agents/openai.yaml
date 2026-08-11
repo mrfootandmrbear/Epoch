@@ -1,0 +1,4 @@
+interface:
+  display_name: "Generate Ecosystem Asset"
+  short_description: "Create validated Epoch flora and fauna asset packages"
+  default_prompt: "Use $generate-ecosystem-asset to create or plan a validated Epoch ecosystem asset package."
