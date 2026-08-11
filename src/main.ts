@@ -22,6 +22,7 @@ import { loadTreeGeometryAssets } from "./tree-geometry-assets";
 import { loadSeagrassGeometryAssets } from "./seagrass-geometry-assets";
 import type { LineageChange } from "./lineage-history";
 import { buildLineageReportHtml } from "./lineage-report";
+import { buildEpochStory } from "./epoch-story";
 import { createPresentationController, isGoldenShotName } from "./presentation";
 import {
   createRevealController,
@@ -56,6 +57,7 @@ const jumpYearsEl = document.getElementById("jump-years") as HTMLSelectElement;
 const jumpButtonEl = document.getElementById("jump") as HTMLButtonElement;
 const worldAgeEl = document.getElementById("world-age")!;
 const landingSummaryEl = document.getElementById("landing-summary")!;
+const epochStoryEl = document.getElementById("epoch-story")!;
 const rainfallEl = document.getElementById("rainfall") as HTMLSelectElement;
 const temperatureEl = document.getElementById("temperature") as HTMLSelectElement;
 const windEl = document.getElementById("wind") as HTMLSelectElement;
@@ -316,12 +318,14 @@ jumpButtonEl.addEventListener("click", () => {
   const treatment = revealTreatmentEl.value as RevealTreatmentName;
   reveal.captureBefore(renderer.domElement);
   reveal.play(treatment, jumpYears, () => {
+    const previousAge = totalYears;
     totalYears += jumpYears;
     const lineageReport = landingState.advance(jumpYears, totalYears, committedClimate);
     renderLineageReport(lineageReport.changes, lineageReport.traitDistance);
     applyOceanForces(committedClimate);
     worldAgeEl.textContent = `Year ${totalYears.toLocaleString()}`;
     landingSummaryEl.textContent = landingSummary(totalYears, committedClimate);
+    epochStoryEl.textContent = buildEpochStory(previousAge, lineageReport.changes, committedClimate);
     epochCardEl.classList.add("visible");
   }, () => {
     jumped = false;
