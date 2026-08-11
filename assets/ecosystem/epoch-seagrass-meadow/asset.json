@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "id": "epoch-seagrass-meadow",
+  "displayName": "Epoch Seagrass Meadow",
+  "category": "plant",
+  "stage": "accepted",
+  "role": "shallow-water nursery cover and a visible marker of sheltered coastal productivity",
+  "habitats": ["sheltered saltwater shallows", "gently sloping soft-sediment lagoon"],
+  "realWorldReferents": ["eelgrass meadows", "turtle grass beds"],
+  "silhouette": "Dense low ribbons rise from the seabed in uneven tufts, leaning together with the current while leaving the water surface unobstructed.",
+  "paletteFamily": "epoch-lagoon-green",
+  "scaleMeters": { "min": 0.35, "max": 1.4 },
+  "traits": {
+    "continuous": [
+      { "name": "bladeHeight", "driver": "coastal productivity and local shelter", "range": [0.35, 1.4] },
+      { "name": "tuftSpread", "driver": "gentle substrate and meadow density", "range": [0.55, 1.35] },
+      { "name": "currentLean", "driver": "wave exposure and prevailing current", "range": [0.08, 0.32] },
+      { "name": "bladeColor", "driver": "depth and productivity", "range": [0.27, 0.38] }
+    ],
+    "discrete": [
+      { "name": "lodGeometry", "driver": "camera distance", "variants": ["near-thirteen-blade", "far-five-blade"] }
+    ]
+  },
+  "source": {
+    "tool": "Epoch seeded build-time ribbon generator",
+    "files": ["source/generate-seagrass.mjs"],
+    "procedure": "Run npm run asset:seagrass:generate. The deterministic generator emits near and far tuft geometry in normalized plant space; runtime code only loads, instances, colors, scales, and deforms the cached export."
+  },
+  "previews": [
+    "previews/front-meadow.png",
+    "previews/side-waterline.png",
+    "previews/top-whole-island.png",
+    "previews/game-distance-shoreline.png",
+    "previews/wind-current-sway.png"
+  ],
+  "exports": ["runtime/seagrass-geometries.json"],
+  "lods": [
+    { "name": "near", "file": "runtime/seagrass-geometries.json", "maxTriangles": 52 },
+    { "name": "far", "file": "runtime/seagrass-geometries.json", "maxTriangles": 20 }
+  ],
+  "animations": { "required": ["current-sway"] },
+  "showcase": "previews/front-meadow.png",
+  "acceptance": {
+    "verdict": "Owner approved the in-engine meadow on 2026-08-11: good work; this is great, with density and color refinements explicitly safe to revisit later."
+  }
+}

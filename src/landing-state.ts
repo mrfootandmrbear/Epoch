@@ -22,6 +22,7 @@ import { lineageSeed, type PopulationIdentity } from "./population-archetypes";
 import type { PopulationTraits } from "./population-traits";
 import { resolveTerrainHistory, withGrazingPressure, withVegetationProtection } from "./terrain-history";
 import { createVegetationRenderer } from "./vegetation-renderer";
+import { createSeagrassRenderer } from "./seagrass-renderer";
 import { createFreshwaterRenderer } from "./freshwater-renderer";
 import { resolveFreshwaterField } from "./freshwater-basins";
 import { captureWorldSnapshot } from "./world-snapshot";
@@ -344,6 +345,7 @@ export function createLandingState(scene: Scene): WorldExperience {
   const life = new Group();
   life.visible = false;
   const vegetation = createVegetationRenderer(life);
+  const seagrass = createSeagrassRenderer(life);
   const lineageRenderers = new Map<string, LineageRenderState>();
   const freshwater = createFreshwaterRenderer(life);
   const coastalAnimals = addCoastalSwimmers(life);
@@ -489,6 +491,7 @@ export function createLandingState(scene: Scene): WorldExperience {
   function groundLife(): void {
     if (currentOutcome) {
       vegetation.setTrees(currentOutcome.trees, heightAt, SEA_LEVEL[activeClimate.seaLevel]);
+      seagrass.setMeadow(currentOutcome.seagrass, heightAt);
     }
     for (const renderer of lineageRenderers.values()) {
       const habitatVisible = currentOutcome?.populations.some(
@@ -588,6 +591,7 @@ export function createLandingState(scene: Scene): WorldExperience {
       };
       validateWorldHistory(worldHistory);
       vegetation.setTrees(outcome.trees, heightAt, SEA_LEVEL[activeClimate.seaLevel]);
+      seagrass.setMeadow(outcome.seagrass, heightAt);
       for (const renderer of lineageRenderers.values()) {
         if (!outcome.populations.some((lineage) => lineage.id === renderer.id)) {
           renderer.animals.forEach((animal) => { animal.visible = false; });
@@ -648,7 +652,10 @@ export function createLandingState(scene: Scene): WorldExperience {
       };
     },
     update(elapsed: number, viewPosition?: Readonly<Vector3>) {
-      if (viewPosition) vegetation.updateLod(viewPosition);
+      if (viewPosition) {
+        vegetation.updateLod(viewPosition);
+        seagrass.update(elapsed, viewPosition);
+      }
       flushTerrainChanges();
       if (!revealed) return;
       const delta = Math.min(0.05, Math.max(0, elapsed - lastElapsed));

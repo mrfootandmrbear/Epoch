@@ -19,6 +19,7 @@ import { FFTOcean } from "./fft-ocean";
 import { createFFTOceanMesh } from "./fft-water";
 import { createLandingState } from "./landing-state";
 import { loadTreeGeometryAssets } from "./tree-geometry-assets";
+import { loadSeagrassGeometryAssets } from "./seagrass-geometry-assets";
 import type { LineageChange } from "./lineage-history";
 import { buildLineageReportHtml } from "./lineage-report";
 import { createPresentationController, isGoldenShotName } from "./presentation";
@@ -146,7 +147,7 @@ function updateAtmosphere(elapsed: number): void {
   renderPipeline?.setProfile(profile);
 }
 
-await loadTreeGeometryAssets();
+await Promise.all([loadTreeGeometryAssets(), loadSeagrassGeometryAssets()]);
 const landingState = createLandingState(scene);
 const raycaster = new Raycaster();
 const pointer = new Vector2();

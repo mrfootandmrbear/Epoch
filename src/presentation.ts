@@ -6,6 +6,7 @@ export const GOLDEN_SHOTS = {
   "ridge-silhouette": { position: [-118, 38, 154], target: [-18, 27, -8] },
   shoreline: { position: [82, 7, 119], target: [26, 3, 20] },
   "wave-height": { position: [121, 4.8, 148], target: [28, 3.2, 24] },
+  "seagrass-meadow": { position: [96, 20, 132], target: [48, -1.5, 62] },
   "forest-interior": { position: [-54, 9, 18], target: [-24, 10, -12] },
   herd: { position: [48, 9, 48], target: [17, 5, 9] },
   dawn: { position: [142, 43, -126], target: [0, 15, 0] },

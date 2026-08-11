@@ -89,6 +89,19 @@ export interface CoastalAnimalOutcome {
   scale: number;
 }
 
+export interface SeagrassOutcome {
+  x: number;
+  y: number;
+  z: number;
+  rotation: number;
+  scale: number;
+  height: number;
+  spread: number;
+  hue: number;
+  saturation: number;
+  lightness: number;
+}
+
 export interface FreshwaterOutcome {
   x: number;
   y: number;
@@ -106,6 +119,7 @@ export interface AerialPopulationOutcome {
 
 export interface LandingOutcome {
   trees: TreeOutcome[];
+  seagrass: SeagrassOutcome[];
   populations: readonly PopulationOutcome[];
   freshwater: FreshwaterOutcome[];
   freshwaterField: FreshwaterField;
@@ -515,6 +529,7 @@ export function resolveLanding(
   const forageAt = (x: number, z: number) => snapshotForageAt(snapshot, x, z);
   const { climate, totalYears } = snapshot;
   const trees: TreeOutcome[] = [];
+  const seagrass: SeagrassOutcome[] = [];
   const succession = clamp01(Math.log10(Math.max(1, totalYears)) / 3);
   const deepTime = clamp01((Math.log10(Math.max(1, totalYears)) - 3) / 3);
   const growth = TEMPERATURE[climate.temperature].growth;
@@ -558,6 +573,34 @@ export function resolveLanding(
         };
       })(),
     });
+  }
+
+  if (totalYears >= 25) {
+    for (let i = 0; i < 3600 && seagrass.length < 900; i++) {
+      const angle = hash(i, 811) * Math.PI * 2;
+      const radius = Math.sqrt(hash(i, 823)) * 152;
+      const x = Math.cos(angle) * radius;
+      const z = Math.sin(angle) * radius;
+      const ecosystem = sampleEcosystem(heightAt, x, z, climate as ClimateForces, forageAt);
+      if (ecosystem.coastalProductivity < 0.28 || ecosystem.slope > 0.5 || ecosystem.exposure > 0.7) continue;
+      const suitability = ecosystem.coastalProductivity
+        * clamp01(1 - ecosystem.slope * 1.4)
+        * clamp01(1 - ecosystem.exposure * 0.45)
+        * succession;
+      if (hash(i, 839) > suitability * 1.18) continue;
+      seagrass.push({
+        x,
+        y: ecosystem.elevation,
+        z,
+        rotation: hash(i, 853) * Math.PI * 2,
+        scale: 1.05 + hash(i, 857) * 0.55,
+        height: 0.48 + ecosystem.coastalProductivity * 0.78,
+        spread: 1.05 + clamp01(1 - ecosystem.slope * 1.7) * 0.85,
+        hue: 0.275 + ecosystem.coastalProductivity * 0.055,
+        saturation: 0.48 + ecosystem.coastalProductivity * 0.2,
+        lightness: 0.23 + ecosystem.coastalProductivity * 0.1,
+      });
+    }
   }
 
   // Mangroves occupy saltwater intertidal ground, not freshwater basin
@@ -656,6 +699,9 @@ export function resolveLanding(
   coastalCandidates.sort((a, b) => b.score - a.score);
   const freshwaterField = resolveFreshwaterField(snapshot, seaLevel, climate.rainfall);
   const freshwater = freshwaterField.basins;
+  const saltwaterSeagrass = seagrass.filter((tuft) => !freshwater.some((pool) => (
+    Math.hypot(tuft.x - pool.x, tuft.z - pool.z) < pool.radius + 2
+  )));
   const coastalAnimals = coastalCandidates.slice(0, totalYears >= 100 ? 10 : 0).map(({ score: _score, ...animal }) => animal);
   const { score: _aerialScore, ...aerial } = aerialBest;
   const freshwaterEdges = trees.filter((tree) => !freshwater.some((pool) => (
@@ -664,6 +710,7 @@ export function resolveLanding(
   return {
     outcome: {
       trees: freshwaterEdges,
+      seagrass: saltwaterSeagrass,
       populations: lineageResolutions.map((resolution) => resolution.outcome),
       freshwater,
       freshwaterField,

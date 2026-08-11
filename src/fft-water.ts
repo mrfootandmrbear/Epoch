@@ -70,6 +70,12 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): M
   geometry.rotateX(-Math.PI / 2);
 
   const material = new NodeMaterial();
+  // The water must participate in transparent composition for the shallow
+  // seabed to read through it. Depth writing is disabled so submerged life
+  // can still be drawn behind the surface; Fresnel and depth below keep open
+  // water visually solid.
+  material.transparent = true;
+  material.depthWrite = false;
   const mesh = new Mesh(geometry, material);
 
   const chopField = Fn(([x, z, distV]: [Node<"float">, Node<"float">, Node<"float">]) => {
@@ -120,8 +126,6 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): M
   const oceanMask = mix(float(1), texture(options.oceanMaskTexture, waterUv).r, insideWaterDomain);
   const wave = swell.add(chop).mul(oceanMask).toVar("wave");
   material.positionNode = positionLocal.add(vec3(0, wave.x, 0));
-  material.opacityNode = oceanMask;
-  material.alphaTestNode = float(0.5);
 
   const vWave = varying(wave, "vWave");
   const waveNormal = normalize(vec3(vWave.y.negate(), 1.0, vWave.z.negate()));
@@ -139,6 +143,17 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): M
   const terrainSurface = mix(float(-40), sampledTerrain, insideTerrain);
   const waterDepth = positionWorld.y.sub(terrainSurface);
   const shallowFactor = float(1).sub(smoothstep(0.7, 10, waterDepth)).mul(insideTerrain);
+  const surfaceEyeDir = normalize(cameraPosition.sub(positionWorld));
+  const surfaceFresnel = pow(
+    float(1.0).sub(clamp(dot(waveNormal, surfaceEyeDir), 0, 1)),
+    5.0,
+  ).mul(0.96).add(0.04);
+  // At a near-vertical view, productive shallows transmit enough light for
+  // terrain and future benthic flora to remain legible. At grazing angles,
+  // Fresnel reflection restores an opaque water silhouette. The fade reaches
+  // fully opaque water before the coastal-productivity depth band ends.
+  const shallowTransmission = shallowFactor.mul(float(1).sub(surfaceFresnel));
+  material.opacityNode = oceanMask.mul(float(1).sub(shallowTransmission.mul(0.62)));
 
   const hash2 = Fn(([p]: [Node<"vec2">]) => {
     return fract(sin(dot(p, vec2(127.1, 311.7))).mul(43758.5453123));
@@ -182,7 +197,7 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): M
   });
 
   material.colorNode = Fn(() => {
-    const eyeDir = normalize(cameraPosition.sub(positionWorld));
+    const eyeDir = surfaceEyeDir;
 
     const viewDist = length(cameraPosition.sub(positionWorld));
     const distFade = smoothstep(60.0, 260.0, viewDist);
