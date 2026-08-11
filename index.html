@@ -173,6 +173,12 @@
         visibility: hidden;
         transition: none;
       }
+      body.reveal-active #status,
+      body.reveal-active #lineage-panel,
+      body.reveal-active #epoch-card {
+        opacity: 0;
+        transition: opacity 220ms ease;
+      }
       #form-title {
         margin: 0 0 5px;
         font: 400 clamp(24px, 3vw, 40px)/1.05 ui-serif, Georgia, serif;
@@ -229,14 +235,89 @@
         inset: 0;
         z-index: 15;
         pointer-events: none;
+        overflow: hidden;
         opacity: 0;
-        background: radial-gradient(circle at 50% 45%, rgba(221,230,211,.08), rgba(5,13,14,.84));
+        color: #eee9da;
+        background: rgba(3, 9, 10, .92);
+        font-family: ui-serif, Georgia, serif;
       }
-      #jump-veil.active { animation: epoch-jump 2s ease both; }
-      @keyframes epoch-jump {
-        0% { opacity: 0; }
-        48% { opacity: 1; }
-        100% { opacity: 0; }
+      #jump-veil.active { animation: reveal-shell var(--reveal-duration) ease both; }
+      #jump-veil::before, #jump-veil::after { content: ""; position: absolute; inset: 0; }
+      .reveal-copy {
+        position: absolute;
+        inset: 0;
+        z-index: 3;
+        display: grid;
+        place-content: center;
+        text-align: center;
+        text-shadow: 0 2px 28px #000;
+      }
+      .reveal-kicker { font: 600 10px/1 system-ui, sans-serif; letter-spacing: .3em; text-transform: uppercase; opacity: .56; }
+      .reveal-years { margin-top: 14px; font-size: clamp(38px, 7vw, 104px); letter-spacing: -.045em; }
+      .reveal-phase { margin-top: 12px; font: 11px/1.4 system-ui, sans-serif; letter-spacing: .13em; opacity: .58; }
+      @keyframes reveal-shell { 0%,100% { opacity: 0 } 10%,88% { opacity: 1 } }
+
+      #jump-veil[data-treatment="witness-seasons"] { background: transparent; mix-blend-mode: screen; }
+      #jump-veil[data-treatment="witness-seasons"]::before {
+        background: linear-gradient(105deg, rgba(94,139,174,.88), rgba(234,190,102,.52), rgba(84,131,83,.78), rgba(205,222,230,.86));
+        background-size: 400% 100%;
+        animation: seasons 520ms linear infinite;
+      }
+      #jump-veil[data-treatment="witness-seasons"]::after { background: radial-gradient(circle, transparent 10%, rgba(2,9,11,.86) 82%); }
+      #jump-veil[data-treatment="witness-seasons"] .reveal-copy { animation: time-rush var(--reveal-duration) ease both; }
+      @keyframes seasons { to { background-position: 100% 0; filter: hue-rotate(45deg); } }
+      @keyframes time-rush { 0%,16% { transform: scale(.96); opacity: 0 } 35%,68% { transform: scale(1); opacity: 1 } 88%,100% { transform: scale(1.06); opacity: 0 } }
+
+      #jump-veil[data-treatment="witness-glimpses"] { background: #020505; }
+      #jump-veil[data-treatment="witness-glimpses"]::before {
+        background: repeating-linear-gradient(90deg, transparent 0 13%, rgba(205,221,187,.18) 13.3% 13.8%, transparent 14.1% 27%);
+        animation: glimpse 900ms steps(1) infinite;
+      }
+      #jump-veil[data-treatment="witness-glimpses"]::after { background: linear-gradient(transparent 48%, rgba(211,221,190,.22) 49%, transparent 50%); animation: drift-line 1300ms ease-in-out infinite; }
+      @keyframes glimpse { 0%,18%,42%,70%,100% { opacity: .05 } 10%,34%,62% { opacity: 1; filter: hue-rotate(35deg) } }
+      @keyframes drift-line { 50% { transform: translateY(18vh); opacity: .2 } }
+
+      #jump-veil[data-treatment="feel-eclipse"] { background: rgba(2,7,9,.18); }
+      #jump-veil[data-treatment="feel-eclipse"]::before {
+        inset: 50%;
+        border-radius: 50%;
+        background: #020405;
+        box-shadow: 0 0 70px 16px rgba(221,191,122,.24);
+        animation: eclipse var(--reveal-duration) cubic-bezier(.7,0,.3,1) both;
+      }
+      #jump-veil[data-treatment="feel-eclipse"]::after { background: radial-gradient(circle, transparent 0 18%, rgba(0,3,5,.88) 70%); }
+      @keyframes eclipse { 0% { inset: 50%; } 48%,72% { inset: -35%; } 100% { inset: 50%; } }
+
+      #jump-veil[data-treatment="feel-silence"] { background: #010303; }
+      #jump-veil[data-treatment="feel-silence"] .reveal-years { opacity: .82; }
+      #jump-veil[data-treatment="feel-silence"]::before { background: radial-gradient(circle at 50% 48%, rgba(102,130,119,.09), transparent 35%); animation: breathe 4s ease-in-out infinite; }
+      @keyframes breathe { 50% { transform: scale(1.3); opacity: .4; } }
+
+      #jump-veil[data-treatment="transform-strata"] { background: rgba(4,9,9,.35); }
+      #jump-veil[data-treatment="transform-strata"]::before {
+        top: 34%;
+        background: repeating-linear-gradient(0deg, #101918 0 7%, #564c38 7% 9%, #27352c 9% 17%, #8b7652 17% 19%);
+        box-shadow: 0 -2px 40px rgba(220,197,142,.35);
+        animation: strata var(--reveal-duration) cubic-bezier(.4,0,.2,1) both;
+      }
+      #jump-veil[data-treatment="transform-strata"]::after { background: linear-gradient(to bottom, transparent 25%, rgba(1,5,6,.3) 52%, rgba(1,5,6,.9)); }
+      @keyframes strata { 0% { transform: translateY(100%); } 48%,70% { transform: translateY(0); } 100% { transform: translateY(100%); } }
+
+      #jump-veil[data-treatment="transform-scan"] { background: rgba(3,12,13,.28); }
+      #jump-veil[data-treatment="transform-scan"]::before {
+        background-image: linear-gradient(rgba(173,211,190,.12) 1px, transparent 1px), linear-gradient(90deg, rgba(173,211,190,.12) 1px, transparent 1px);
+        background-size: 42px 42px;
+        mask-image: linear-gradient(to right, transparent, #000 12%, #000 88%, transparent);
+      }
+      #jump-veil[data-treatment="transform-scan"]::after {
+        width: 2px;
+        right: auto;
+        background: #dbe4c9;
+        box-shadow: 0 0 34px 12px rgba(153,204,181,.42);
+        animation: survey var(--reveal-duration) cubic-bezier(.45,0,.55,1) both;
+      }
+      @keyframes survey { 0% { transform: translateX(-5vw); } 48%,62% { transform: translateX(105vw); } 100% { transform: translateX(-5vw); } }
+      #jump-veil.resolved .reveal-kicker::after { content: " · resolved"; color: #dfe8ba; }
       }
       @media (max-width: 700px) {
         #epoch-card { right: 18px; bottom: 210px; }
@@ -251,7 +332,13 @@
     <div id="app"></div>
     <div id="status">loading…</div>
     <aside id="lineage-panel" aria-label="Lineage changes"></aside>
-    <div id="jump-veil"></div>
+    <div id="jump-veil" aria-live="polite">
+      <div class="reveal-copy">
+        <div class="reveal-kicker" data-reveal-title>Witness time</div>
+        <div class="reveal-years" data-reveal-years>1,000 years</div>
+        <div class="reveal-phase" data-reveal-phase>rain · growth · frost · return</div>
+      </div>
+    </div>
     <div id="experience">
       <div id="form-title">Shape the island</div>
       <p id="form-hint">Drag to orbit. Scroll to move closer. Choose a shaping tool when the form calls for it.</p>
@@ -276,6 +363,9 @@
           <option value="present" selected>Present sea</option>
           <option value="high">High sea</option>
         </select>
+      </div>
+      <div class="actions force-actions reveal-actions" aria-label="Reveal treatment">
+        <select id="reveal-treatment" aria-label="Reveal treatment"></select>
       </div>
       <div class="actions">
         <button class="active" data-tool="look">Look</button>

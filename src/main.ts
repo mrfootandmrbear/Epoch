@@ -23,6 +23,12 @@ import { loadSeagrassGeometryAssets } from "./seagrass-geometry-assets";
 import type { LineageChange } from "./lineage-history";
 import { buildLineageReportHtml } from "./lineage-report";
 import { createPresentationController, isGoldenShotName } from "./presentation";
+import {
+  createRevealController,
+  isRevealTreatmentName,
+  revealTreatmentOptions,
+  type RevealTreatmentName,
+} from "./reveal";
 import { sampleAtmosphere, type AtmosphereProfile } from "./atmosphere";
 import { createEpochRenderPipeline, readPostProcessingOptions } from "./post-processing";
 import {
@@ -43,6 +49,7 @@ const appEl = document.getElementById("app")!;
 const experienceEl = document.getElementById("experience")!;
 const epochCardEl = document.getElementById("epoch-card")!;
 const jumpVeilEl = document.getElementById("jump-veil")!;
+const revealTreatmentEl = document.getElementById("reveal-treatment") as HTMLSelectElement;
 const formHintEl = document.getElementById("form-hint")!;
 const formTitleEl = document.getElementById("form-title")!;
 const jumpYearsEl = document.getElementById("jump-years") as HTMLSelectElement;
@@ -53,6 +60,16 @@ const rainfallEl = document.getElementById("rainfall") as HTMLSelectElement;
 const temperatureEl = document.getElementById("temperature") as HTMLSelectElement;
 const windEl = document.getElementById("wind") as HTMLSelectElement;
 const seaLevelEl = document.getElementById("sea-level") as HTMLSelectElement;
+
+for (const option of revealTreatmentOptions()) {
+  const element = document.createElement("option");
+  element.value = option.value;
+  element.textContent = `${option.philosophy} — ${option.label}`;
+  revealTreatmentEl.appendChild(element);
+}
+const requestedTreatment = new URLSearchParams(window.location.search).get("reveal");
+if (isRevealTreatmentName(requestedTreatment)) revealTreatmentEl.value = requestedTreatment;
+const reveal = createRevealController(jumpVeilEl);
 
 const sunDirection = new Vector3(0.55, 0.42, 0.35).normalize();
 
@@ -293,10 +310,8 @@ jumpButtonEl.addEventListener("click", () => {
   syncCameraGestures();
   experienceEl.classList.add("committed");
   formHintEl.textContent = `Resolving ${formatYears(jumpYears)} of water, weather, and selection…`;
-  jumpVeilEl.classList.remove("active");
-  void jumpVeilEl.offsetWidth;
-  jumpVeilEl.classList.add("active");
-  window.setTimeout(() => {
+  const treatment = revealTreatmentEl.value as RevealTreatmentName;
+  reveal.play(treatment, jumpYears, () => {
     totalYears += jumpYears;
     const lineageReport = landingState.advance(jumpYears, totalYears, committedClimate);
     renderLineageReport(lineageReport.changes, lineageReport.traitDistance);
@@ -304,15 +319,13 @@ jumpButtonEl.addEventListener("click", () => {
     worldAgeEl.textContent = `Year ${totalYears.toLocaleString()}`;
     landingSummaryEl.textContent = landingSummary(totalYears, committedClimate);
     epochCardEl.classList.add("visible");
-  }, 1050);
-  window.setTimeout(() => {
+  }, () => {
     jumped = false;
-    jumpVeilEl.classList.remove("active");
     experienceEl.classList.remove("committed");
     formTitleEl.textContent = "Shape what remains";
     setTool("look");
     formHintEl.textContent = "Explore the landing state, reshape it, or choose another span of time.";
-  }, 2100);
+  });
 });
 
 let fftOcean: FFTOcean | undefined;
