@@ -5,7 +5,7 @@ import {
   WIND,
   type ClimateForces,
 } from "./climate";
-import { snapshotForageAt, snapshotHeightAt, type WorldSnapshot } from "./world-snapshot";
+import { snapshotForageAt, snapshotHeightAt, snapshotNutrientsAt, snapshotRunoffAt, type WorldSnapshot } from "./world-snapshot";
 import { resolveFreshwaterField, type FreshwaterField } from "./freshwater-basins";
 import { lineageSeed, populationArchetype } from "./population-archetypes";
 import {
@@ -41,6 +41,8 @@ export interface EcosystemSample extends HabitatSample {
   nesting: number;
   lift: number;
   forage: number;
+  nutrients: number;
+  runoff: number;
 }
 
 export interface TreeOutcome {
@@ -190,6 +192,8 @@ export function sampleEcosystem(
   z: number,
   climate: ClimateForces,
   forageAt: HeightAt = () => 1,
+  nutrientsAt: HeightAt = () => 0.5,
+  runoffAt: HeightAt = () => 0,
 ): EcosystemSample {
   const habitat = sampleHabitat(heightAt, x, z, climate);
   const step = 5;
@@ -214,7 +218,18 @@ export function sampleEcosystem(
   const lift = habitat.elevation > sea
     ? clamp01(habitat.exposure * 0.65 + habitat.slope * 0.55) * WIND[climate.wind].exposure
     : 0;
-  return { ...habitat, drainage, coastalProductivity, nesting, lift, forage: clamp01(forageAt(x, z)) };
+  const nutrients = clamp01(nutrientsAt(x, z));
+  const runoff = clamp01(runoffAt(x, z));
+  return {
+    ...habitat,
+    drainage: clamp01(drainage + runoff * 0.28),
+    coastalProductivity: clamp01(coastalProductivity * (0.68 + nutrients * 0.22 + runoff * 0.1)),
+    nesting,
+    lift,
+    forage: clamp01(forageAt(x, z)),
+    nutrients,
+    runoff,
+  };
 }
 
 interface ScoredSite {
@@ -541,6 +556,8 @@ export function resolveLanding(
 ): LandingResolution {
   const heightAt = (x: number, z: number) => snapshotHeightAt(snapshot, x, z);
   const forageAt = (x: number, z: number) => snapshotForageAt(snapshot, x, z);
+  const nutrientsAt = (x: number, z: number) => snapshotNutrientsAt(snapshot, x, z);
+  const runoffAt = (x: number, z: number) => snapshotRunoffAt(snapshot, x, z);
   const { climate, totalYears } = snapshot;
   const trees: TreeOutcome[] = [];
   const seagrass: SeagrassOutcome[] = [];
@@ -554,13 +571,13 @@ export function resolveLanding(
     const radius = Math.sqrt(hash(i, 9)) * 150;
     const x = Math.cos(angle) * radius;
     const z = Math.sin(angle) * radius;
-    const ecosystem = sampleEcosystem(heightAt, x, z, climate as ClimateForces, forageAt);
+    const ecosystem = sampleEcosystem(heightAt, x, z, climate as ClimateForces, forageAt, nutrientsAt, runoffAt);
     if (ecosystem.elevation < seaLevel + 2 || ecosystem.elevation > treeLine || ecosystem.slope > 1.15) continue;
     const suitability = (
       clamp01(1 - Math.abs(ecosystem.moisture - 0.66) * 1.55) * 0.8
       + ecosystem.drainage * 0.2
     ) * clamp01(1 - ecosystem.exposure * 0.48) * succession * growth
-      * (0.22 + ecosystem.forage * 0.78);
+      * (0.22 + ecosystem.forage * 0.58 + ecosystem.nutrients * 0.2);
     if (hash(i, 47) < deepTime * 0.2 || hash(i, 28) > suitability * (0.88 - deepTime * 0.08)) continue;
     trees.push({
       x,
@@ -727,7 +744,10 @@ export function resolveLanding(
     }))
     : [];
   const { score: _aerialScore, ...aerial } = aerialBest;
-  const primaryProductivity = clamp01(coastalEnergy / Math.max(1, coastalSamples));
+  const inheritedMarineNutrients = snapshot.marineNutrients ?? 0.2;
+  const primaryProductivity = clamp01(
+    coastalEnergy / Math.max(1, coastalSamples) * 0.78 + inheritedMarineNutrients * 0.22,
+  );
   const nurseryCapacity = clamp01(primaryProductivity * 0.55 + saltwaterSeagrass.length / 900 * 0.45);
   const preyAvailability = clamp01(primaryProductivity * 0.42 + nurseryCapacity * 0.28 + marineAbundance * 0.3);
   const marineEnergy: MarineEnergyExchange = {

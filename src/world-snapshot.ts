@@ -5,6 +5,9 @@ export interface WorldSnapshot {
   readonly extent: number;
   readonly elevations: Float32Array;
   readonly forage?: Float32Array;
+  readonly nutrients?: Float32Array;
+  readonly runoff?: Float32Array;
+  readonly marineNutrients?: number;
   readonly climate: Readonly<ClimateForces>;
   readonly totalYears: number;
 }
@@ -19,15 +22,22 @@ export function captureWorldSnapshot(
   gridSize = 96,
   extent = 300,
   forageAt: HeightAt = () => 1,
+  nutrientsAt: HeightAt = () => 0.5,
+  runoffAt: HeightAt = () => 0,
+  marineNutrients = 0.2,
 ): WorldSnapshot {
   const elevations = new Float32Array(gridSize * gridSize);
   const forage = new Float32Array(gridSize * gridSize);
+  const nutrients = new Float32Array(gridSize * gridSize);
+  const runoff = new Float32Array(gridSize * gridSize);
   for (let z = 0; z < gridSize; z++) {
     for (let x = 0; x < gridSize; x++) {
       const worldX = (x / (gridSize - 1) - 0.5) * extent;
       const worldZ = (z / (gridSize - 1) - 0.5) * extent;
       elevations[z * gridSize + x] = heightAt(worldX, worldZ);
       forage[z * gridSize + x] = Math.min(1, Math.max(0, forageAt(worldX, worldZ)));
+      nutrients[z * gridSize + x] = Math.min(1, Math.max(0, nutrientsAt(worldX, worldZ)));
+      runoff[z * gridSize + x] = Math.min(1, Math.max(0, runoffAt(worldX, worldZ)));
     }
   }
   return {
@@ -35,6 +45,9 @@ export function captureWorldSnapshot(
     extent,
     elevations,
     forage,
+    nutrients,
+    runoff,
+    marineNutrients: Math.min(1, Math.max(0, marineNutrients)),
     climate: Object.freeze({ ...climate }),
     totalYears,
   };
@@ -65,4 +78,12 @@ export function snapshotHeightAt(snapshot: WorldSnapshot, x: number, z: number):
 
 export function snapshotForageAt(snapshot: WorldSnapshot, x: number, z: number): number {
   return snapshot.forage ? sampleSnapshotField(snapshot, snapshot.forage, x, z) : 1;
+}
+
+export function snapshotNutrientsAt(snapshot: WorldSnapshot, x: number, z: number): number {
+  return snapshot.nutrients ? sampleSnapshotField(snapshot, snapshot.nutrients, x, z) : 0.5;
+}
+
+export function snapshotRunoffAt(snapshot: WorldSnapshot, x: number, z: number): number {
+  return snapshot.runoff ? sampleSnapshotField(snapshot, snapshot.runoff, x, z) : 0;
 }

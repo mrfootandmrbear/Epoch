@@ -4,7 +4,7 @@ import { isPopulationIdentity } from "./population-archetypes";
 import { createTerrainHistory, type TerrainHistory } from "./terrain-history";
 import { createMarineLineageHistory, validateMarineLineageHistory, type MarineLineageHistory } from "./marine-lineage";
 
-export const WORLD_HISTORY_VERSION = 3 as const;
+export const WORLD_HISTORY_VERSION = 4 as const;
 
 export interface WorldHistory {
   readonly version: typeof WORLD_HISTORY_VERSION;
@@ -108,6 +108,11 @@ export function validateWorldHistory(value: unknown): asserts value is WorldHist
   validateFloat32Field(terrain.disturbance, expectedLength, "world history terrain.disturbance", true);
   validateFloat32Field(terrain.vegetationProtection, expectedLength, "world history terrain.vegetationProtection", true);
   validateFloat32Field(terrain.forage, expectedLength, "world history terrain.forage", true);
+  validateFloat32Field(terrain.nutrients, expectedLength, "world history terrain.nutrients", true);
+  validateFloat32Field(terrain.runoff, expectedLength, "world history terrain.runoff", true);
+  if (!Number.isFinite(terrain.marineNutrients) || (terrain.marineNutrients as number) < 0 || (terrain.marineNutrients as number) > 1) {
+    throw new RangeError("world history terrain.marineNutrients must be finite and within [0, 1]");
+  }
 
   const lineageHistory = requireRecord(history.lineages, "world history lineage history");
   if (!Array.isArray(lineageHistory.lineages)) throw new TypeError("world history lineages must be an array");

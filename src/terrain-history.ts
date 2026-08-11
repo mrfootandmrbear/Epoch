@@ -14,6 +14,12 @@ export interface TerrainHistory {
   readonly disturbance: Float32Array;
   readonly vegetationProtection: Float32Array;
   readonly forage: Float32Array;
+  /** Plant-available nutrient stock retained in each land cell. */
+  readonly nutrients: Float32Array;
+  /** Normalized freshwater flow accumulated during the previous jump. */
+  readonly runoff: Float32Array;
+  /** Nutrients delivered to coastal water and retained between jumps. */
+  readonly marineNutrients: number;
 }
 
 function clamp01(value: number): number {
@@ -32,6 +38,9 @@ export function createTerrainHistory(
     disturbance: new Float32Array(elevations.length),
     vegetationProtection: new Float32Array(elevations.length),
     forage: new Float32Array(elevations.length).fill(0.62),
+    nutrients: new Float32Array(elevations.length).fill(0.5),
+    runoff: new Float32Array(elevations.length),
+    marineNutrients: 0.2,
   };
 }
 
@@ -45,10 +54,15 @@ export function resolveTerrainHistory(
   const nextElevations = previous.elevations.slice();
   const nextDisturbance = new Float32Array(previous.disturbance.length);
   const nextForage = previous.forage.slice();
+  const nextNutrients = previous.nutrients.slice();
+  const nextRunoff = new Float32Array(previous.runoff.length);
   const duration = clamp01(Math.log10(Math.max(1, jumpYears) + 1) / 6);
   const erosion = RAINFALL[climate.rainfall].erosion;
   const wind = WIND[climate.wind].exposure;
   const sea = SEA_LEVEL[climate.seaLevel];
+  const rainSupply = climate.rainfall === "wet" ? 1 : climate.rainfall === "temperate" ? 0.62 : 0.18;
+  let exportedNutrients = 0;
+  let coastalCells = 0;
 
   for (let z = 1; z < side - 1; z++) {
     for (let x = 1; x < side - 1; x++) {
@@ -77,6 +91,25 @@ export function resolveTerrainHistory(
       const potential = clamp01(0.48 + moisture * 0.55 + protection * 0.42 - nextDisturbance[index]! * 0.38);
       const regrowth = duration * (0.12 + Math.max(0, moisture) * 0.16);
       nextForage[index] = clamp01(previous.forage[index]! + (potential - previous.forage[index]!) * regrowth);
+
+      // Coarse D8-style drainage: local relief and rainfall accumulate water;
+      // vegetation retains soil while exposed erosion exports its nutrients.
+      const downhill = Math.max(0, elevation - Math.min(
+        previous.elevations[index - 1]!, previous.elevations[index + 1]!,
+        previous.elevations[index - side]!, previous.elevations[index + side]!,
+      ));
+      const inheritedFlow = (
+        previous.runoff[index - 1]! + previous.runoff[index + 1]!
+        + previous.runoff[index - side]! + previous.runoff[index + side]!
+      ) * 0.125;
+      nextRunoff[index] = clamp01(rainSupply * (0.16 + downhill * 0.08) + inheritedFlow * 0.58);
+      const litter = duration * protection * (0.035 + Math.max(0, moisture) * 0.035);
+      const nutrientLoss = duration * erosion * nextRunoff[index]! * exposed * (0.025 + relief * 0.004);
+      nextNutrients[index] = clamp01(previous.nutrients[index]! + litter - nutrientLoss);
+      if (elevation <= sea + 4) {
+        exportedNutrients += nutrientLoss * (0.5 + nextRunoff[index]! * 0.5);
+        coastalCells++;
+      }
     }
   }
 
@@ -89,6 +122,12 @@ export function resolveTerrainHistory(
     // replaced after the new landing resolves, rather than inferred mid-jump.
     vegetationProtection: previous.vegetationProtection.slice(),
     forage: nextForage,
+    nutrients: nextNutrients,
+    runoff: nextRunoff,
+    marineNutrients: clamp01(
+      previous.marineNutrients * (1 - duration * 0.24)
+      + exportedNutrients / Math.max(1, coastalCells) * 7.5,
+    ),
   };
 }
 

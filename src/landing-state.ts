@@ -398,10 +398,26 @@ export function createLandingState(scene: Scene): WorldExperience {
     return (a + (b - a) * tx) + ((c + (d - c) * tx) - (a + (b - a) * tx)) * tz;
   }
 
+  function terrainFieldAt(field: Float32Array, x: number, z: number): number {
+    const gx = Math.max(0, Math.min(TERRAIN_SEGMENTS, (x + TERRAIN_HALF) / TERRAIN_STEP));
+    const gz = Math.max(0, Math.min(TERRAIN_SEGMENTS, (z + TERRAIN_HALF) / TERRAIN_STEP));
+    const x0 = Math.floor(gx); const z0 = Math.floor(gz);
+    const x1 = Math.min(TERRAIN_SEGMENTS, x0 + 1); const z1 = Math.min(TERRAIN_SEGMENTS, z0 + 1);
+    const tx = gx - x0; const tz = gz - z0;
+    const a = field[z0 * TERRAIN_SIDE + x0]!; const b = field[z0 * TERRAIN_SIDE + x1]!;
+    const c = field[z1 * TERRAIN_SIDE + x0]!; const d = field[z1 * TERRAIN_SIDE + x1]!;
+    return (a + (b - a) * tx) + ((c + (d - c) * tx) - (a + (b - a) * tx)) * tz;
+  }
+
   let currentOutcome: LandingOutcome | undefined;
 
   function currentSnapshot(totalYears = 0) {
-    return captureWorldSnapshot(heightAt, totalYears, activeClimate, TERRAIN_SIDE, TERRAIN_SIZE, forageAt);
+    return captureWorldSnapshot(
+      heightAt, totalYears, activeClimate, TERRAIN_SIDE, TERRAIN_SIZE, forageAt,
+      (x, z) => terrainFieldAt(worldHistory.terrain.nutrients, x, z),
+      (x, z) => terrainFieldAt(worldHistory.terrain.runoff, x, z),
+      worldHistory.terrain.marineNutrients,
+    );
   }
 
   function refreshFreshwater(totalYears = 0): void {

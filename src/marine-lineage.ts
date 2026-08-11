@@ -1,7 +1,7 @@
 import type { ClimateForces } from "./climate";
 import { migrationRadius, traitAdaptationRate, type LineageStatus, type TraitChange } from "./lineage-history";
 import { sampleEcosystem, type EcosystemSample } from "./outcome-resolver";
-import { snapshotHeightAt, type WorldSnapshot } from "./world-snapshot";
+import { snapshotHeightAt, snapshotNutrientsAt, snapshotRunoffAt, type WorldSnapshot } from "./world-snapshot";
 import { buildWaterVolume, reachableWaterNodes, type WaterBand, type WaterNode } from "./water-volume";
 
 export interface MarineTraits {
@@ -78,12 +78,16 @@ function sampleMarine(snapshot: WorldSnapshot, node: WaterNode): MarineHabitat {
   const climate = snapshot.climate as ClimateForces;
   const ecosystem = sampleEcosystem(
     (sampleX, sampleZ) => snapshotHeightAt(snapshot, sampleX, sampleZ), node.x, node.z, climate,
+    undefined,
+    (sampleX, sampleZ) => snapshotNutrientsAt(snapshot, sampleX, sampleZ),
+    (sampleX, sampleZ) => snapshotRunoffAt(snapshot, sampleX, sampleZ),
   );
   const depth = node.columnDepth;
   const temperature = climate.temperature === "cold" ? 0.2 : climate.temperature === "mild" ? 0.55 : 0.85;
   const waveCost = clamp01(ecosystem.exposure * 0.72 + Math.max(0, 2.5 - depth) * 0.08);
   const structuralComplexity = clamp01(ecosystem.slope * 0.75 + (node.band === "benthic" ? 0.28 : 0));
-  return { ...ecosystem, depth, temperature, waveCost, food: ecosystem.coastalProductivity,
+  const food = clamp01(ecosystem.coastalProductivity * 0.78 + (snapshot.marineNutrients ?? 0.2) * 0.22);
+  return { ...ecosystem, depth, temperature, waveCost, food,
     band: node.band, waterY: node.y, light: node.light, structuralComplexity };
 }
 
