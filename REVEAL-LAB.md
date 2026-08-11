@@ -9,7 +9,7 @@ Epoch's jump transition is an experiment, not a settled production treatment. Th
 | Feel time | Deep-time eclipse | Scale, pressure, and anticipation | Repetition may become ceremonious in the wrong way |
 | Feel time | Silent threshold | Restraint makes the landing carry the spectacle | Depends entirely on landing-state quality and future sound |
 | See transformation | Geological strata | Time acquires weight while the horizon stays recognizable | Geological language may dominate biological change |
-| See transformation | Temporal survey | The island is read as evidence before it is returned | Risks feeling analytical rather than wondrous |
+| See transformation | Temporal survey | A true before/after wipe preserves the formed island while uncovering the landing state beneath it | The comparison is unusually literal and may reduce mystery |
 
 ## Owner review
 

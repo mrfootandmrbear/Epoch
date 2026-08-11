@@ -252,6 +252,16 @@
         text-align: center;
         text-shadow: 0 2px 28px #000;
       }
+      .reveal-before {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        object-fit: cover;
+        pointer-events: none;
+      }
       .reveal-kicker { font: 600 10px/1 system-ui, sans-serif; letter-spacing: .3em; text-transform: uppercase; opacity: .56; }
       .reveal-years { margin-top: 14px; font-size: clamp(38px, 7vw, 104px); letter-spacing: -.045em; }
       .reveal-phase { margin-top: 12px; font: 11px/1.4 system-ui, sans-serif; letter-spacing: .13em; opacity: .58; }
@@ -303,20 +313,50 @@
       #jump-veil[data-treatment="transform-strata"]::after { background: linear-gradient(to bottom, transparent 25%, rgba(1,5,6,.3) 52%, rgba(1,5,6,.9)); }
       @keyframes strata { 0% { transform: translateY(100%); } 48%,70% { transform: translateY(0); } 100% { transform: translateY(100%); } }
 
-      #jump-veil[data-treatment="transform-scan"] { background: rgba(3,12,13,.28); }
+      #jump-veil[data-treatment="transform-scan"] { background: transparent; }
       #jump-veil[data-treatment="transform-scan"]::before {
-        background-image: linear-gradient(rgba(173,211,190,.12) 1px, transparent 1px), linear-gradient(90deg, rgba(173,211,190,.12) 1px, transparent 1px);
-        background-size: 42px 42px;
-        mask-image: linear-gradient(to right, transparent, #000 12%, #000 88%, transparent);
+        z-index: 2;
+        width: 52%;
+        right: auto;
+        background: linear-gradient(90deg, transparent 72%, rgba(196,224,207,.08));
+        animation: wipe-shade var(--reveal-duration) cubic-bezier(.72,0,.28,1) both;
       }
       #jump-veil[data-treatment="transform-scan"]::after {
+        z-index: 4;
         width: 2px;
         right: auto;
         background: #dbe4c9;
-        box-shadow: 0 0 34px 12px rgba(153,204,181,.42);
-        animation: survey var(--reveal-duration) cubic-bezier(.45,0,.55,1) both;
+        box-shadow: 0 0 28px 7px rgba(153,204,181,.46), 16px 0 44px rgba(3,9,10,.4);
+        animation: wipe-edge var(--reveal-duration) cubic-bezier(.72,0,.28,1) both;
       }
-      @keyframes survey { 0% { transform: translateX(-5vw); } 48%,62% { transform: translateX(105vw); } 100% { transform: translateX(-5vw); } }
+      #jump-veil[data-treatment="transform-scan"] .reveal-before {
+        opacity: 1;
+        animation: before-wipe var(--reveal-duration) cubic-bezier(.72,0,.28,1) both;
+      }
+      #jump-veil[data-treatment="transform-scan"] .reveal-copy {
+        justify-content: end;
+        padding: 0 55vw 9vh 7vw;
+        text-align: left;
+        animation: wipe-copy var(--reveal-duration) ease both;
+      }
+      #jump-veil[data-treatment="transform-scan"] .reveal-years { font-size: clamp(30px, 5vw, 72px); }
+      @keyframes before-wipe {
+        0%,43% { clip-path: inset(0 0 0 0); }
+        82%,100% { clip-path: inset(0 0 0 100%); }
+      }
+      @keyframes wipe-edge {
+        0%,43% { transform: translateX(-3vw); opacity: 0; }
+        47% { opacity: 1; }
+        82% { transform: translateX(103vw); opacity: 1; }
+        88%,100% { transform: translateX(103vw); opacity: 0; }
+      }
+      @keyframes wipe-shade {
+        0%,43% { transform: translateX(-55vw); opacity: 0; }
+        47% { opacity: 1; }
+        82% { transform: translateX(103vw); opacity: 1; }
+        88%,100% { transform: translateX(103vw); opacity: 0; }
+      }
+      @keyframes wipe-copy { 0%,48% { opacity: 0; transform: translateX(-12px); } 60%,82% { opacity: 1; transform: none; } 100% { opacity: 0; } }
       #jump-veil.resolved .reveal-kicker::after { content: " · resolved"; color: #dfe8ba; }
       }
       @media (max-width: 700px) {
@@ -333,6 +373,7 @@
     <div id="status">loading…</div>
     <aside id="lineage-panel" aria-label="Lineage changes"></aside>
     <div id="jump-veil" aria-live="polite">
+      <canvas class="reveal-before" data-reveal-before aria-hidden="true"></canvas>
       <div class="reveal-copy">
         <div class="reveal-kicker" data-reveal-title>Witness time</div>
         <div class="reveal-years" data-reveal-years>1,000 years</div>

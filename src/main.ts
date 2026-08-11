@@ -311,6 +311,7 @@ jumpButtonEl.addEventListener("click", () => {
   experienceEl.classList.add("committed");
   formHintEl.textContent = `Resolving ${formatYears(jumpYears)} of water, weather, and selection…`;
   const treatment = revealTreatmentEl.value as RevealTreatmentName;
+  reveal.captureBefore(renderer.domElement);
   reveal.play(treatment, jumpYears, () => {
     totalYears += jumpYears;
     const lineageReport = landingState.advance(jumpYears, totalYears, committedClimate);

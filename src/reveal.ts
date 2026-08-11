@@ -63,6 +63,7 @@ export function revealTreatmentOptions(): Array<{
 
 export interface RevealController {
   readonly active: boolean;
+  captureBefore: (source: HTMLCanvasElement) => void;
   play: (
     treatment: RevealTreatmentName,
     years: number,
@@ -75,6 +76,7 @@ export function createRevealController(root: HTMLElement): RevealController {
   const title = root.querySelector<HTMLElement>("[data-reveal-title]")!;
   const yearsEl = root.querySelector<HTMLElement>("[data-reveal-years]")!;
   const phase = root.querySelector<HTMLElement>("[data-reveal-phase]")!;
+  const beforeCanvas = root.querySelector<HTMLCanvasElement>("[data-reveal-before]")!;
   let active = false;
   let timers: number[] = [];
 
@@ -89,6 +91,12 @@ export function createRevealController(root: HTMLElement): RevealController {
 
   return {
     get active() { return active; },
+    captureBefore(source) {
+      beforeCanvas.width = source.width;
+      beforeCanvas.height = source.height;
+      const context = beforeCanvas.getContext("2d");
+      context?.drawImage(source, 0, 0, beforeCanvas.width, beforeCanvas.height);
+    },
     play(treatmentName, years, resolve, complete) {
       if (active) return;
       active = true;
