@@ -22,6 +22,7 @@ import {
 
 export interface TerrainMaterialOptions {
   readonly stateTexture: DataTexture;
+  readonly volcanicTexture: DataTexture;
   readonly terrainExtent: number;
   readonly seaLevel: number;
 }
@@ -48,10 +49,13 @@ export function createTerrainMaterial(options: TerrainMaterialOptions): TerrainM
   const seaLevel = uniform(options.seaLevel);
   const terrainUv = positionWorld.xz.div(options.terrainExtent).add(0.5);
   const state = texture(options.stateTexture, terrainUv);
+  const volcanic = texture(options.volcanicTexture, terrainUv);
   const disturbance = state.r;
   const protection = state.g;
   const runoff = state.b;
   const forage = state.a;
+  const basalt = volcanic.r;
+  const ash = volcanic.g;
 
   const slope = float(1).sub(smoothstep(0.7, 0.91, normalWorld.y));
   const shore = float(1).sub(smoothstep(seaLevel.add(0.45), seaLevel.add(2.2), positionWorld.y));
@@ -87,7 +91,9 @@ export function createTerrainMaterial(options: TerrainMaterialOptions): TerrainM
   const vegetationFloor = mix(soil, new Color(0x2d4827), visibleCover.mul(0.42));
   const exposedRock = mix(vegetationFloor, new Color(0x777064), rockExposure);
   const erodedSoil = mix(exposedRock, new Color(0x75543a), erosion.mul(float(1).sub(slope)).mul(0.38));
-  const wetGround = mix(erodedSoil, new Color(0x302b22), shore.mul(0.44).add(runoff.mul(0.12)));
+  const volcanicGround = mix(erodedSoil, new Color(0x17191a), basalt.mul(0.88));
+  const ashGround = mix(volcanicGround, new Color(0x625f59), ash.mul(0.58));
+  const wetGround = mix(ashGround, new Color(0x302b22), shore.mul(0.44).add(runoff.mul(0.12)));
   material.colorNode = wetGround.mul(medium.mul(0.055).mul(mediumFade).add(0.975));
 
   const bumpHeight = macro.mul(0.32)

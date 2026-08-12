@@ -18,6 +18,12 @@ export interface TerrainHistory {
   readonly nutrients: Float32Array;
   /** Normalized freshwater flow accumulated during the previous jump. */
   readonly runoff: Float32Array;
+  /** Fresh volcanic substrate; decays as basalt weathers into soil. */
+  readonly basalt: Float32Array;
+  /** Short-lived explosive deposits around vigorous vents. */
+  readonly ash: Float32Array;
+  /** Persistent lithospheric load left by volcanic construction. */
+  readonly volcanicLoad: Float32Array;
   /** Nutrients delivered to coastal water and retained between jumps. */
   readonly marineNutrients: number;
 }
@@ -57,6 +63,9 @@ export function createTerrainHistory(
     forage: new Float32Array(elevations.length).fill(0.62),
     nutrients: new Float32Array(elevations.length).fill(0.5),
     runoff: new Float32Array(elevations.length),
+    basalt: new Float32Array(elevations.length),
+    ash: new Float32Array(elevations.length),
+    volcanicLoad: new Float32Array(elevations.length),
     marineNutrients: 0.2,
   };
 }
@@ -73,6 +82,9 @@ export function resolveTerrainHistory(
   const nextForage = previous.forage.slice();
   const nextNutrients = previous.nutrients.slice();
   const nextRunoff = new Float32Array(previous.runoff.length);
+  const nextBasalt = previous.basalt.slice();
+  const nextAsh = previous.ash.slice();
+  const nextVolcanicLoad = previous.volcanicLoad.slice();
   const { weathering: duration, deepTime } = geomorphicDuration(jumpYears);
   const erosion = RAINFALL[climate.rainfall].erosion;
   const wind = WIND[climate.wind].exposure;
@@ -105,10 +117,14 @@ export function resolveTerrainHistory(
       const drainageIncision = deepTime * rainSupply * exposed
         * clamp01(previous.runoff[index]! * 0.7 + downhill * 0.055)
         * (0.35 + relief * 0.045);
+      // Volcanic islands keep sagging after their vent dies. Load relaxes
+      // slowly, so extinct edifices still cross the shoreline in deep time.
+      const subsidence = deepTime * previous.volcanicLoad[index]!
+        * (1.15 + previous.volcanicLoad[index]! * 1.85);
       nextElevations[index] = Math.max(
-        -5,
+        -55,
         elevation + (neighborhood - elevation) * Math.min(0.42, transport)
-          - coastal - drainageIncision,
+          - coastal - drainageIncision - subsidence,
       );
 
       const activity = clamp01((relief * 0.1 + coastal * 0.32) * erosion * exposed + duration * wind * 0.06);
@@ -129,6 +145,12 @@ export function resolveTerrainHistory(
       const litter = duration * protection * (0.035 + Math.max(0, moisture) * 0.035);
       const nutrientLoss = duration * erosion * nextRunoff[index]! * exposed * (0.025 + relief * 0.004);
       nextNutrients[index] = clamp01(previous.nutrients[index]! + litter - nutrientLoss);
+      const substrateWeathering = duration * (0.012 + rainSupply * 0.04);
+      const weatheredBasalt = previous.basalt[index]! * substrateWeathering;
+      nextBasalt[index] = clamp01(previous.basalt[index]! - weatheredBasalt);
+      nextAsh[index] = clamp01(previous.ash[index]! * (1 - duration * (0.12 + rainSupply * 0.2)));
+      nextVolcanicLoad[index] = clamp01(previous.volcanicLoad[index]! * (1 - deepTime * 0.018));
+      nextNutrients[index] = clamp01(nextNutrients[index]! + weatheredBasalt * 0.38);
       if (elevation <= sea + 4) {
         exportedNutrients += nutrientLoss * (0.5 + nextRunoff[index]! * 0.5);
         coastalCells++;
@@ -147,6 +169,9 @@ export function resolveTerrainHistory(
     forage: nextForage,
     nutrients: nextNutrients,
     runoff: nextRunoff,
+    basalt: nextBasalt,
+    ash: nextAsh,
+    volcanicLoad: nextVolcanicLoad,
     marineNutrients: clamp01(
       previous.marineNutrients * (1 - duration * 0.24)
       + exportedNutrients / Math.max(1, coastalCells) * 7.5,

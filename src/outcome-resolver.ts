@@ -5,7 +5,7 @@ import {
   WIND,
   type ClimateForces,
 } from "./climate";
-import { snapshotForageAt, snapshotHeightAt, snapshotNutrientsAt, snapshotRunoffAt, type WorldSnapshot } from "./world-snapshot";
+import { snapshotBasaltAt, snapshotForageAt, snapshotHeightAt, snapshotNutrientsAt, snapshotRunoffAt, type WorldSnapshot } from "./world-snapshot";
 import { resolveFreshwaterField, type FreshwaterField } from "./freshwater-basins";
 import { lineageSeed, populationArchetype } from "./population-archetypes";
 import {
@@ -572,6 +572,7 @@ export function resolveLanding(
   const forageAt = (x: number, z: number) => snapshotForageAt(snapshot, x, z);
   const nutrientsAt = (x: number, z: number) => snapshotNutrientsAt(snapshot, x, z);
   const runoffAt = (x: number, z: number) => snapshotRunoffAt(snapshot, x, z);
+  const basaltAt = (x: number, z: number) => snapshotBasaltAt(snapshot, x, z);
   const { climate, totalYears } = snapshot;
   const trees: TreeOutcome[] = [];
   const seagrass: SeagrassOutcome[] = [];
@@ -586,6 +587,7 @@ export function resolveLanding(
     const x = Math.cos(angle) * radius;
     const z = Math.sin(angle) * radius;
     const ecosystem = sampleEcosystem(heightAt, x, z, climate as ClimateForces, forageAt, nutrientsAt, runoffAt);
+    if (basaltAt(x, z) > 0.42) continue;
     if (ecosystem.elevation < seaLevel + 2 || ecosystem.elevation > treeLine || ecosystem.slope > 1.15) continue;
     const suitability = (
       clamp01(1 - Math.abs(ecosystem.moisture - 0.66) * 1.55) * 0.8

@@ -3,14 +3,16 @@ import { assertPopulationTraits, type PopulationTraits } from "./population-trai
 import { isPopulationIdentity } from "./population-archetypes";
 import { createTerrainHistory, type TerrainHistory } from "./terrain-history";
 import { createMarineLineageHistory, validateMarineLineageHistory, type MarineLineageHistory } from "./marine-lineage";
+import { VOLCANIC_OUTPUTS, type HotSpot } from "./volcanism";
 
-export const WORLD_HISTORY_VERSION = 4 as const;
+export const WORLD_HISTORY_VERSION = 5 as const;
 
 export interface WorldHistory {
   readonly version: typeof WORLD_HISTORY_VERSION;
   readonly terrain: TerrainHistory;
   readonly lineages: LineageHistory;
   readonly marineLineages: MarineLineageHistory;
+  readonly hotSpots: readonly HotSpot[];
 }
 
 export function createWorldHistory(
@@ -24,6 +26,7 @@ export function createWorldHistory(
     terrain: createTerrainHistory(elevations, side, extent),
     lineages: includeTerrestrialFounders ? createLineageHistory() : { lineages: [] },
     marineLineages: createMarineLineageHistory(),
+    hotSpots: [],
   };
 }
 
@@ -110,6 +113,9 @@ export function validateWorldHistory(value: unknown): asserts value is WorldHist
   validateFloat32Field(terrain.forage, expectedLength, "world history terrain.forage", true);
   validateFloat32Field(terrain.nutrients, expectedLength, "world history terrain.nutrients", true);
   validateFloat32Field(terrain.runoff, expectedLength, "world history terrain.runoff", true);
+  validateFloat32Field(terrain.basalt, expectedLength, "world history terrain.basalt", true);
+  validateFloat32Field(terrain.ash, expectedLength, "world history terrain.ash", true);
+  validateFloat32Field(terrain.volcanicLoad, expectedLength, "world history terrain.volcanicLoad", true);
   if (!Number.isFinite(terrain.marineNutrients) || (terrain.marineNutrients as number) < 0 || (terrain.marineNutrients as number) > 1) {
     throw new RangeError("world history terrain.marineNutrients must be finite and within [0, 1]");
   }
@@ -124,6 +130,16 @@ export function validateWorldHistory(value: unknown): asserts value is WorldHist
     }
   }
   validateMarineLineageHistory(history.marineLineages);
+  if (!Array.isArray(history.hotSpots)) throw new TypeError("world history hotSpots must be an array");
+  const hotSpotIds = new Set<string>();
+  history.hotSpots.forEach((value, index) => {
+    const hotSpot = requireRecord(value, `world history hotSpots[${index}]`);
+    if (typeof hotSpot.id !== "string" || hotSpot.id.length === 0) throw new TypeError(`world history hotSpots[${index}].id must be a non-empty string`);
+    if (hotSpotIds.has(hotSpot.id)) throw new RangeError(`world history hotSpots[${index}].id duplicates ${hotSpot.id}`);
+    hotSpotIds.add(hotSpot.id);
+    if (!Number.isFinite(hotSpot.x) || !Number.isFinite(hotSpot.z)) throw new RangeError(`world history hotSpots[${index}] coordinates must be finite`);
+    if (!VOLCANIC_OUTPUTS.includes(hotSpot.output as HotSpot["output"])) throw new RangeError(`world history hotSpots[${index}].output is not recognized`);
+  });
   const terrestrialIds = new Set(validated.map((lineage) => lineage.id));
   for (const [index, marine] of history.marineLineages.lineages.entries()) {
     if (marine.originDomain === "terrestrial-transition"

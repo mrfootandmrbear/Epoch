@@ -7,6 +7,7 @@ export interface WorldSnapshot {
   readonly forage?: Float32Array;
   readonly nutrients?: Float32Array;
   readonly runoff?: Float32Array;
+  readonly basalt?: Float32Array;
   readonly marineNutrients?: number;
   readonly climate: Readonly<ClimateForces>;
   readonly totalYears: number;
@@ -25,11 +26,13 @@ export function captureWorldSnapshot(
   nutrientsAt: HeightAt = () => 0.5,
   runoffAt: HeightAt = () => 0,
   marineNutrients = 0.2,
+  basaltAt: HeightAt = () => 0,
 ): WorldSnapshot {
   const elevations = new Float32Array(gridSize * gridSize);
   const forage = new Float32Array(gridSize * gridSize);
   const nutrients = new Float32Array(gridSize * gridSize);
   const runoff = new Float32Array(gridSize * gridSize);
+  const basalt = new Float32Array(gridSize * gridSize);
   for (let z = 0; z < gridSize; z++) {
     for (let x = 0; x < gridSize; x++) {
       const worldX = (x / (gridSize - 1) - 0.5) * extent;
@@ -38,6 +41,7 @@ export function captureWorldSnapshot(
       forage[z * gridSize + x] = Math.min(1, Math.max(0, forageAt(worldX, worldZ)));
       nutrients[z * gridSize + x] = Math.min(1, Math.max(0, nutrientsAt(worldX, worldZ)));
       runoff[z * gridSize + x] = Math.min(1, Math.max(0, runoffAt(worldX, worldZ)));
+      basalt[z * gridSize + x] = Math.min(1, Math.max(0, basaltAt(worldX, worldZ)));
     }
   }
   return {
@@ -47,6 +51,7 @@ export function captureWorldSnapshot(
     forage,
     nutrients,
     runoff,
+    basalt,
     marineNutrients: Math.min(1, Math.max(0, marineNutrients)),
     climate: Object.freeze({ ...climate }),
     totalYears,
@@ -86,4 +91,8 @@ export function snapshotNutrientsAt(snapshot: WorldSnapshot, x: number, z: numbe
 
 export function snapshotRunoffAt(snapshot: WorldSnapshot, x: number, z: number): number {
   return snapshot.runoff ? sampleSnapshotField(snapshot, snapshot.runoff, x, z) : 0;
+}
+
+export function snapshotBasaltAt(snapshot: WorldSnapshot, x: number, z: number): number {
+  return snapshot.basalt ? sampleSnapshotField(snapshot, snapshot.basalt, x, z) : 0;
 }

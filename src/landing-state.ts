@@ -11,6 +11,7 @@ import {
   MeshStandardMaterial,
   PlaneGeometry,
   RedFormat,
+  RGFormat,
   RGBAFormat,
   RingGeometry,
   Scene,
@@ -41,6 +42,8 @@ import {
   type ClimateForces,
 } from "./climate";
 import { RENDER_SCALE } from "./render-scale";
+import { resolveVolcanicAccretion } from "./volcanism";
+import type { VolcanicOutput } from "./volcanism";
 
 const TERRAIN_SIZE = RENDER_SCALE.islandExtent;
 const TERRAIN_HALF = TERRAIN_SIZE / 2;
@@ -93,7 +96,7 @@ function formedTerrainColor(height: number, x: number, z: number): Color {
   return new Color(0.31 + variation, 0.3 + variation, 0.27 + variation);
 }
 
-function makeTerrain(stateTexture: DataTexture): Mesh<PlaneGeometry, TerrainMaterial> {
+function makeTerrain(stateTexture: DataTexture, volcanicTexture: DataTexture): Mesh<PlaneGeometry, TerrainMaterial> {
   const geometry = new PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, TERRAIN_SEGMENTS, TERRAIN_SEGMENTS);
   geometry.rotateX(-Math.PI / 2);
   const positions = geometry.attributes.position;
@@ -115,6 +118,7 @@ function makeTerrain(stateTexture: DataTexture): Mesh<PlaneGeometry, TerrainMate
     geometry,
     createTerrainMaterial({
       stateTexture,
+      volcanicTexture,
       terrainExtent: TERRAIN_SIZE,
       seaLevel: SEA_LEVEL[DEFAULT_CLIMATE.seaLevel],
     }),
@@ -122,6 +126,16 @@ function makeTerrain(stateTexture: DataTexture): Mesh<PlaneGeometry, TerrainMate
   terrain.castShadow = true;
   terrain.receiveShadow = true;
   return terrain;
+}
+
+function makeVolcanicTexture(): DataTexture {
+  const result = new DataTexture(
+    new Float32Array(TERRAIN_SIDE * TERRAIN_SIDE * 2), TERRAIN_SIDE, TERRAIN_SIDE, RGFormat, FloatType,
+  );
+  result.minFilter = LinearFilter;
+  result.magFilter = LinearFilter;
+  result.needsUpdate = true;
+  return result;
 }
 
 function makeTerrainStateTexture(): DataTexture {
@@ -348,6 +362,8 @@ export interface WorldExperience {
   terrainHeightTexture: DataTexture;
   oceanMaskTexture: DataTexture;
   sculpt: (point: Vector3, direction: 1 | -1) => void;
+  placeHotSpot: (point: Vector3, output: VolcanicOutput) => void;
+  setVolcanicOutput: (output: VolcanicOutput) => void;
   finishSculpt: () => void;
   introduceDistantDrifter: (currentAge: number) => boolean;
   advance: (years: number, totalYears: number, climate: ClimateForces) => LineageReport;
@@ -362,7 +378,8 @@ export interface LineageReport {
 
 export function createLandingState(scene: Scene): WorldExperience {
   const terrainStateTexture = makeTerrainStateTexture();
-  const terrain = makeTerrain(terrainStateTexture);
+  const volcanicTexture = makeVolcanicTexture();
+  const terrain = makeTerrain(terrainStateTexture, volcanicTexture);
   scene.add(terrain);
   const terrainDetails = createTerrainDetailRenderer(scene);
   const terrainHeightTexture = makeHeightTexture(terrain);
@@ -397,6 +414,12 @@ export function createLandingState(scene: Scene): WorldExperience {
       terrainStateTexture.image.data as Float32Array,
     );
     terrainStateTexture.needsUpdate = true;
+    const volcanicData = volcanicTexture.image.data as Float32Array;
+    for (let index = 0; index < worldHistory.terrain.basalt.length; index++) {
+      volcanicData[index * 2] = worldHistory.terrain.basalt[index]!;
+      volcanicData[index * 2 + 1] = worldHistory.terrain.ash[index]!;
+    }
+    volcanicTexture.needsUpdate = true;
     terrain.material.setSeaLevel(SEA_LEVEL[activeClimate.seaLevel]);
   }
   syncTerrainMaterialState();
@@ -459,6 +482,7 @@ export function createLandingState(scene: Scene): WorldExperience {
       (x, z) => terrainFieldAt(worldHistory.terrain.nutrients, x, z),
       (x, z) => terrainFieldAt(worldHistory.terrain.runoff, x, z),
       worldHistory.terrain.marineNutrients,
+      (x, z) => terrainFieldAt(worldHistory.terrain.basalt, x, z),
     );
   }
 
@@ -599,7 +623,7 @@ export function createLandingState(scene: Scene): WorldExperience {
         if (distance >= affectedRadius) continue;
         if (distance < radius) {
           worldHistory.terrain.elevations[i] = Math.max(
-            -5,
+            -55,
             worldHistory.terrain.elevations[i]! + direction * 1.25 * Math.pow(1 - distance / radius, 2),
           );
           worldHistory.terrain.disturbance[i] = 1;
@@ -622,6 +646,24 @@ export function createLandingState(scene: Scene): WorldExperience {
     terrainHeightTexture,
     oceanMaskTexture,
     sculpt,
+    placeHotSpot(point: Vector3, output: VolcanicOutput) {
+      const margin = 72;
+      worldHistory = {
+        ...worldHistory,
+        hotSpots: [{
+          id: "island-vent",
+          x: Math.max(-TERRAIN_HALF + margin, Math.min(TERRAIN_HALF - margin, point.x)),
+          z: Math.max(-TERRAIN_HALF + margin, Math.min(TERRAIN_HALF - margin, point.z)),
+          output,
+        }],
+      };
+    },
+    setVolcanicOutput(output: VolcanicOutput) {
+      worldHistory = {
+        ...worldHistory,
+        hotSpots: worldHistory.hotSpots.map((hotSpot) => ({ ...hotSpot, output })),
+      };
+    },
     finishSculpt() {
       flushTerrainChanges();
       syncTerrainDetails();
@@ -643,7 +685,11 @@ export function createLandingState(scene: Scene): WorldExperience {
       validateWorldHistory(worldHistory);
       worldHistory = {
         ...worldHistory,
-        terrain: resolveTerrainHistory(worldHistory.terrain, years, climate),
+        terrain: resolveTerrainHistory(
+          resolveVolcanicAccretion(worldHistory.terrain, worldHistory.hotSpots, years),
+          years,
+          climate,
+        ),
       };
       const positions = terrain.geometry.attributes.position;
       const colors = terrain.geometry.attributes.color;

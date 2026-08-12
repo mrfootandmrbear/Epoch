@@ -38,7 +38,7 @@ describe("world history validation", () => {
 
   it("rejects state from another schema version", () => {
     expect(() => validateWorldHistory({ ...validHistory(), version: 0 }))
-      .toThrow("world history version must be 4, received 0");
+      .toThrow("world history version must be 5, received 0");
   });
 
   it("rejects terrain arrays that do not match the declared grid", () => {

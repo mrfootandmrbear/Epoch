@@ -47,6 +47,7 @@ import {
   type WindRegime,
 } from "./climate";
 import { RENDER_SCALE } from "./render-scale";
+import type { VolcanicOutput } from "./volcanism";
 
 const statusEl = document.getElementById("status")!;
 const lineagePanelEl = document.getElementById("lineage-panel")!;
@@ -67,6 +68,7 @@ const rainfallEl = document.getElementById("rainfall") as HTMLSelectElement;
 const temperatureEl = document.getElementById("temperature") as HTMLSelectElement;
 const windEl = document.getElementById("wind") as HTMLSelectElement;
 const seaLevelEl = document.getElementById("sea-level") as HTMLSelectElement;
+const volcanicOutputEl = document.getElementById("volcanic-output") as HTMLSelectElement;
 
 for (const option of revealTreatmentOptions()) {
   const element = document.createElement("option");
@@ -193,9 +195,13 @@ function updateShadowCoverage(): void {
 
 await Promise.all([loadTreeGeometryAssets(), loadSeagrassGeometryAssets()]);
 const landingState = createLandingState(scene);
+const captureVolcanism = captureParams.get("volcano") as VolcanicOutput | null;
+if (captureMode && captureVolcanism && ["vigorous", "active", "waning", "extinct"].includes(captureVolcanism)) {
+  landingState.placeHotSpot(new Vector3(0, 0, 0), captureVolcanism);
+}
 const raycaster = new Raycaster();
 const pointer = new Vector2();
-type FormTool = "look" | "raise" | "carve";
+type FormTool = "look" | "raise" | "carve" | "hotspot";
 let formTool: FormTool = "look";
 let jumped = false;
 
@@ -264,7 +270,9 @@ function setTool(tool: FormTool): void {
       ? "Drag to orbit. Scroll to move closer. Choose a shaping tool when the form calls for it."
       : tool === "raise"
         ? "Drag across the land to build ridges and refuges — right-drag or two fingers still move the camera."
-        : "Drag across the land to cut valleys and channels — right-drag or two fingers still move the camera.";
+        : tool === "carve"
+          ? "Drag across the land to cut valleys and channels — right-drag or two fingers still move the camera."
+          : "Tap once to place the island's fixed volcanic source.";
 }
 
 function sculptAt(clientX: number, clientY: number): void {
@@ -272,7 +280,14 @@ function sculptAt(clientX: number, clientY: number): void {
   pointer.set((clientX / window.innerWidth) * 2 - 1, -(clientY / window.innerHeight) * 2 + 1);
   raycaster.setFromCamera(pointer, camera);
   const hit = raycaster.intersectObject(landingState.terrain, false)[0];
-  if (hit) landingState.sculpt(hit.point, formTool === "raise" ? 1 : -1);
+  if (!hit) return;
+  if (formTool === "hotspot") {
+    landingState.placeHotSpot(hit.point, volcanicOutputEl.value as VolcanicOutput);
+    setTool("look");
+    formHintEl.textContent = "The hot spot is fixed here. Jump time to let its shield grow.";
+    return;
+  }
+  landingState.sculpt(hit.point, formTool === "raise" ? 1 : -1);
 }
 
 function endStroke(): void {
@@ -344,6 +359,14 @@ for (const select of [rainfallEl, temperatureEl, windEl, seaLevelEl]) {
     formHintEl.textContent = `${climateLabel(climate)} — these forces will act across the next jump.`;
   });
 }
+
+volcanicOutputEl.addEventListener("change", () => {
+  const output = volcanicOutputEl.value as VolcanicOutput;
+  landingState.setVolcanicOutput(output);
+  formHintEl.textContent = output === "extinct"
+    ? "The island stops growing; erosion and subsidence will take over."
+    : `${volcanicOutputEl.selectedOptions[0]?.textContent ?? output} output will act across the next jump.`;
+});
 
 jumpButtonEl.addEventListener("click", () => {
   if (jumped) return;
