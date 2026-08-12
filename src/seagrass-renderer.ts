@@ -12,10 +12,11 @@ import {
 import { float, fract, instanceIndex, positionLocal, sin, smoothstep, uniform, vec3 } from "three/tsl";
 import type { SeagrassOutcome } from "./outcome-resolver";
 import { seagrassGeometry, type SeagrassGeometryLevel } from "./seagrass-geometry-assets";
+import { RENDER_SCALE } from "./render-scale";
 
 const MAX_TUFTS = 900;
-const NEAR_DISTANCE = 72;
-const LOD_REPARTITION_DISTANCE = 6;
+const NEAR_DISTANCE = RENDER_SCALE.lod.seagrassNear;
+const LOD_REPARTITION_DISTANCE = RENDER_SCALE.lod.seagrassRepartition;
 const UP = new Vector3(0, 1, 0);
 
 export interface SeagrassRenderer {

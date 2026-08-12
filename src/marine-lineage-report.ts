@@ -18,9 +18,9 @@ export function buildMarineLineageReportHtml(changes: readonly MarineLineageChan
   const rows = changes.map((change) => {
     const event = change.status === "extinct" ? "extinct"
       : change.event === "established" ? "established"
-        : `moved · ${change.moved.toFixed(0)}u`;
+        : `moved · ${change.moved.toFixed(0)}m`;
     const habitat = change.habitat
-      ? `${change.habitat.band} · ${change.habitat.depth.toFixed(1)}u column · food ${Math.round(change.habitat.food * 100)}% · waves ${Math.round(change.habitat.waveCost * 100)}%`
+      ? `${change.habitat.band} · ${change.habitat.depth.toFixed(1)}m column · food ${Math.round(change.habitat.food * 100)}% · waves ${Math.round(change.habitat.waveCost * 100)}%`
       : undefined;
     const traits = MARINE_TRAIT_KEYS.flatMap((key) => {
       const trait = change.traits?.[key];

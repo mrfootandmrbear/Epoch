@@ -18,6 +18,8 @@ export interface LineageState {
   readonly traits?: Readonly<PopulationTraits>;
   readonly abundance?: number;
   readonly energy?: number;
+  /** Ability to turn the island's current forage into usable energy. */
+  readonly feedingAdaptation?: number;
 }
 
 export interface LineageHistory {
@@ -78,13 +80,29 @@ export function createLineageHistory(): LineageHistory {
   };
 }
 
+/** A rafting event carries one vulnerable cohort, never a ready population. */
+export function createDrifterFounderHistory(originAge: number, ordinal = 0): LineageHistory {
+  return {
+    lineages: [{
+      id: `sheltered-grazer:${ordinal}`,
+      originAge,
+      generation: 0,
+      identity: "sheltered-grazer",
+      status: "not-established",
+      abundance: 0.018,
+      energy: 0.38,
+      feedingAdaptation: 0.28,
+    }],
+  };
+}
+
 /** 100 years = 0.05, 10,000 = 0.40, 1,000,000 = 0.75. */
 export function traitAdaptationRate(jumpYears: number): number {
   const logYears = Math.max(0, Math.log10(Math.max(1, jumpYears)));
   return Math.min(0.75, 0.025 * Math.min(logYears, 2) + 0.175 * Math.max(0, logYears - 2));
 }
 
-/** 1 year = 2 units, 100 = 10, 10,000 = 40, 1,000,000 = 70. */
+/** 1 year = 2m, 100 = 10m, 10,000 = 40m, 1,000,000 = 70m. */
 export function migrationRadius(jumpYears: number): number {
   const logYears = Math.max(0, Math.log10(Math.max(1, jumpYears)));
   if (logYears <= 2) return 2 + logYears * 4;

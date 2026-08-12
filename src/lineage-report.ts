@@ -35,12 +35,12 @@ function habitatLabel(change: LineageChange): string | undefined {
 }
 
 function eventLabel(change: LineageChange): string {
-  if (change.event === "speciated") return `new branch · ${change.moved.toFixed(0)}u isolated`;
+  if (change.event === "speciated") return `new branch · ${change.moved.toFixed(0)}m isolated`;
   if (change.status === "extinct") return "extinct";
   if (change.status === "not-established") return "not established";
   if (change.event === "established") return "established";
-  if (change.event === "reanchored") return `re-anchored · ${change.moved.toFixed(0)}u`;
-  return `moved · ${change.moved.toFixed(0)}u`;
+  if (change.event === "reanchored") return `re-anchored · ${change.moved.toFixed(0)}m`;
+  return `moved · ${change.moved.toFixed(0)}m`;
 }
 
 function strongestTraits(change: LineageChange): string {

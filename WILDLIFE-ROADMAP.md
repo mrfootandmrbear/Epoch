@@ -41,7 +41,7 @@ Domains exchange shared signals such as forage, coastal productivity, nutrients,
 |---|---|---|---|
 | Shared snapshot | **Built** | One sampled terrain/climate/forage state supplies land, freshwater, coast, and air scoring. | Add explicit marine nutrient, wave-stress, and benthic substrate fields only when their first consumer is implemented. |
 | Water-volume habitat | **Built** as a bounded proof | Surface, midwater, and benthic nodes connect horizontally through open water and vertically within columns; body size controls shallow clearance. A separate benthic field records coral-facing depth, light, slope, and substrate stability. | Add current direction, oxygen, and persistent nutrients when the first consumer needs each field. |
-| Terrestrial lineages | **Built** | Persistent identity, site, seven-trait means, inheritance, migration, energy, abundance, extinction, and bounded deep-time speciation. | Replace primitive embodiment with one real fauna family and verify that trait extremes remain readable at gameplay distance. |
+| Terrestrial lineages | **Built** | Drifters introduce one tiny founder cohort; food-use adaptation, local forage, energy, and reproduction gate establishment. Established lineages persist identity, site, seven-trait means, migration, abundance, extinction, and bounded deep-time speciation. | Replace primitive embodiment with one real fauna family and verify that trait extremes remain readable at gameplay distance. |
 | Play-speed land behavior | **Built** | Terrain-aware paths, herd cohesion/separation, and walkability are renderer-side embodiments of resolved populations. | Bias destination choice toward current forage without making local movement authoritative over epoch history. |
 | Freshwater | **Built** as habitat; **planned** as ecology | Drainage-fed basins are derived from the shared snapshot. | Define one ecological consumer before adding nutrient transport or freshwater wildlife. |
 | Marine animals | **Built** for one lineage | A coastal-forager persists in connected 3D water bands with body-size clearance, depth choice, streamlining, maneuverability, depth control, thermal tolerance, energy, abundance, migration, and extinction. | Validate open-water and structurally complex trait extremes before authoring the fish brief. |
@@ -54,7 +54,7 @@ Domains exchange shared signals such as forage, coastal productivity, nutrients,
 
 | Asset family | Category | Stage | System relationship | Exact next gate |
 |---|---|---:|---|---|
-| `epoch-seagrass-meadow` | plant | **accepted** | Visible sheltered coastal productivity and nursery cover. | No gate. Revisit density/color only through a called-out refresh. |
+| `epoch-seagrass-meadow` | plant | **candidate** | Visible sheltered coastal productivity and nursery cover; slow per-tuft current sway is under renewed review. | Owner verdict on revised in-engine motion. |
 | `epoch-canopy-tree` | plant | **candidate** | Visible woody cover, soil protection, forage structure, and mangrove habitat. | Owner visual verdict on the recorded showcase and previews. |
 | `example-marsh-grazer` | animal | **brief** | Illustrative trait/asset contract; not a production creature. | Select Foxel source workflow and define the shared rig, discrete foot variants, and reproducible procedure. |
 | First marine lineage family | fish | **planned** | Visual proof of the first persistent non-land lineage. | Create a brief only when the marine experiment fixes its trait contract. |

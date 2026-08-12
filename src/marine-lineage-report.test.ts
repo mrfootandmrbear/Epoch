@@ -15,7 +15,7 @@ describe("marine lineage report", () => {
     };
     const html = buildMarineLineageReportHtml([change]);
     expect(html).toContain("Marine history");
-    expect(html).toContain("midwater · 3.0u column");
+    expect(html).toContain("midwater · 3.0m column");
     expect(html).toContain("population 50%");
     expect(html).toContain("streamlining +0.200");
   });

@@ -81,7 +81,7 @@ function validateLineage(value: unknown, ids: Set<string>, index: number): Linea
   if (lineage.traits !== undefined) {
     assertPopulationTraits(lineage.traits as Readonly<PopulationTraits>, `${context}.traits`);
   }
-  for (const field of ["abundance", "energy"] as const) {
+  for (const field of ["abundance", "energy", "feedingAdaptation"] as const) {
     const entry = lineage[field];
     if (entry !== undefined && (!Number.isFinite(entry) || (entry as number) < 0 || (entry as number) > 1)) {
       throw new RangeError(`${context}.${field} must be finite and within [0, 1]`);

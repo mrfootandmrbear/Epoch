@@ -46,6 +46,7 @@ import {
   type TemperatureRegime,
   type WindRegime,
 } from "./climate";
+import { RENDER_SCALE } from "./render-scale";
 
 const statusEl = document.getElementById("status")!;
 const lineagePanelEl = document.getElementById("lineage-panel")!;
@@ -240,7 +241,6 @@ function syncCameraGestures(): void {
 }
 let totalYears = 0;
 let climate: ClimateForces = { ...DEFAULT_CLIMATE };
-let terrestrialFoundersIntroduced = false;
 
 function formatYears(years: number): string {
   if (years >= 1_000_000) return `${years / 1_000_000} million years`;
@@ -348,11 +348,10 @@ jumpYearsEl.addEventListener("change", () => {
 
 distantDrifterEl.addEventListener("click", () => {
   if (!landingState.introduceDistantDrifter(totalYears)) return;
-  terrestrialFoundersIntroduced = true;
   distantDrifterEl.textContent = "Drifter approaching";
   distantDrifterEl.classList.add("active");
   distantDrifterEl.disabled = true;
-  formHintEl.textContent = "A vegetation raft rides the far current. Any terrestrial founders aboard will face the next jump.";
+  formHintEl.textContent = "A vegetation raft carries a tiny founder cohort. Arrival is not establishment; local food will decide whether it survives.";
 });
 
 for (const select of [rainfallEl, temperatureEl, windEl, seaLevelEl]) {
@@ -381,8 +380,14 @@ jumpButtonEl.addEventListener("click", () => {
     renderLineageReport(lineageReport.changes, lineageReport.marineChanges, lineageReport.traitDistance);
     applyOceanForces(committedClimate);
     worldAgeEl.textContent = `Year ${totalYears.toLocaleString()}`;
-    landingSummaryEl.textContent = landingSummary(totalYears, committedClimate, terrestrialFoundersIntroduced);
+    const hasEstablishedTerrestrialPopulation = lineageReport.changes.some((change) => change.status === "active");
+    landingSummaryEl.textContent = landingSummary(totalYears, committedClimate, hasEstablishedTerrestrialPopulation);
     epochStoryEl.textContent = buildEpochStory(previousAge, lineageReport.changes, committedClimate, lineageReport.marineChanges);
+    if (lineageReport.changes.length > 0 && lineageReport.changes.every((change) => change.status === "extinct")) {
+      distantDrifterEl.textContent = "Distant Drifter";
+      distantDrifterEl.classList.remove("active");
+      distantDrifterEl.disabled = false;
+    }
     epochCardEl.classList.add("visible");
   }, () => {
     jumped = false;
@@ -409,16 +414,17 @@ function applyOceanForces(forces: ClimateForces): void {
   if (!entry) {
     const wind = WIND[forces.wind];
     const ocean = new FFTOcean(renderer, {
-      patchSize: 500,
+      patchSize: RENDER_SCALE.oceanPatch,
       windSpeed: wind.speed,
       windDirectionDeg: wind.x < 0 ? 180 : 0,
       fetch: 800000,
       // Keep the broad FFT component below the fine wind chop. At island
       // scale a full-amplitude low-frequency heightfield reads as gelatinous.
-      amplitudeScale: 0.22,
+      amplitudeScale: RENDER_SCALE.swellAmplitudeScale,
       randomSeed: captureMode ? 0xe90c4 : undefined,
     });
     const mesh = createFFTOceanMesh(ocean, {
+      size: RENDER_SCALE.oceanExtent,
       sunDirection,
       sunColor: new Color(0xfff2d9),
       terrainHeightTexture: landingState.terrainHeightTexture,

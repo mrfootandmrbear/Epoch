@@ -27,6 +27,7 @@ import {
   type LineageStatus,
 } from "./lineage-history";
 import { createMarineLineageHistory, resolveMarineLineages, type MarineLineageChange, type MarineLineageHistory, type MarinePopulationOutcome } from "./marine-lineage";
+import { resolveFounderEstablishment } from "./founder-establishment";
 
 export interface HabitatSample {
   elevation: number;
@@ -356,7 +357,7 @@ function resolveLineage(
     };
   }
 
-  const scored = previous.status === "active"
+  const scored = previous.status === "active" || previous.site
     ? migratedSite(
       heightAt,
       forageAt,
@@ -404,28 +405,37 @@ function resolveLineage(
   if (import.meta.env.DEV) assertPopulationTraits(traits, `lineage ${previous.id} resolved traits`);
   const moved = previous.site ? Math.hypot(scored.x - previous.site.x, scored.z - previous.site.z) : 0;
   const duration = clamp01(Math.log10(Math.max(1, jumpYears) + 1) / 6);
-  const beforeEnergy = previous.energy ?? 0.62;
-  const beforeAbundance = previous.abundance ?? 0.34;
+  const founder = previous.status === "not-established";
+  const beforeEnergy = previous.energy ?? (founder ? 0.38 : 0.62);
+  const beforeAbundance = previous.abundance ?? (founder ? 0.012 : 0.34);
   const intake = scored.habitat.forage * (0.75 + scored.habitat.moisture * 0.25);
-  const energy = clamp01(beforeEnergy + (intake - 0.48) * duration * 0.9);
-  const abundance = clamp01(beforeAbundance + (
+  const founderResolution = founder ? resolveFounderEstablishment({
+    energy: beforeEnergy,
+    abundance: beforeAbundance,
+    feedingAdaptation: previous.feedingAdaptation ?? 0.28,
+  }, scored.habitat.forage, scored.habitat.moisture, jumpYears) : undefined;
+  const energy = founderResolution?.energy ?? clamp01(beforeEnergy + (intake - 0.48) * duration * 0.9);
+  const abundance = founderResolution?.abundance ?? clamp01(beforeAbundance + (
     (intake - 0.52) * 0.8 + (energy - 0.45) * 0.15
   ) * duration);
-  const starved = previous.status === "active" && abundance < 0.025 && energy < 0.08;
+  const status = founderResolution?.status
+    ?? (abundance < 0.025 && energy < 0.08 ? "extinct" : "active");
+  const starved = status === "extinct";
   const next: LineageState = {
     ...previous,
     identity: previous.identity,
-    status: starved ? "extinct" : "active",
+    status,
     site: { x: scored.x, z: scored.z },
     traits,
     abundance,
     energy,
+    feedingAdaptation: founderResolution?.feedingAdaptation ?? previous.feedingAdaptation ?? 1,
   };
   return {
     outcome: {
       id: previous.id,
       identity: previous.identity,
-      status: starved ? "extinct" : "active",
+      status,
       visible: !starved,
       previousSite: previous.site,
       site: { x: scored.x, y: scored.y, z: scored.z, habitat: scored.habitat },
@@ -440,10 +450,14 @@ function resolveLineage(
       parentId: previous.parentId,
       identity: previous.identity,
       previousStatus: previous.status,
-      status: starved ? "extinct" : "active",
+      status,
       moved,
       reanchored: scored.reanchored,
-      event: starved ? "extinct" : previous.status !== "active" ? "established" : scored.reanchored ? "reanchored" : "migrated",
+      event: starved ? "extinct"
+        : previous.status !== "active" && status === "active" ? "established"
+          : previous.status === "active" && scored.reanchored ? "reanchored"
+            : previous.status === "active" ? "migrated"
+              : undefined,
       habitat: scored.habitat,
       traits: populationTraitChanges(previous.traits, traits),
       abundance: { before: beforeAbundance, after: abundance },

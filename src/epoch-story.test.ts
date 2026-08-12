@@ -24,6 +24,19 @@ describe("buildEpochStory", () => {
       .toBe("Life took hold: 2 lineages established across the young island.");
   });
 
+  it("distinguishes founder arrival from establishment", () => {
+    expect(buildEpochStory(0, [{ ...change(undefined), previousStatus: "not-established", status: "not-established" }], DEFAULT_CLIMATE))
+      .toBe("Founders reached the island, but 1 cohort has not established.");
+  });
+
+  it("reports a founder failure alongside successful marine establishment", () => {
+    const marine: MarineLineageChange = {
+      id: "coastal-forager:0", previousStatus: "not-established", status: "active", moved: 0, event: "established",
+    };
+    expect(buildEpochStory(0, [{ ...change("extinct"), previousStatus: "not-established" }], DEFAULT_CLIMATE, [marine]))
+      .toBe("Life took hold: 1 marine lineage established across the young island. 1 founder cohort failed to establish.");
+  });
+
   it("frames later landings against the world the player knew", () => {
     const harsh: ClimateForces = { rainfall: "arid", temperature: "warm", wind: "easterly", seaLevel: "high" };
     expect(buildEpochStory(1_000, [change("reanchored"), { ...change("speciated"), id: "sheltered-grazer:0/a", parentId: "sheltered-grazer:0" }], harsh))

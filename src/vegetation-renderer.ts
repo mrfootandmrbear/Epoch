@@ -11,10 +11,11 @@ import {
 } from "three/webgpu";
 import type { TreeOutcome, VegetationGuild } from "./outcome-resolver";
 import { treeGeometry } from "./tree-geometry-assets";
+import { RENDER_SCALE } from "./render-scale";
 
 const MAX_TREES_PER_GUILD = 420;
-const NEAR_TREE_DISTANCE = 92;
-const LOD_REPARTITION_DISTANCE = 8;
+const NEAR_TREE_DISTANCE = RENDER_SCALE.lod.treeNear;
+const LOD_REPARTITION_DISTANCE = RENDER_SCALE.lod.treeRepartition;
 const UP = new Vector3(0, 1, 0);
 
 interface VegetationBatch {

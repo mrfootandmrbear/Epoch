@@ -17,7 +17,7 @@ import {
   Vector3,
 } from "three/webgpu";
 import { resolveLanding, type LandingOutcome } from "./outcome-resolver";
-import { createLineageHistory, populationTraitDistance, type LineageChange } from "./lineage-history";
+import { createDrifterFounderHistory, populationTraitDistance, type LineageChange } from "./lineage-history";
 import { lineageSeed, type PopulationIdentity } from "./population-archetypes";
 import type { PopulationTraits } from "./population-traits";
 import { resolveTerrainHistory, withGrazingPressure, withVegetationProtection } from "./terrain-history";
@@ -36,8 +36,9 @@ import {
   SEA_LEVEL,
   type ClimateForces,
 } from "./climate";
+import { RENDER_SCALE } from "./render-scale";
 
-const TERRAIN_SIZE = 380;
+const TERRAIN_SIZE = RENDER_SCALE.islandExtent;
 const TERRAIN_HALF = TERRAIN_SIZE / 2;
 const TERRAIN_SEGMENTS = 180;
 const TERRAIN_SIDE = TERRAIN_SEGMENTS + 1;
@@ -589,12 +590,12 @@ export function createLandingState(scene: Scene): WorldExperience {
     oceanMaskTexture,
     sculpt,
     introduceDistantDrifter(currentAge: number) {
-      if (worldHistory.lineages.lineages.length > 0) return false;
-      const founders = createLineageHistory();
+      if (worldHistory.lineages.lineages.some((lineage) => lineage.status !== "extinct")) return false;
+      const founders = createDrifterFounderHistory(currentAge, worldHistory.lineages.lineages.length);
       worldHistory = {
         ...worldHistory,
         lineages: {
-          lineages: founders.lineages.map((lineage) => ({ ...lineage, originAge: currentAge })),
+          lineages: [...worldHistory.lineages.lineages, ...founders.lineages],
         },
       };
       return true;

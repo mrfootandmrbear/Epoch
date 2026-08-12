@@ -23,7 +23,7 @@ describe("lineage report", () => {
     const html = buildLineageReportHtml([child, root]);
     expect(html.indexOf("Sheltered grazer")).toBeLessThan(html.indexOf("Descendant 1"));
     expect(html).toContain("style=\"--depth:1\"");
-    expect(html).toContain("new branch · 72u isolated");
+    expect(html).toContain("new branch · 72m isolated");
   });
 
   it("shows only the three strongest trait changes", () => {
