@@ -28,6 +28,7 @@ import {
   vec3,
 } from "three/tsl";
 import { FFTOcean, sampleBilinearFloat } from "./fft-ocean";
+import type { AtmosphereState } from "./atmosphere";
 
 interface ChopLayer {
   angleDeg: number;
@@ -49,16 +50,20 @@ export interface FFTWaterOptions {
   size?: number;
   segments?: number;
   sunDirection: Vector3;
-  sunColor?: Color;
+  atmosphere: AtmosphereState;
   terrainHeightTexture: DataTexture;
   oceanMaskTexture: DataTexture;
   terrainSize?: number;
 }
 
-export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): Mesh {
+export type FFTWaterMesh = Mesh & {
+  updateAtmosphere(state: AtmosphereState): void;
+};
+
+export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): FFTWaterMesh {
   const size = options.size ?? 1400;
   const segments = options.segments ?? 300;
-  const sunColorNode = color(options.sunColor ?? new Color(0xfff2d9));
+  const sunColorNode = uniform(options.atmosphere.sunColor.clone());
   const sunDir = uniform(options.sunDirection);
   const n = ocean.size;
   const patch = ocean.patchSize;
@@ -134,8 +139,8 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): M
 
   const deepColor = color(new Color(0x041c26));
   const shallowColor = color(new Color(0x1c6b78));
-  const zenithColor = color(new Color(0x2c6685));
-  const horizonColor = color(new Color(0xa8ced9));
+  const zenithColor = uniform(new Color(0x4f8fb5));
+  const horizonColor = uniform(options.atmosphere.fogColor.clone().offsetHSL(0, 0.01, 0.025));
   const foamColor = color(new Color(0xf3fbff));
   const terrainUv = positionWorld.xz.div(terrainSize).add(0.5);
   const insideTerrain = smoothstep(0, 0.015, terrainUv.x)
@@ -216,11 +221,11 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): M
       clamp(shallowFactor.mul(0.88).add(diffuse.mul(0.16)), 0, 1),
     );
 
-    const reflectDir = normalize(reflect(sunDir.negate(), shadingNormal));
+    const sunReflectDir = normalize(reflect(sunDir.negate(), shadingNormal));
     // A broader, energy-limited sun path reads as reflected light near the
     // surface instead of isolated white discs at shoreline camera height.
     const specularStrength = mix(float(0.58), float(1.45), distFade);
-    const specular = pow(max(dot(eyeDir, reflectDir), 0.0), 112)
+    const specular = pow(max(dot(eyeDir, sunReflectDir), 0.0), 112)
       .mul(sunColorNode)
       .mul(specularStrength);
 
@@ -228,7 +233,12 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): M
     // planar reflector here: distorted UVs outside the reflector target made
     // black polygons at the island and wave-height cameras, and the extra
     // scene render did not provide useful detail at ocean scale.
-    const reflectedSky = mix(horizonColor, zenithColor, clamp(reflectDir.y.mul(0.75).add(0.25), 0, 1));
+    const environmentReflectDir = normalize(reflect(eyeDir.negate(), shadingNormal));
+    const reflectedSky = mix(
+      horizonColor,
+      zenithColor,
+      clamp(environmentReflectDir.y.mul(0.75).add(0.25), 0, 1),
+    );
     const albedo = mix(baseWater, reflectedSky, fresnel.mul(0.86)).add(specular);
 
     // Turbulence only breaks up the shoreline ribbon below. Thresholding it
@@ -250,5 +260,12 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): M
     return mix(albedo, foamColor, foamFactor);
   })();
 
-  return mesh;
+  const updateAtmosphere = (state: AtmosphereState) => {
+    sunColorNode.value.copy(state.sunColor);
+    horizonColor.value.copy(state.fogColor).offsetHSL(0, 0.01, 0.025);
+    zenithColor.value.set(0x4f8fb5).lerp(state.ambientColor, 0.28).offsetHSL(0, 0.04, -0.08);
+  };
+  updateAtmosphere(options.atmosphere);
+
+  return Object.assign(mesh, { updateAtmosphere });
 }

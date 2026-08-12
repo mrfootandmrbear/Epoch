@@ -154,23 +154,6 @@ sunLight.shadow.camera.near = 1;
 sunLight.shadow.camera.far = 900;
 sunLight.shadow.bias = -0.00018;
 scene.add(sunLight, sunLight.target);
-
-// A second, tightly fitted solar map preserves contact shadows around the
-// current camera focus while the broad map keeps the entire island grounded.
-// Their intensities sum to the authored atmosphere intensity, so this adds
-// coverage and resolution rather than a second sun.
-const detailSunLight = new DirectionalLight(new Color(0xfff2d9), 0.6);
-detailSunLight.castShadow = true;
-detailSunLight.shadow.mapSize.set(1536, 1536);
-detailSunLight.shadow.camera.left = -62;
-detailSunLight.shadow.camera.right = 62;
-detailSunLight.shadow.camera.top = 62;
-detailSunLight.shadow.camera.bottom = -62;
-detailSunLight.shadow.camera.near = 1;
-detailSunLight.shadow.camera.far = 320;
-detailSunLight.shadow.bias = -0.00012;
-detailSunLight.shadow.normalBias = 0.025;
-scene.add(detailSunLight, detailSunLight.target);
 const ambientLight = new AmbientLight(0x8eacc0, 0.42);
 scene.add(ambientLight);
 const hemisphereLight = new HemisphereLight(0xaed7ee, 0x5b4938, 0.28);
@@ -188,32 +171,23 @@ function updateAtmosphere(elapsed: number): void {
   sunDirection.copy(state.sunDirection);
   atmosphereBackground.update(state);
   sunLight.color.copy(state.sunColor);
-  sunLight.intensity = state.sunIntensity * 0.68;
-  detailSunLight.color.copy(state.sunColor);
-  detailSunLight.intensity = state.sunIntensity * 0.32;
+  sunLight.intensity = state.sunIntensity;
+  oceanMesh?.updateAtmosphere(state);
   ambientLight.color.copy(state.ambientColor);
   ambientLight.intensity = state.ambientIntensity;
   hemisphereLight.color.copy(state.ambientColor).offsetHSL(0.01, 0.04, 0.12);
   hemisphereLight.groundColor.set(0x5b4938);
   hemisphereLight.intensity = state.ambientIntensity * 0.95;
   heightFogColor.value.copy(state.fogColor);
-  const heightFog = resolveHeightFog(climate);
-  heightFogDensity.value = heightFog.density;
-  heightFogCeiling.value = heightFog.ceiling;
   renderer.toneMappingExposure = state.exposure;
   renderPipeline?.setProfile(profile);
 }
 
 const broadShadowCenter = new Vector3(0, 10, 0);
-const detailShadowCenter = new Vector3();
 function updateShadowCoverage(): void {
   sunLight.target.position.copy(broadShadowCenter);
   sunLight.position.copy(broadShadowCenter).addScaledVector(sunDirection, 420);
-  detailShadowCenter.copy(controls.target);
-  detailSunLight.target.position.copy(detailShadowCenter);
-  detailSunLight.position.copy(detailShadowCenter).addScaledVector(sunDirection, 155);
   sunLight.target.updateMatrixWorld();
-  detailSunLight.target.updateMatrixWorld();
 }
 
 await Promise.all([loadTreeGeometryAssets(), loadSeagrassGeometryAssets()]);
@@ -241,6 +215,14 @@ function syncCameraGestures(): void {
 }
 let totalYears = 0;
 let climate: ClimateForces = { ...DEFAULT_CLIMATE };
+let committedClimate: ClimateForces = { ...DEFAULT_CLIMATE };
+
+function applyCommittedHeightFog(): void {
+  const heightFog = resolveHeightFog(committedClimate);
+  heightFogDensity.value = heightFog.density;
+  heightFogCeiling.value = heightFog.ceiling;
+}
+applyCommittedHeightFog();
 
 function formatYears(years: number): string {
   if (years >= 1_000_000) return `${years / 1_000_000} million years`;
@@ -365,7 +347,7 @@ jumpButtonEl.addEventListener("click", () => {
   if (jumped) return;
   const jumpYears = Number(jumpYearsEl.value);
   climate = readClimate();
-  const committedClimate = { ...climate };
+  const nextClimate = { ...climate };
   jumped = true;
   endStroke();
   syncCameraGestures();
@@ -374,6 +356,8 @@ jumpButtonEl.addEventListener("click", () => {
   const treatment = revealTreatmentEl.value as RevealTreatmentName;
   reveal.captureBefore(renderer.domElement);
   reveal.play(treatment, jumpYears, () => {
+    committedClimate = nextClimate;
+    applyCommittedHeightFog();
     const previousAge = totalYears;
     totalYears += jumpYears;
     const lineageReport = landingState.advance(jumpYears, totalYears, committedClimate);
@@ -426,7 +410,7 @@ function applyOceanForces(forces: ClimateForces): void {
     const mesh = createFFTOceanMesh(ocean, {
       size: RENDER_SCALE.oceanExtent,
       sunDirection,
-      sunColor: new Color(0xfff2d9),
+      atmosphere: sampleAtmosphere(captureTime, captureMode ? "day" : "cycle"),
       terrainHeightTexture: landingState.terrainHeightTexture,
       oceanMaskTexture: landingState.oceanMaskTexture,
     });
