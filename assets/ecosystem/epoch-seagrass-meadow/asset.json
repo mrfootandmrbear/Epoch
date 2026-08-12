@@ -3,7 +3,7 @@
   "id": "epoch-seagrass-meadow",
   "displayName": "Epoch Seagrass Meadow",
   "category": "plant",
-  "stage": "accepted",
+  "stage": "candidate",
   "role": "shallow-water nursery cover and a visible marker of sheltered coastal productivity",
   "habitats": ["sheltered saltwater shallows", "gently sloping soft-sediment lagoon"],
   "realWorldReferents": ["eelgrass meadows", "turtle grass beds"],
@@ -41,6 +41,6 @@
   "animations": { "required": ["current-sway"] },
   "showcase": "previews/front-meadow.png",
   "acceptance": {
-    "verdict": "Owner approved the in-engine meadow on 2026-08-11: good work; this is great, with density and color refinements explicitly safe to revisit later."
+    "verdict": "Geometry and meadow composition were approved on 2026-08-11. Runtime current-sway returned to candidate after the owner observed synchronized motion reading as fast shadows; revised slow per-tuft phase motion awaits a new in-engine verdict."
   }
 }

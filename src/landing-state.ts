@@ -81,7 +81,9 @@ function terrainColor(
     0.25 + wetness * 0.2 + variation - disturbance * 0.1,
     0.1,
   ) : new Color(0.27 + variation + disturbance * 0.12, 0.28 + variation - disturbance * 0.08, 0.22);
-  const rockExposure = Math.min(0.78, Math.max(0, (slope - 0.28) / 0.52) + disturbance * 0.22);
+  // Broad young slopes should remain soil/ground cover. Reserve the rock
+  // treatment for genuinely steep faces and strongly disturbed terrain.
+  const rockExposure = Math.min(0.42, Math.max(0, (slope - 0.58) / 0.72) + disturbance * 0.14);
   return base.lerp(new Color(0x716b5d).offsetHSL(0, 0, variation), rockExposure);
 }
 

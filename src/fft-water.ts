@@ -6,7 +6,6 @@ import {
   color,
   cos,
   dot,
-  exp,
   float,
   floor,
   fract,
@@ -19,7 +18,6 @@ import {
   pow,
   reflect,
   sin,
-  screenUV,
   smoothstep,
   sub,
   texture,
@@ -28,7 +26,6 @@ import {
   varying,
   vec2,
   vec3,
-  viewportOpaqueMipTexture,
 } from "three/tsl";
 import { FFTOcean, sampleBilinearFloat } from "./fft-ocean";
 
@@ -44,9 +41,9 @@ interface ChopLayer {
 // reference look wants both simultaneously. Cheaper than a second FFT
 // cascade, and a reasonable stand-in for now (see THESIS.md §3).
 const CHOP_LAYERS: ChopLayer[] = [
-  { angleDeg: 100, amplitude: 0.25, wavelength: 7, speed: 2.2 },
-  { angleDeg: 205, amplitude: 0.18, wavelength: 5, speed: 2.7 },
-  { angleDeg: 33, amplitude: 0.12, wavelength: 3.6, speed: 3.1 },
+  { angleDeg: 100, amplitude: 0.08, wavelength: 7, speed: 2.2 },
+  { angleDeg: 205, amplitude: 0.055, wavelength: 5, speed: 2.7 },
+  { angleDeg: 33, amplitude: 0.035, wavelength: 3.6, speed: 3.1 },
 ];
 export interface FFTWaterOptions {
   size?: number;
@@ -127,7 +124,9 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): M
     .mul(float(1).sub(smoothstep(0.985, 1, waterUv.y)));
   const oceanMask = mix(float(1), texture(options.oceanMaskTexture, waterUv).r, insideWaterDomain);
   const wave = swell.add(chop).mul(oceanMask).toVar("wave");
-  material.positionNode = positionLocal.add(vec3(0, wave.x, 0));
+  // A small horizontal displacement keeps crests directional. Pure vertical
+  // heightfield motion makes broad swells expand and contract like gelatin.
+  material.positionNode = positionLocal.add(vec3(wave.y.mul(-0.12), wave.x, wave.z.mul(-0.12)));
 
   const vWave = varying(wave, "vWave");
   const waveNormal = normalize(vec3(vWave.y.negate(), 1.0, vWave.z.negate()));
@@ -158,29 +157,6 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): M
   // fully opaque water before the coastal-productivity depth band ends.
   const shallowTransmission = shallowFactor.mul(float(1).sub(surfaceFresnel));
   material.opacityNode = oceanMask.mul(float(1).sub(shallowTransmission.mul(0.62)));
-
-  // Refract the opaque scene through the wave slope, then apply Beer-Lambert
-  // attenuation using the actual surface-to-terrain depth. Red falls away
-  // first, leaving the cyan/blue transmission expected in deeper water.
-  const refractionStrength = shallowTransmission.mul(0.012);
-  const refractedUv = screenUV.add(waveNormal.xz.mul(refractionStrength));
-  const refractedSample = viewportOpaqueMipTexture(
-    refractedUv,
-    waterDepth.mul(0.035).clamp(0, 3),
-  ) as Node<"vec4">;
-  const refractedScene = refractedSample.rgb;
-  const absorption = vec3(-0.16, -0.065, -0.032);
-  const absorptionDepth = absorption.mul(max(waterDepth, 0));
-  const transmittance = vec3(
-    exp(absorptionDepth.x),
-    exp(absorptionDepth.y),
-    exp(absorptionDepth.z),
-  );
-  const absorbedRefraction = vec3(
-    refractedScene.r.mul(transmittance.r).add(deepColor.r.mul(float(1).sub(transmittance.r))),
-    refractedScene.g.mul(transmittance.g).add(deepColor.g.mul(float(1).sub(transmittance.g))),
-    refractedScene.b.mul(transmittance.b).add(deepColor.b.mul(float(1).sub(transmittance.b))),
-  );
 
   const hash2 = Fn(([p]: [Node<"vec2">]) => {
     return fract(sin(dot(p, vec2(127.1, 311.7))).mul(43758.5453123));
@@ -234,12 +210,11 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): M
     const fresnel = pow(float(1.0).sub(cosTheta), 5.0).mul(0.96).add(0.04);
 
     const diffuse = max(dot(shadingNormal, sunDir), 0.0);
-    const waterBody = mix(
+    const baseWater = mix(
       deepColor,
       shallowColor,
       clamp(shallowFactor.mul(0.88).add(diffuse.mul(0.16)), 0, 1),
     );
-    const baseWater = mix(waterBody, absorbedRefraction, shallowTransmission.mul(0.78));
 
     const reflectDir = normalize(reflect(sunDir.negate(), shadingNormal));
     // A broader, energy-limited sun path reads as reflected light near the

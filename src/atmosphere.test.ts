@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sampleAtmosphere } from "./atmosphere";
+import { resolveHeightFog, sampleAtmosphere } from "./atmosphere";
 
 describe("atmosphere", () => {
   it("makes dawn warmer and dimmer than day", () => {
@@ -24,5 +24,21 @@ describe("atmosphere", () => {
     const first = sampleAtmosphere(15);
     const repeated = sampleAtmosphere(15 + 8 * 60);
     expect(first.sunDirection.distanceTo(repeated.sunDirection)).toBeLessThan(1e-10);
+  });
+});
+
+describe("resolveHeightFog", () => {
+  it("holds more low atmosphere in wet cold calm climates", () => {
+    const inversion = resolveHeightFog({ rainfall: "wet", temperature: "cold", wind: "calm", seaLevel: "present" });
+    const clear = resolveHeightFog({ rainfall: "arid", temperature: "warm", wind: "westerly", seaLevel: "present" });
+    expect(inversion.density).toBeGreaterThan(clear.density * 5);
+    expect(inversion.ceiling).toBeGreaterThan(clear.ceiling);
+  });
+
+  it("lets wind disperse an otherwise identical fog field", () => {
+    const calm = resolveHeightFog({ rainfall: "temperate", temperature: "mild", wind: "calm", seaLevel: "present" });
+    const windy = resolveHeightFog({ rainfall: "temperate", temperature: "mild", wind: "easterly", seaLevel: "present" });
+    expect(calm.density).toBeGreaterThan(windy.density);
+    expect(calm.ceiling).toBe(windy.ceiling);
   });
 });

@@ -9,7 +9,7 @@ import {
   Quaternion,
   Vector3,
 } from "three/webgpu";
-import { float, positionLocal, sin, uniform, vec3 } from "three/tsl";
+import { float, fract, instanceIndex, positionLocal, sin, smoothstep, uniform, vec3 } from "three/tsl";
 import type { SeagrassOutcome } from "./outcome-resolver";
 import { seagrassGeometry, type SeagrassGeometryLevel } from "./seagrass-geometry-assets";
 
@@ -34,9 +34,15 @@ export function createSeagrassRenderer(scene: Group): SeagrassRenderer {
     side: DoubleSide,
   });
   const bladeHeight = positionLocal.y;
-  const swayProfile = bladeHeight.mul(bladeHeight);
-  const sway = sin(sceneTime.mul(1.15).add(bladeHeight.mul(2.4))).mul(0.24).mul(swayProfile);
-  material.positionNode = positionLocal.add(vec3(sway, float(0), sway.mul(0.28)));
+  const swayProfile = smoothstep(0.08, 1, bladeHeight).mul(smoothstep(0.08, 1, bladeHeight));
+  // Each tuft gets a stable phase, preventing the entire meadow from sweeping
+  // as one dark sheet. A long primary cycle and weak secondary flutter read as
+  // a sheltered current rather than fast wind over terrestrial grass.
+  const tuftPhase = fract(sin(float(instanceIndex).mul(12.9898)).mul(43758.5453)).mul(Math.PI * 2);
+  const primary = sin(sceneTime.mul(0.42).add(tuftPhase).add(bladeHeight.mul(0.72))).mul(0.105);
+  const flutter = sin(sceneTime.mul(0.19).add(tuftPhase.mul(1.7)).sub(bladeHeight.mul(1.35))).mul(0.028);
+  const sway = primary.add(flutter).mul(swayProfile);
+  material.positionNode = positionLocal.add(vec3(sway, float(0), sway.mul(0.18)));
 
   function batch(level: SeagrassGeometryLevel): InstancedMesh {
     const mesh = new InstancedMesh(seagrassGeometry(level), material, MAX_TUFTS);

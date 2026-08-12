@@ -1,4 +1,5 @@
 import { Color, MathUtils, Vector3 } from "three/webgpu";
+import type { ClimateForces } from "./climate";
 
 export type AtmosphereProfile = "cycle" | "day" | "dawn" | "storm";
 
@@ -16,6 +17,28 @@ export interface AtmosphereState {
   readonly mieDirectionalG: number;
   readonly cloudCoverage: number;
   readonly cloudDensity: number;
+}
+
+export interface HeightFogState {
+  readonly density: number;
+  readonly ceiling: number;
+}
+
+/** Climate expressed as bounded lower-atmosphere optical depth. */
+export function resolveHeightFog(climate: Readonly<ClimateForces>): HeightFogState {
+  const rainfallDensity = climate.rainfall === "wet" ? 0.00016
+    : climate.rainfall === "temperate" ? 0.00014
+      : 0.000045;
+  const windRetention = climate.wind === "calm" ? 1.25 : 0.72;
+  const temperatureRetention = climate.temperature === "cold" ? 1.2
+    : climate.temperature === "warm" ? 0.68
+      : 1;
+  return {
+    density: rainfallDensity * windRetention * temperatureRetention,
+    ceiling: climate.temperature === "cold" ? 14
+      : climate.temperature === "warm" ? 5
+        : 9,
+  };
 }
 
 const DAY_SECONDS = 8 * 60;

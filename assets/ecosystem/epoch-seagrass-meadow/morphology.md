@@ -31,3 +31,7 @@ Every instance uses the same rooted ribbon grammar, lagoon-green palette, and sh
 - Floating leaves or surface canopies, which would confuse seagrass with kelp and obscure the shallow-water visibility win.
 - Flower-like ornaments or arbitrary color variants unrelated to depth and productivity.
 - Static blades, because current motion is the primary underwater silhouette cue.
+
+## Runtime motion revision
+
+The 2026-08-11 review found that a shared fast phase made the accepted meadow read as quickly moving shadows. Runtime deformation now uses stable per-tuft phase offsets, a roughly fifteen-second primary current cycle, weak secondary flutter, and a rooted bend profile. Geometry and habitat placement are unchanged; revised motion awaits an owner verdict.

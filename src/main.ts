@@ -3,7 +3,6 @@ import {
   AmbientLight,
   Color,
   DirectionalLight,
-  FogExp2,
   HemisphereLight,
   MOUSE,
   PerspectiveCamera,
@@ -15,6 +14,7 @@ import {
   WebGPURenderer,
 } from "three/webgpu";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { exponentialHeightFogFactor, fog, uniform } from "three/tsl";
 import { FFTOcean } from "./fft-ocean";
 import { createFFTOceanMesh } from "./fft-water";
 import { createLandingState } from "./landing-state";
@@ -32,7 +32,7 @@ import {
   revealTreatmentOptions,
   type RevealTreatmentName,
 } from "./reveal";
-import { sampleAtmosphere, type AtmosphereProfile } from "./atmosphere";
+import { resolveHeightFog, sampleAtmosphere, type AtmosphereProfile } from "./atmosphere";
 import { createAtmosphereBackground } from "./atmosphere-renderer";
 import { createEpochRenderPipeline, readPostProcessingOptions } from "./post-processing";
 import {
@@ -83,10 +83,14 @@ const reveal = createRevealController(jumpVeilEl);
 const sunDirection = new Vector3(0.55, 0.42, 0.35).normalize();
 
 const scene = new Scene();
-scene.fog = new FogExp2(0xb9ced9, 0.00042);
+scene.fog = null;
 const initialAtmosphere = sampleAtmosphere(0, "day");
 const atmosphereBackground = createAtmosphereBackground(initialAtmosphere);
 scene.backgroundNode = atmosphereBackground.node;
+const heightFogColor = uniform(initialAtmosphere.fogColor.clone());
+const heightFogDensity = uniform(0.0002);
+const heightFogCeiling = uniform(10);
+scene.fogNode = fog(heightFogColor, exponentialHeightFogFactor(heightFogDensity, heightFogCeiling));
 
 const camera = new PerspectiveCamera(
   55,
@@ -166,9 +170,9 @@ detailSunLight.shadow.camera.far = 320;
 detailSunLight.shadow.bias = -0.00012;
 detailSunLight.shadow.normalBias = 0.025;
 scene.add(detailSunLight, detailSunLight.target);
-const ambientLight = new AmbientLight(0x8eacc0, 0.18);
+const ambientLight = new AmbientLight(0x8eacc0, 0.42);
 scene.add(ambientLight);
-const hemisphereLight = new HemisphereLight(0xaed7ee, 0x5b4938, 0.62);
+const hemisphereLight = new HemisphereLight(0xaed7ee, 0x5b4938, 0.28);
 scene.add(hemisphereLight);
 
 function updateAtmosphere(elapsed: number): void {
@@ -181,7 +185,7 @@ function updateAtmosphere(elapsed: number): void {
         : "cycle";
   const state = sampleAtmosphere(elapsed, profile);
   sunDirection.copy(state.sunDirection);
-  atmosphereBackground.update(state, elapsed);
+  atmosphereBackground.update(state);
   sunLight.color.copy(state.sunColor);
   sunLight.intensity = state.sunIntensity * 0.68;
   detailSunLight.color.copy(state.sunColor);
@@ -191,7 +195,10 @@ function updateAtmosphere(elapsed: number): void {
   hemisphereLight.color.copy(state.ambientColor).offsetHSL(0.01, 0.04, 0.12);
   hemisphereLight.groundColor.set(0x5b4938);
   hemisphereLight.intensity = state.ambientIntensity * 0.95;
-  scene.fog?.color.copy(state.fogColor);
+  heightFogColor.value.copy(state.fogColor);
+  const heightFog = resolveHeightFog(climate);
+  heightFogDensity.value = heightFog.density;
+  heightFogCeiling.value = heightFog.ceiling;
   renderer.toneMappingExposure = state.exposure;
   renderPipeline?.setProfile(profile);
 }
@@ -406,7 +413,9 @@ function applyOceanForces(forces: ClimateForces): void {
       windSpeed: wind.speed,
       windDirectionDeg: wind.x < 0 ? 180 : 0,
       fetch: 800000,
-      amplitudeScale: 1,
+      // Keep the broad FFT component below the fine wind chop. At island
+      // scale a full-amplitude low-frequency heightfield reads as gelatinous.
+      amplitudeScale: 0.22,
       randomSeed: captureMode ? 0xe90c4 : undefined,
     });
     const mesh = createFFTOceanMesh(ocean, {

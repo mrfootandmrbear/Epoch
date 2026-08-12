@@ -1,8 +1,7 @@
-import { Color, MeshStandardNodeMaterial, Node } from "three/webgpu";
+import { MeshStandardNodeMaterial, Node } from "three/webgpu";
 import {
   Fn,
   cameraPosition,
-  color,
   dot,
   float,
   floor,
@@ -39,14 +38,12 @@ export function createTerrainMaterial(): MeshStandardNodeMaterial {
   const distance = cameraPosition.sub(positionWorld).length();
   const grainFade = float(1).sub(smoothstep(45, 150, distance));
   const mediumFade = float(1).sub(smoothstep(130, 420, distance));
-  const detail = macro.sub(0.5).mul(0.12)
-    .add(medium.sub(0.5).mul(0.09).mul(mediumFade))
-    .add(grain.sub(0.5).mul(0.055).mul(grainFade));
+  const detail = macro.sub(0.5).mul(0.07)
+    .add(medium.sub(0.5).mul(0.055).mul(mediumFade))
+    .add(grain.sub(0.5).mul(0.035).mul(grainFade));
 
-  const warmSoil = color(new Color(0x806b4d));
   const base = vertexColor();
-  const earthVariation = mix(base, warmSoil, macro.mul(0.055));
-  material.colorNode = earthVariation.mul(detail.add(1));
+  material.colorNode = base.mul(detail.add(1));
   material.roughnessNode = float(0.82).add(grain.mul(0.14).mul(grainFade));
   return material;
 }
