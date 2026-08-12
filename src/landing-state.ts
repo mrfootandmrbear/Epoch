@@ -11,6 +11,7 @@ import {
   MeshStandardMaterial,
   PlaneGeometry,
   RedFormat,
+  RGBAFormat,
   RingGeometry,
   Scene,
   SphereGeometry,
@@ -24,7 +25,10 @@ import { resolveTerrainHistory, withGrazingPressure, withVegetationProtection } 
 import { createVegetationRenderer } from "./vegetation-renderer";
 import { createSeagrassRenderer } from "./seagrass-renderer";
 import { createFreshwaterRenderer } from "./freshwater-renderer";
-import { createTerrainMaterial } from "./terrain-material";
+import { createTerrainMaterial, type TerrainMaterial } from "./terrain-material";
+import { packTerrainMaterialState } from "./terrain-material-state";
+import { createTerrainDetailRenderer } from "./terrain-detail-renderer";
+import { createStreamRenderer } from "./stream-renderer";
 import { resolveFreshwaterField } from "./freshwater-basins";
 import { captureWorldSnapshot } from "./world-snapshot";
 import { createWorldHistory, validateWorldHistory } from "./world-history";
@@ -104,7 +108,7 @@ function formedTerrainColor(height: number, x: number, z: number): Color {
   return new Color(0.31 + variation, 0.3 + variation, 0.27 + variation);
 }
 
-function makeTerrain(): Mesh {
+function makeTerrain(stateTexture: DataTexture): Mesh<PlaneGeometry, TerrainMaterial> {
   const geometry = new PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, TERRAIN_SEGMENTS, TERRAIN_SEGMENTS);
   geometry.rotateX(-Math.PI / 2);
   const positions = geometry.attributes.position;
@@ -124,11 +128,29 @@ function makeTerrain(): Mesh {
   geometry.computeVertexNormals();
   const terrain = new Mesh(
     geometry,
-    createTerrainMaterial(),
+    createTerrainMaterial({
+      stateTexture,
+      terrainExtent: TERRAIN_SIZE,
+      seaLevel: SEA_LEVEL[DEFAULT_CLIMATE.seaLevel],
+    }),
   );
   terrain.castShadow = true;
   terrain.receiveShadow = true;
   return terrain;
+}
+
+function makeTerrainStateTexture(): DataTexture {
+  const result = new DataTexture(
+    new Float32Array(TERRAIN_SIDE * TERRAIN_SIDE * 4),
+    TERRAIN_SIDE,
+    TERRAIN_SIDE,
+    RGBAFormat,
+    FloatType,
+  );
+  result.minFilter = LinearFilter;
+  result.magFilter = LinearFilter;
+  result.needsUpdate = true;
+  return result;
 }
 
 function makeHeightTexture(terrain: Mesh): DataTexture {
@@ -353,8 +375,10 @@ export interface LineageReport {
 }
 
 export function createLandingState(scene: Scene): WorldExperience {
-  const terrain = makeTerrain();
+  const terrainStateTexture = makeTerrainStateTexture();
+  const terrain = makeTerrain(terrainStateTexture);
   scene.add(terrain);
+  const terrainDetails = createTerrainDetailRenderer(scene);
   const terrainHeightTexture = makeHeightTexture(terrain);
   const oceanMaskTexture = makeOceanMaskTexture();
   const wetShore = makeWetShore(terrain);
@@ -365,6 +389,7 @@ export function createLandingState(scene: Scene): WorldExperience {
   const seagrass = createSeagrassRenderer(life);
   const lineageRenderers = new Map<string, LineageRenderState>();
   const freshwater = createFreshwaterRenderer(life);
+  const streams = createStreamRenderer(life);
   const coastalAnimals = addCoastalSwimmers(life);
   const aerialAnimals = addAerialAnimals(life);
   scene.add(life);
@@ -378,6 +403,16 @@ export function createLandingState(scene: Scene): WorldExperience {
   // Coastal animals recruit from the sea and birds arrive under their own
   // power. Non-flying terrestrial animals require an over-water drifter.
   let worldHistory = createWorldHistory(initialHeights, TERRAIN_SIDE, TERRAIN_SIZE, false);
+
+  function syncTerrainMaterialState(): void {
+    packTerrainMaterialState(
+      worldHistory.terrain,
+      terrainStateTexture.image.data as Float32Array,
+    );
+    terrainStateTexture.needsUpdate = true;
+    terrain.material.setSeaLevel(SEA_LEVEL[activeClimate.seaLevel]);
+  }
+  syncTerrainMaterialState();
 
   function heightAt(x: number, z: number): number {
     const gx = Math.max(0, Math.min(TERRAIN_SEGMENTS, (x + TERRAIN_HALF) / TERRAIN_STEP));
@@ -394,6 +429,12 @@ export function createLandingState(scene: Scene): WorldExperience {
     const d = worldHistory.terrain.elevations[z1 * TERRAIN_SIDE + x1]!;
     return (a + (b - a) * tx) + ((c + (d - c) * tx) - (a + (b - a) * tx)) * tz;
   }
+
+  function syncTerrainDetails(): void {
+    terrainDetails.update(worldHistory.terrain, heightAt, SEA_LEVEL[activeClimate.seaLevel]);
+    streams.setTerrain(worldHistory.terrain, SEA_LEVEL[activeClimate.seaLevel]);
+  }
+  syncTerrainDetails();
 
   function forageAt(x: number, z: number): number {
     const gx = Math.max(0, Math.min(TERRAIN_SEGMENTS, (x + TERRAIN_HALF) / TERRAIN_STEP));
@@ -520,6 +561,7 @@ export function createLandingState(scene: Scene): WorldExperience {
     terrain.geometry.computeVertexNormals();
     terrain.geometry.computeBoundingSphere();
     syncShoreSurface();
+    syncTerrainDetails();
     if (revealed) groundLife();
   }
 
@@ -576,11 +618,15 @@ export function createLandingState(scene: Scene): WorldExperience {
         const y = heightAt(x, z);
         positions.setY(i, y);
         color.copy(revealed
-          ? terrainColor(y, x, z, activeClimate, worldHistory.terrain.disturbance[i])
+          ? terrainColor(
+            y, x, z, activeClimate, worldHistory.terrain.disturbance[i],
+            terrainSlope(worldHistory.terrain.elevations, i),
+          )
           : formedTerrainColor(y, x, z));
         colors.setXYZ(i, color.r, color.g, color.b);
       }
     }
+    syncTerrainMaterialState();
     terrainDirty = true;
   }
 
@@ -639,6 +685,8 @@ export function createLandingState(scene: Scene): WorldExperience {
         lineages: resolution.nextHistory,
         marineLineages: resolution.nextMarineHistory,
       };
+      syncTerrainMaterialState();
+      syncTerrainDetails();
       validateWorldHistory(worldHistory);
       vegetation.setTrees(outcome.trees, heightAt, SEA_LEVEL[activeClimate.seaLevel]);
       seagrass.setMeadow(outcome.seagrass, heightAt);
@@ -704,6 +752,7 @@ export function createLandingState(scene: Scene): WorldExperience {
       };
     },
     update(elapsed: number, viewPosition?: Readonly<Vector3>) {
+      streams.update(elapsed);
       if (viewPosition) {
         vegetation.updateLod(viewPosition);
         seagrass.update(elapsed, viewPosition);

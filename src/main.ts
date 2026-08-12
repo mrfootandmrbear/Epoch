@@ -153,6 +153,7 @@ sunLight.shadow.camera.bottom = -245;
 sunLight.shadow.camera.near = 1;
 sunLight.shadow.camera.far = 900;
 sunLight.shadow.bias = -0.00018;
+sunLight.shadow.normalBias = 0.035;
 scene.add(sunLight, sunLight.target);
 const ambientLight = new AmbientLight(0x8eacc0, 0.42);
 scene.add(ambientLight);
