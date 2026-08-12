@@ -20,7 +20,7 @@ The Player Attachment note proposes a base grazer mesh authored with five morph 
 
 These cannot both be true. THESIS derives its position from a Foxel constraint — Foxel does not export blend shapes, therefore use skeleton proportions. The Player Attachment note assumes a mesh authored with blend shapes, which implies either a non-Foxel authoring path for the grazer, or a Foxel export post-processed to add morph targets.
 
-**This is Open Decision 1 below, and it gates a large fraction of the render plan.** No doc edit should presuppose an answer. In particular, do not rewrite THESIS.md:84 to permit morph targets — THESIS is the founding document and the Foxel commitment is load-bearing elsewhere. Record the tension in §8 and let the decision resolve first.
+**This is Open Decision 1 below — now RESOLVED.** Morph targets win: per-instance blend weights via `morphTexture` (DataArrayTexture), Foxel not required. THESIS.md:84 has been updated to reflect this. See OD-1 in the Open Decisions section.
 
 ## Second-order finding: the audit overclaims on grazer traits
 
@@ -146,7 +146,7 @@ None. Every proposal has a natural home in an existing doc. Resist adding a crea
 
 These are questions. None should be written into a roadmap as a commitment until answered.
 
-1. **Creature asset pipeline.** Does the grazer keep the Foxel + runtime skeleton-proportion path (THESIS.md:84), move to a hand-authored morph-target mesh, or take a hybrid — skeleton for limb proportions and overall scale, morph targets only for shapes skeletons handle badly (horn extension, torso thickening)? Gates ladder rungs 2 through 5 and the RENDERER ledger rows. The highest-leverage open question in this document.
+1. **Creature asset pipeline — RESOLVED.** Morph targets confirmed. Five morph channels (body mass, leg length, foot width, insulation, horn length) plus two per-instance coat color floats (coat warmth, coat lightness), driven from a `morphTexture` (DataArrayTexture) under `WebGPURenderer`. `InstancedMesh` + `SkinnedMesh` are mutually exclusive in the Three.js WebGPU path; foot width and horn length have no natural joint-transform expression. Foxel is an early candidate authoring pipeline, not a requirement — any topology-stable export with a consistent vertex count can drive morph targets. Ladder rungs 2–5 and the RENDERER ledger rows are now unblocked.
 
 2. **Per-instance morph weights: TSL or raw WGSL.** The Player Attachment note observes that TSL's `morphReference()` and `instanceIndex` nodes may be composable for per-instance morph weights, but that TSL's morph support may assume weights are uniform across instances, requiring a raw WGSL override. The note itself says both paths are worth prototyping. Unresolved. Only relevant if Decision 1 admits morph targets.
 

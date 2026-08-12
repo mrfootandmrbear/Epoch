@@ -50,6 +50,8 @@ Domains exchange shared signals such as forage, coastal productivity, nutrients,
 | Cross-domain food web | **Experimenting** | Forage drives land dynamics. Marine primary productivity, nursery capacity, fish abundance, prey availability, and shoreline subsidy form an explicit energy exchange; nesting aerial outcomes already read marine abundance. | Make runoff/nutrients persistent, then add one land or aerial consumer of prey/subsidy without feeding grazers implausibly. |
 | Lineage/colony history UI | **Built** for land and first fish reporting; **planned** for reefs | Land ancestry and fish condition/adaptation are reported textually. | Add domain-aware reef succession after the reef-site contract exists; defer a richer branching view until then. |
 
+**Trait expression for terrestrial lineages — OD-1 resolved:** Evolved traits express via five morph targets (body mass, leg length, foot width, insulation, horn length) plus two per-instance scalar floats (coat warmth, coat lightness) — the same seven fields already tracked as lineage trait means. Per-instance blend weights are driven from a `morphTexture` (DataArrayTexture) under `WebGPURenderer`; one draw call covers a herd. Walk cycle runs as pose morphs blended per instance. Any topology-stable mesh with a consistent vertex count can drive this pipeline; the authoring tool (Foxel or otherwise) is not a binding constraint.
+
 ## Asset ledger
 
 | Asset family | Category | Stage | System relationship | Exact next gate |
