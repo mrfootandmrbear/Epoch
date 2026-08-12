@@ -24,6 +24,7 @@ import { resolveTerrainHistory, withGrazingPressure, withVegetationProtection } 
 import { createVegetationRenderer } from "./vegetation-renderer";
 import { createSeagrassRenderer } from "./seagrass-renderer";
 import { createFreshwaterRenderer } from "./freshwater-renderer";
+import { createTerrainMaterial } from "./terrain-material";
 import { resolveFreshwaterField } from "./freshwater-basins";
 import { captureWorldSnapshot } from "./world-snapshot";
 import { createWorldHistory, validateWorldHistory } from "./world-history";
@@ -120,7 +121,7 @@ function makeTerrain(): Mesh {
   geometry.computeVertexNormals();
   const terrain = new Mesh(
     geometry,
-    new MeshStandardMaterial({ vertexColors: true, roughness: 0.91, metalness: 0 }),
+    createTerrainMaterial(),
   );
   terrain.castShadow = true;
   terrain.receiveShadow = true;

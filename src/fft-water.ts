@@ -6,6 +6,7 @@ import {
   color,
   cos,
   dot,
+  exp,
   float,
   floor,
   fract,
@@ -18,6 +19,7 @@ import {
   pow,
   reflect,
   sin,
+  screenUV,
   smoothstep,
   sub,
   texture,
@@ -26,6 +28,7 @@ import {
   varying,
   vec2,
   vec3,
+  viewportOpaqueMipTexture,
 } from "three/tsl";
 import { FFTOcean, sampleBilinearFloat } from "./fft-ocean";
 
@@ -156,6 +159,29 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): M
   const shallowTransmission = shallowFactor.mul(float(1).sub(surfaceFresnel));
   material.opacityNode = oceanMask.mul(float(1).sub(shallowTransmission.mul(0.62)));
 
+  // Refract the opaque scene through the wave slope, then apply Beer-Lambert
+  // attenuation using the actual surface-to-terrain depth. Red falls away
+  // first, leaving the cyan/blue transmission expected in deeper water.
+  const refractionStrength = shallowTransmission.mul(0.012);
+  const refractedUv = screenUV.add(waveNormal.xz.mul(refractionStrength));
+  const refractedSample = viewportOpaqueMipTexture(
+    refractedUv,
+    waterDepth.mul(0.035).clamp(0, 3),
+  ) as Node<"vec4">;
+  const refractedScene = refractedSample.rgb;
+  const absorption = vec3(-0.16, -0.065, -0.032);
+  const absorptionDepth = absorption.mul(max(waterDepth, 0));
+  const transmittance = vec3(
+    exp(absorptionDepth.x),
+    exp(absorptionDepth.y),
+    exp(absorptionDepth.z),
+  );
+  const absorbedRefraction = vec3(
+    refractedScene.r.mul(transmittance.r).add(deepColor.r.mul(float(1).sub(transmittance.r))),
+    refractedScene.g.mul(transmittance.g).add(deepColor.g.mul(float(1).sub(transmittance.g))),
+    refractedScene.b.mul(transmittance.b).add(deepColor.b.mul(float(1).sub(transmittance.b))),
+  );
+
   const hash2 = Fn(([p]: [Node<"vec2">]) => {
     return fract(sin(dot(p, vec2(127.1, 311.7))).mul(43758.5453123));
   });
@@ -208,11 +234,12 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): M
     const fresnel = pow(float(1.0).sub(cosTheta), 5.0).mul(0.96).add(0.04);
 
     const diffuse = max(dot(shadingNormal, sunDir), 0.0);
-    const baseWater = mix(
+    const waterBody = mix(
       deepColor,
       shallowColor,
       clamp(shallowFactor.mul(0.88).add(diffuse.mul(0.16)), 0, 1),
     );
+    const baseWater = mix(waterBody, absorbedRefraction, shallowTransmission.mul(0.78));
 
     const reflectDir = normalize(reflect(sunDir.negate(), shadingNormal));
     // A broader, energy-limited sun path reads as reflected light near the

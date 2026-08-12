@@ -15,7 +15,6 @@ import {
   WebGPURenderer,
 } from "three/webgpu";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { mix, smoothstep, uniform, viewportUV } from "three/tsl";
 import { FFTOcean } from "./fft-ocean";
 import { createFFTOceanMesh } from "./fft-water";
 import { createLandingState } from "./landing-state";
@@ -34,6 +33,7 @@ import {
   type RevealTreatmentName,
 } from "./reveal";
 import { sampleAtmosphere, type AtmosphereProfile } from "./atmosphere";
+import { createAtmosphereBackground } from "./atmosphere-renderer";
 import { createEpochRenderPipeline, readPostProcessingOptions } from "./post-processing";
 import {
   DEFAULT_CLIMATE,
@@ -84,9 +84,9 @@ const sunDirection = new Vector3(0.55, 0.42, 0.35).normalize();
 
 const scene = new Scene();
 scene.fog = new FogExp2(0xb9ced9, 0.00042);
-const skyHorizonColor = uniform(new Color(0xb9ced9));
-const skyZenithColor = uniform(new Color(0x4f8fb5));
-scene.backgroundNode = mix(skyHorizonColor, skyZenithColor, smoothstep(0.08, 1, viewportUV.y));
+const initialAtmosphere = sampleAtmosphere(0, "day");
+const atmosphereBackground = createAtmosphereBackground(initialAtmosphere);
+scene.backgroundNode = atmosphereBackground.node;
 
 const camera = new PerspectiveCamera(
   55,
@@ -138,15 +138,34 @@ for (const eventName of ["pointerdown", "wheel", "keydown", "touchstart"] as con
 }
 
 const sunLight = new DirectionalLight(new Color(0xfff2d9), 2.0);
-sunLight.position.copy(sunDirection).multiplyScalar(200);
+sunLight.position.copy(sunDirection).multiplyScalar(420);
 sunLight.castShadow = true;
 sunLight.shadow.mapSize.set(2048, 2048);
-sunLight.shadow.camera.left = -220;
-sunLight.shadow.camera.right = 220;
-sunLight.shadow.camera.top = 220;
-sunLight.shadow.camera.bottom = -220;
-sunLight.shadow.camera.far = 650;
-scene.add(sunLight);
+sunLight.shadow.camera.left = -245;
+sunLight.shadow.camera.right = 245;
+sunLight.shadow.camera.top = 245;
+sunLight.shadow.camera.bottom = -245;
+sunLight.shadow.camera.near = 1;
+sunLight.shadow.camera.far = 900;
+sunLight.shadow.bias = -0.00018;
+scene.add(sunLight, sunLight.target);
+
+// A second, tightly fitted solar map preserves contact shadows around the
+// current camera focus while the broad map keeps the entire island grounded.
+// Their intensities sum to the authored atmosphere intensity, so this adds
+// coverage and resolution rather than a second sun.
+const detailSunLight = new DirectionalLight(new Color(0xfff2d9), 0.6);
+detailSunLight.castShadow = true;
+detailSunLight.shadow.mapSize.set(1536, 1536);
+detailSunLight.shadow.camera.left = -62;
+detailSunLight.shadow.camera.right = 62;
+detailSunLight.shadow.camera.top = 62;
+detailSunLight.shadow.camera.bottom = -62;
+detailSunLight.shadow.camera.near = 1;
+detailSunLight.shadow.camera.far = 320;
+detailSunLight.shadow.bias = -0.00012;
+detailSunLight.shadow.normalBias = 0.025;
+scene.add(detailSunLight, detailSunLight.target);
 const ambientLight = new AmbientLight(0x8eacc0, 0.18);
 scene.add(ambientLight);
 const hemisphereLight = new HemisphereLight(0xaed7ee, 0x5b4938, 0.62);
@@ -162,11 +181,11 @@ function updateAtmosphere(elapsed: number): void {
         : "cycle";
   const state = sampleAtmosphere(elapsed, profile);
   sunDirection.copy(state.sunDirection);
-  skyHorizonColor.value.copy(state.fogColor).offsetHSL(0, 0.02, 0.035);
-  skyZenithColor.value.copy(state.ambientColor).offsetHSL(0.015, 0.12, -0.12);
-  sunLight.position.copy(sunDirection).multiplyScalar(200);
+  atmosphereBackground.update(state, elapsed);
   sunLight.color.copy(state.sunColor);
-  sunLight.intensity = state.sunIntensity;
+  sunLight.intensity = state.sunIntensity * 0.68;
+  detailSunLight.color.copy(state.sunColor);
+  detailSunLight.intensity = state.sunIntensity * 0.32;
   ambientLight.color.copy(state.ambientColor);
   ambientLight.intensity = state.ambientIntensity;
   hemisphereLight.color.copy(state.ambientColor).offsetHSL(0.01, 0.04, 0.12);
@@ -175,6 +194,18 @@ function updateAtmosphere(elapsed: number): void {
   scene.fog?.color.copy(state.fogColor);
   renderer.toneMappingExposure = state.exposure;
   renderPipeline?.setProfile(profile);
+}
+
+const broadShadowCenter = new Vector3(0, 10, 0);
+const detailShadowCenter = new Vector3();
+function updateShadowCoverage(): void {
+  sunLight.target.position.copy(broadShadowCenter);
+  sunLight.position.copy(broadShadowCenter).addScaledVector(sunDirection, 420);
+  detailShadowCenter.copy(controls.target);
+  detailSunLight.target.position.copy(detailShadowCenter);
+  detailSunLight.position.copy(detailShadowCenter).addScaledVector(sunDirection, 155);
+  sunLight.target.updateMatrixWorld();
+  detailSunLight.target.updateMatrixWorld();
 }
 
 await Promise.all([loadTreeGeometryAssets(), loadSeagrassGeometryAssets()]);
@@ -435,6 +466,7 @@ async function start() {
     landingState.update(elapsed, camera.position);
     presentation.update(elapsed);
     if (!presentation.active) controls.update();
+    updateShadowCoverage();
     renderPipeline!.render();
     if (captureMode) document.documentElement.dataset.captureReady = "true";
 

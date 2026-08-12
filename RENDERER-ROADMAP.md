@@ -26,10 +26,10 @@ Automated floor: `src/epoch-scale-terrain.test.ts` requires the one-year visible
 | Area | Status | Present evidence | Next gate |
 |---|---|---|---|
 | Deep-time landform | **Candidate** | One-pass weathering, drainage incision, and coastal retreat; four-rung fixed captures; numeric regression test. | Owner verdict on magnitude and plausibility. |
-| Atmosphere | **Experimenting** | Profile-driven authored sky gradient, sun/fill lighting, fog, exposure, dawn/day/storm grading. | Add a world-space solar disc and cloud layer; judge all three fixed profiles. |
-| Terrain shading | **Experimenting** | Height, climate, disturbance, and slope-authored rock exposure with hemisphere fill. | Replace vertex-only shading with scale-independent material detail and verify close/far cameras. |
-| Ocean surface | **Experimenting** | Tessendorf/JONSWAP FFT, fine chop, Fresnel, analytic sky reflection, shoreline foam. Broken planar reflector removed. | Add depth-based absorption/refraction, horizontal choppiness, and crest/Jacobian foam. |
-| Shadows | **Experimenting** | One 2048² directional map plus hemisphere fill. | Choose cascades or camera-relative shadow coverage and verify island/herd/forest cameras. |
+| Atmosphere | **Experimenting** | Directional world-space sky with solar disc, wind-driven procedural clouds, sun/fill lighting, fog, exposure, and dawn/day/storm grading. | Judge all three fixed profiles and record the owner verdict. |
+| Terrain shading | **Experimenting** | Height, climate, disturbance, and slope-authored rock exposure plus world-space macro, medium, and grain detail with distance-aware filtering. | Verify herd/forest/whole-island cameras and record the owner verdict. |
+| Ocean surface | **Experimenting** | Tessendorf/JONSWAP FFT, fine chop, Fresnel, wave-normal scene refraction, depth-based Beer-Lambert absorption, analytic sky reflection, and shoreline foam. | Add horizontal choppiness and crest/Jacobian foam; verify shallow/deep transitions. |
+| Shadows | **Experimenting** | Broad 2048² island solar map plus a tighter camera-focus 1536² map, with total solar energy preserved and hemisphere fill. | Verify island/shoreline/forest cameras and record the owner verdict. |
 | Post-processing | **Built** as a bounded layer | TSL grading and restrained bloom; optional full-resolution GTAO evaluation path. | Revisit only alongside accepted materials and lighting. |
 | Creature embodiment | **Planned** | Primitive semantic trait adapter only. | Accepted rigged/animated fauna family with readable extremes at gameplay distance. |
 
