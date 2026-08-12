@@ -1,3 +1,8 @@
 node_modules/
 dist/
 .DS_Store
+
+# Per-shot capture frames are large and deterministically regenerable from the
+# harness at any commit (fixed seed, frozen time, fixed cameras). The reviewed
+# artifacts — contact sheets and manifests — are versioned instead.
+docs/polish/evidence/**/frames/

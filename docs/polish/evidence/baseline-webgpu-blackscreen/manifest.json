@@ -1,0 +1,115 @@
+{
+  "set": "baseline",
+  "capturedAt": "2026-08-12T16:41:15.130Z",
+  "viewport": {
+    "width": 1600,
+    "height": 900
+  },
+  "settleMs": 2500,
+  "contactSheet": "contact-sheet.png",
+  "consoleErrors": [
+    "Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "pageerror: Failed to execute 'createView' on 'GPUTexture': Failed to read the 'swizzle' property from 'GPUTextureViewDescriptor': The provided value is not of type 'GPUTextureComponentSwizzle'.",
+    "pageerror: Failed to execute 'createView' on 'GPUTexture': Failed to read the 'swizzle' property from 'GPUTextureViewDescriptor': The provided value is not of type 'GPUTextureComponentSwizzle'.",
+    "pageerror: Failed to execute 'createView' on 'GPUTexture': Failed to read the 'swizzle' property from 'GPUTextureViewDescriptor': The provided value is not of type 'GPUTextureComponentSwizzle'.",
+    "THREE.THREE.WebGPURenderer: WebGPU Device Lost:\n\nMessage: A valid external Instance reference no longer exists.\nReason: unknown",
+    "pageerror: Failed to execute 'createView' on 'GPUTexture': Failed to read the 'swizzle' property from 'GPUTextureViewDescriptor': The provided value is not of type 'GPUTextureComponentSwizzle'.",
+    "pageerror: Failed to execute 'createView' on 'GPUTexture': Failed to read the 'swizzle' property from 'GPUTextureViewDescriptor': The provided value is not of type 'GPUTextureComponentSwizzle'.",
+    "pageerror: Failed to execute 'createView' on 'GPUTexture': Failed to read the 'swizzle' property from 'GPUTextureViewDescriptor': The provided value is not of type 'GPUTextureComponentSwizzle'.",
+    "THREE.THREE.WebGPURenderer: WebGPU Device Lost:\n\nMessage: A valid external Instance reference no longer exists.\nReason: unknown",
+    "pageerror: Failed to execute 'createView' on 'GPUTexture': Failed to read the 'swizzle' property from 'GPUTextureViewDescriptor': The provided value is not of type 'GPUTextureComponentSwizzle'.",
+    "pageerror: Failed to execute 'createView' on 'GPUTexture': Failed to read the 'swizzle' property from 'GPUTextureViewDescriptor': The provided value is not of type 'GPUTextureComponentSwizzle'.",
+    "pageerror: Failed to execute 'createView' on 'GPUTexture': Failed to read the 'swizzle' property from 'GPUTextureViewDescriptor': The provided value is not of type 'GPUTextureComponentSwizzle'.",
+    "THREE.THREE.WebGPURenderer: WebGPU Device Lost:\n\nMessage: A valid external Instance reference no longer exists.\nReason: unknown",
+    "pageerror: Failed to execute 'createView' on 'GPUTexture': Failed to read the 'swizzle' property from 'GPUTextureViewDescriptor': The provided value is not of type 'GPUTextureComponentSwizzle'.",
+    "pageerror: Failed to execute 'createView' on 'GPUTexture': Failed to read the 'swizzle' property from 'GPUTextureViewDescriptor': The provided value is not of type 'GPUTextureComponentSwizzle'.",
+    "pageerror: Failed to execute 'createView' on 'GPUTexture': Failed to read the 'swizzle' property from 'GPUTextureViewDescriptor': The provided value is not of type 'GPUTextureComponentSwizzle'.",
+    "pageerror: Failed to execute 'createView' on 'GPUTexture': Failed to read the 'swizzle' property from 'GPUTextureViewDescriptor': The provided value is not of type 'GPUTextureComponentSwizzle'.",
+    "THREE.THREE.WebGPURenderer: WebGPU Device Lost:\n\nMessage: A valid external Instance reference no longer exists.\nReason: unknown",
+    "pageerror: Failed to execute 'createView' on 'GPUTexture': Failed to read the 'swizzle' property from 'GPUTextureViewDescriptor': The provided value is not of type 'GPUTextureComponentSwizzle'.",
+    "pageerror: Failed to execute 'createView' on 'GPUTexture': Failed to read the 'swizzle' property from 'GPUTextureViewDescriptor': The provided value is not of type 'GPUTextureComponentSwizzle'.",
+    "pageerror: Failed to execute 'createView' on 'GPUTexture': Failed to read the 'swizzle' property from 'GPUTextureViewDescriptor': The provided value is not of type 'GPUTextureComponentSwizzle'.",
+    "THREE.THREE.WebGPURenderer: WebGPU Device Lost:\n\nMessage: A valid external Instance reference no longer exists.\nReason: unknown",
+    "pageerror: Failed to execute 'createView' on 'GPUTexture': Failed to read the 'swizzle' property from 'GPUTextureViewDescriptor': The provided value is not of type 'GPUTextureComponentSwizzle'.",
+    "pageerror: Failed to execute 'createView' on 'GPUTexture': Failed to read the 'swizzle' property from 'GPUTextureViewDescriptor': The provided value is not of type 'GPUTextureComponentSwizzle'.",
+    "pageerror: Failed to execute 'createView' on 'GPUTexture': Failed to read the 'swizzle' property from 'GPUTextureViewDescriptor': The provided value is not of type 'GPUTextureComponentSwizzle'.",
+    "THREE.THREE.WebGPURenderer: WebGPU Device Lost:\n\nMessage: A valid external Instance reference no longer exists.\nReason: unknown",
+    "pageerror: Failed to execute 'createView' on 'GPUTexture': Failed to read the 'swizzle' property from 'GPUTextureViewDescriptor': The provided value is not of type 'GPUTextureComponentSwizzle'.",
+    "pageerror: Failed to execute 'createView' on 'GPUTexture': Failed to read the 'swizzle' property from 'GPUTextureViewDescriptor': The provided value is not of type 'GPUTextureComponentSwizzle'.",
+    "pageerror: Failed to execute 'createView' on 'GPUTexture': Failed to read the 'swizzle' property from 'GPUTextureViewDescriptor': The provided value is not of type 'GPUTextureComponentSwizzle'.",
+    "THREE.THREE.WebGPURenderer: WebGPU Device Lost:\n\nMessage: A valid external Instance reference no longer exists.\nReason: unknown",
+    "pageerror: Failed to execute 'createView' on 'GPUTexture': Failed to read the 'swizzle' property from 'GPUTextureViewDescriptor': The provided value is not of type 'GPUTextureComponentSwizzle'.",
+    "pageerror: Failed to execute 'createView' on 'GPUTexture': Failed to read the 'swizzle' property from 'GPUTextureViewDescriptor': The provided value is not of type 'GPUTextureComponentSwizzle'.",
+    "pageerror: Failed to execute 'createView' on 'GPUTexture': Failed to read the 'swizzle' property from 'GPUTextureViewDescriptor': The provided value is not of type 'GPUTextureComponentSwizzle'.",
+    "THREE.THREE.WebGPURenderer: WebGPU Device Lost:\n\nMessage: A valid external Instance reference no longer exists.\nReason: unknown",
+    "pageerror: Failed to execute 'createView' on 'GPUTexture': Failed to read the 'swizzle' property from 'GPUTextureViewDescriptor': The provided value is not of type 'GPUTextureComponentSwizzle'.",
+    "pageerror: Failed to execute 'createView' on 'GPUTexture': Failed to read the 'swizzle' property from 'GPUTextureViewDescriptor': The provided value is not of type 'GPUTextureComponentSwizzle'.",
+    "pageerror: Failed to execute 'createView' on 'GPUTexture': Failed to read the 'swizzle' property from 'GPUTextureViewDescriptor': The provided value is not of type 'GPUTextureComponentSwizzle'.",
+    "THREE.THREE.WebGPURenderer: WebGPU Device Lost:\n\nMessage: A valid external Instance reference no longer exists.\nReason: unknown"
+  ],
+  "shots": [
+    {
+      "label": "01-island-1yr",
+      "url": "http://localhost:5178/?shot=whole-island&years=1&time=42",
+      "backend": "backend: WebGPU · 60 fps",
+      "ms": 4374,
+      "frame": "frames/01-island-1yr.png"
+    },
+    {
+      "label": "02-island-1kyr",
+      "url": "http://localhost:5178/?shot=whole-island&years=1000&time=42",
+      "backend": "backend: WebGPU · 60 fps",
+      "ms": 3803,
+      "frame": "frames/02-island-1kyr.png"
+    },
+    {
+      "label": "03-island-100kyr",
+      "url": "http://localhost:5178/?shot=whole-island&years=100000&time=42",
+      "backend": "backend: WebGPU · 60 fps",
+      "ms": 3478,
+      "frame": "frames/03-island-100kyr.png"
+    },
+    {
+      "label": "04-island-1myr",
+      "url": "http://localhost:5178/?shot=whole-island&years=1000000&time=42",
+      "backend": "backend: WebGPU · 60 fps",
+      "ms": 3385,
+      "frame": "frames/04-island-1myr.png"
+    },
+    {
+      "label": "05-shoreline",
+      "url": "http://localhost:5178/?shot=shoreline&years=1000&time=42",
+      "backend": "backend: WebGPU · 60 fps",
+      "ms": 3379,
+      "frame": "frames/05-shoreline.png"
+    },
+    {
+      "label": "06-forest-interior",
+      "url": "http://localhost:5178/?shot=forest-interior&years=1000&time=42",
+      "backend": "backend: WebGPU · 60 fps",
+      "ms": 3387,
+      "frame": "frames/06-forest-interior.png"
+    },
+    {
+      "label": "07-herd",
+      "url": "http://localhost:5178/?shot=herd&years=1000&time=42",
+      "backend": "backend: WebGPU · 59 fps",
+      "ms": 3405,
+      "frame": "frames/07-herd.png"
+    },
+    {
+      "label": "08-dawn",
+      "url": "http://localhost:5178/?shot=dawn&years=1000&time=42",
+      "backend": "backend: WebGPU · 60 fps",
+      "ms": 3393,
+      "frame": "frames/08-dawn.png"
+    },
+    {
+      "label": "09-storm",
+      "url": "http://localhost:5178/?shot=storm&years=1000&time=42",
+      "backend": "backend: WebGPU · 60 fps",
+      "ms": 3398,
+      "frame": "frames/09-storm.png"
+    }
+  ]
+}

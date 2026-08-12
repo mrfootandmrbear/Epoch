@@ -1,0 +1,78 @@
+{
+  "set": "baseline",
+  "capturedAt": "2026-08-12T16:53:19.717Z",
+  "viewport": {
+    "width": 1600,
+    "height": 900
+  },
+  "settleMs": 2500,
+  "contactSheet": "contact-sheet.png",
+  "consoleErrors": [
+    "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ],
+  "shots": [
+    {
+      "label": "01-island-1yr",
+      "url": "http://localhost:5178/?shot=whole-island&years=1&time=42",
+      "backend": "backend: WebGL2 · 0 fps",
+      "ms": 31302,
+      "frame": "frames/01-island-1yr.png"
+    },
+    {
+      "label": "02-island-1kyr",
+      "url": "http://localhost:5178/?shot=whole-island&years=1000&time=42",
+      "backend": "backend: WebGL2 · 1 fps",
+      "ms": 53205,
+      "frame": "frames/02-island-1kyr.png"
+    },
+    {
+      "label": "03-island-100kyr",
+      "url": "http://localhost:5178/?shot=whole-island&years=100000&time=42",
+      "backend": "backend: WebGL2 · 1 fps",
+      "ms": 54445,
+      "frame": "frames/03-island-100kyr.png"
+    },
+    {
+      "label": "04-island-1myr",
+      "url": "http://localhost:5178/?shot=whole-island&years=1000000&time=42",
+      "backend": "backend: WebGL2 · 1 fps",
+      "ms": 52213,
+      "frame": "frames/04-island-1myr.png"
+    },
+    {
+      "label": "05-shoreline",
+      "url": "http://localhost:5178/?shot=shoreline&years=1000&time=42",
+      "backend": "backend: WebGL2 · 1 fps",
+      "ms": 51576,
+      "frame": "frames/05-shoreline.png"
+    },
+    {
+      "label": "06-forest-interior",
+      "url": "http://localhost:5178/?shot=forest-interior&years=1000&time=42",
+      "backend": "backend: WebGL2 · 1 fps",
+      "ms": 51448,
+      "frame": "frames/06-forest-interior.png"
+    },
+    {
+      "label": "07-herd",
+      "url": "http://localhost:5178/?shot=herd&years=1000&time=42",
+      "backend": "backend: WebGL2 · 0 fps",
+      "ms": 47296,
+      "frame": "frames/07-herd.png"
+    },
+    {
+      "label": "08-dawn",
+      "url": "http://localhost:5178/?shot=dawn&years=1000&time=42",
+      "backend": "backend: WebGL2 · 1 fps",
+      "ms": 52812,
+      "frame": "frames/08-dawn.png"
+    },
+    {
+      "label": "09-storm",
+      "url": "http://localhost:5178/?shot=storm&years=1000&time=42",
+      "backend": "backend: WebGL2 · 0 fps",
+      "ms": 50604,
+      "frame": "frames/09-storm.png"
+    }
+  ]
+}
