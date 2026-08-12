@@ -18,18 +18,22 @@ point. **Needs:** one manual capture on the owner's real target machine in a
 foreground tab, on the WebGPU backend, after P0-2 clears.
 
 ### Baseline captured on the WebGL2 fallback rather than WebGPU
-**Reason: blocked by P0-2.** THESIS §6 rules out WebGL2 as a visual target, so
-every score in the Phase 0 scorecard is provisional and must be re-taken on
-WebGPU once the `swizzle` incompatibility is fixed. Post-processing in
-particular (`src/post-processing.ts` TSL grading, bloom, optional GTAO) may
-behave differently or not run at all on the fallback backend, so image-quality
-and lighting scores are the least trustworthy of the set.
+**Reason: environment limitation.** This sandbox has no GPU and exposes no
+WebGPU adapter, so the renderer falls back to WebGL2. Forcing WebGPU with
+`--enable-unsafe-webgpu` is not a valid substitute — it enables experimental IDL
+members a shipping browser lacks, and Phase 0 wasted a cycle mistaking the
+resulting failure for a product defect. THESIS §6 rules WebGL2 out as a visual
+target, so every Phase 0 score is provisional. Post-processing in particular
+(`src/post-processing.ts` TSL grading, bloom, optional GTAO) may behave
+differently or not run at all on the fallback, making image-quality and lighting
+the least trustworthy scores of the set. **Needs:** one capture run on the
+owner's machine, where WebGPU works.
 
 ### Full Phase 1 audit
 **Reason: Phase 0 scope.** The directive ends Phase 0 at "baseline captured,
 scorecard written, stop and report." The hostile-reviewer audit is the next
-session's work. It should not begin until P0-2 clears, so it audits the real
-pipeline instead of the fallback.
+session's work. Ideally it runs against WebGPU evidence from the owner's
+machine; a fallback-only audit risks chasing artifacts of the wrong backend.
 
 ### `ui` shot set is defined but not yet captured
 **Reason: budget + sequencing.** The set exists in `scripts/capture.mjs` but UI

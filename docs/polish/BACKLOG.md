@@ -10,7 +10,7 @@
 > while establishing the baseline. The full hostile-reviewer audit across all
 > polish domains is Phase 1 and has not been run yet.
 
-## P0 — blockers (nothing else can be honestly evaluated until these clear)
+## P0 — blockers
 
 ### P0-1 · `npm install` fails on a clean clone
 **Impact 5 · Cost 1 · Risk 1 · Score 5.00 · Status: OPEN**
@@ -28,37 +28,37 @@ before anything installs.
 - **Care:** regeneration is a large diff. Verify the resulting tree still pins
   `@dgreenheck/ez-tree` to commit `dcf309b` and that `three` stays 0.185.1.
 
-### P0-2 · Black screen on Chromium 141+ — the WebGPU path throws on every `createView`
-**Impact 5 · Cost 2 · Risk 2 · Score 1.25 · Status: OPEN**
+### ~~P0-2 · Black screen on Chromium 141+~~ — **RETRACTED, was a harness artifact**
+**Status: WITHDRAWN 2026-08-12. Not a product defect. Do not act on it.**
 
-three 0.185.1's reusable `GPUTextureViewDescriptor` sets `this.swizzle = 'rgba'`
-— a **string**. Current Chromium requires `GPUTextureComponentSwizzle`, a
-**dictionary**. IDL conversion rejects it on every `GPUTexture.createView()`
-call, so the render pipeline never produces a frame.
+Phase 0 originally filed this as a P0 after all nine WebGPU captures came back
+black with `Failed to execute 'createView' on 'GPUTexture': ... not of type
+'GPUTextureComponentSwizzle'`. **That conclusion was wrong**, and the record is
+kept here so no future session re-files it.
 
-- **Observed:** `pageerror: Failed to execute 'createView' on 'GPUTexture':
-  Failed to read the 'swizzle' property from 'GPUTextureViewDescriptor': The
-  provided value is not of type 'GPUTextureComponentSwizzle'.`
-- **Evidence:** `evidence/baseline-webgpu-blackscreen/contact-sheet.png` — all
-  nine shots pure black, while `#status` still reports "WebGPU · 60 fps"
-  (the animation loop runs; only rendering fails).
-- **Verified not a sandbox artifact:** hiding `navigator.gpu` forces the WebGL2
-  backend and the identical scene renders with zero console errors.
-- **Chromium tested:** 141.0.7390.37. **three:** 0.185.1, which is the *latest
-  published version* — there is no upstream release to bump to.
-- **Severity:** THESIS §6 commits to WebGPU+TSL and states the visual bar means
-  matching that pipeline, *not* approximating it on WebGL2. So this is not
-  merely a bug — until it clears, **no visual work on this project can be
-  honestly evaluated**, because the only images obtainable are from a backend
-  THESIS explicitly rules out as a target.
-- **Hypothesis:** a narrow startup compatibility shim that removes/normalises
-  `swizzle` on three's three reusable descriptor instances restores the WebGPU
-  path. Epoch does not use component swizzling, so dropping the property is
-  behaviour-neutral.
-- **Care:** must be a contained, clearly-commented shim with an upstream-issue
-  reference and a removal condition — not a vendored fork of three, and not
-  scattered patches. Confirm on the owner's real target browser too; the
-  finding here is from headless Chromium 141.
+What actually happened: the capture script passed `--enable-unsafe-webgpu`.
+That flag exposes experimental WebGPU IDL members that a shipping browser does
+not. In WebIDL, *unknown dictionary members are silently ignored* — so three
+0.185.1 setting `swizzle = 'rgba'` (a string where the experimental spec wants a
+`GPUTextureComponentSwizzle` dictionary) is inert in a normal browser and only
+becomes a hard type error once the flag turns the member on.
+
+- **Owner report:** WebGPU works locally on the pushed commit.
+- **Confirmed by test:** re-running capture *without* `--enable-unsafe-webgpu`
+  exposes no WebGPU at all in this sandbox — it falls back to WebGL2. The only
+  WebGPU reachable here is the flagged, non-representative one.
+- **Therefore:** the real WebGPU path is **not testable in this environment**,
+  and Phase 0 had no basis for calling it broken. The flag is now opt-in
+  (`--unsafe-webgpu`) and should stay off.
+- `evidence/artifact-unsafe-webgpu-flag/` is retained as evidence *of the
+  harness misconfiguration*, not of a product defect — renamed from
+  `baseline-webgpu-blackscreen/` so it cannot be mistaken for a real finding.
+
+**Residual watch item (low priority, not currently affecting players).** three
+0.185.1's `swizzle = 'rgba'` is still the wrong type against the draft spec, so
+it would become a genuine break if/when Chrome ships `texture-component-swizzle`
+to stable. Nothing to do now; three 0.185.1 is the latest published release. Re-
+test if a future Chrome stable starts throwing on `createView`.
 
 ## P1 — evidence infrastructure
 
@@ -91,4 +91,5 @@ game feel, camera, environmental life, UI/HUD, and micro-polish has **not** been
 performed. Candidate defects noticed incidentally while capturing the baseline
 are parked in `BASELINE.md` under "Unaudited observations" — they are
 observations, not triaged backlog items, and several may be artifacts of the
-WebGL2 fallback rather than real defects. Re-check them on WebGPU after P0-2.
+WebGL2 fallback rather than real defects. Re-check them against WebGPU evidence
+captured on the owner's machine before treating any of them as real.

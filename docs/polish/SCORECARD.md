@@ -2,8 +2,11 @@
 
 **Dated:** 2026-08-12 (Phase 0 baseline)
 **Backend:** WebGL2 fallback — **not the target pipeline**
-**Status: PROVISIONAL.** THESIS §6 rules out WebGL2 as a visual target, so every
-visual score must be re-taken on WebGPU once BACKLOG P0-2 clears.
+**Status: PROVISIONAL.** The sandbox cannot reach real WebGPU (no GPU; the only
+WebGPU available is behind an experimental flag that is not representative), so
+these were scored on the fallback. THESIS §6 rules WebGL2 out as a visual
+target, so every visual score should be re-taken on WebGPU hardware before it is
+trusted.
 
 Scale: 0–3 prototype · 4–5 visibly unfinished · 6 competent indie ·
 7 professional · 8 highly polished · 9 exceptional · 10 near-impossible to
@@ -29,11 +32,11 @@ this session's evidence are marked `—` rather than guessed.
 | Camera | 6 | Golden framings are well-composed and orbit clamps are thoughtful (the `maxPolarAngle` guard against rendering the world's underside is a real catch). Marked down only for `forest-interior` not containing a forest. |
 | UI / HUD | — | Capture mode hides every panel, so none was captured. The `ui` shot set is defined but not yet built out. |
 | Environmental life | 3* | Birds are flat white slivers and the water reads empty of visible fauna. **\*Partly unassessable:** land animals are correctly absent pre-drifter, so this score covers only what the captured state should contain. A fair score needs a post-drifter capture path. |
-| Polish | 3 | A black screen on the target browser, a 404 on every page load, and no favicon. |
-| Stability | 3 | Tests and determinism are genuinely strong (94 passing, snapshot-backed). Scored low regardless because the product does not render at all on its stated target platform. |
+| Polish | 5 | A 404 on every page load and no favicon. Otherwise a clean console in a normal run. |
+| Stability | 7 | Genuinely strong: 94 passing tests, snapshot-backed determinism, a pinned asset generator, and a thoughtful guard against orbiting under the seabed. Held below 8 only by the clean-clone install failure (P0-1). |
 | Performance | — | Unmeasurable in this environment; see `DEFERRED.md`. |
 
-**Assessed mean: 4.1** across the 14 scored categories. Categories marked `—`
+**Assessed mean: 4.6** across the 14 scored categories. Categories marked `—`
 are excluded rather than counted as zero or as passes.
 
 ## Honest read
@@ -41,8 +44,7 @@ are excluded rather than counted as zero or as passes.
 The **simulation** is markedly more mature than the **presentation**. Determinism,
 persistence, trait inheritance, hydrology and the deep-time resolver are
 substantial, well-tested work. What the player actually sees has not caught up:
-the world is legible but empty, flatly lit, and materially undifferentiated —
-and right now, on the target browser, entirely black.
+the world is legible but empty, flatly lit, and materially undifferentiated.
 
 This is exactly the failure mode THESIS §6 was written to prevent ("Epoch
 shouldn't need that pass"). The corrective is not more effects; it is making the

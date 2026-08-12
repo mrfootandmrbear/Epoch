@@ -79,6 +79,11 @@ function parseArgs(argv) {
     // while the three 0.185 / Chromium 141 `swizzle` incompatibility black-
     // screens the WebGPU path (see docs/polish/BACKLOG.md).
     webgl: false,
+    // Off by default on purpose: --enable-unsafe-webgpu exposes experimental
+    // WebGPU IDL members that a shipping browser does not, which changes
+    // validation behaviour. Captures must reproduce what a real player's
+    // browser does, not a superset of it.
+    unsafeWebgpu: false,
     only: null,
   };
   for (let i = 2; i < argv.length; i += 1) {
@@ -88,6 +93,7 @@ function parseArgs(argv) {
     if (name === "keep-frames") { args.keepFrames = true; continue; }
     if (name === "no-keep-frames") { args.keepFrames = false; continue; }
     if (name === "webgl") { args.webgl = true; continue; }
+    if (name === "unsafe-webgpu") { args.unsafeWebgpu = true; continue; }
     const value = argv[i + 1];
     i += 1;
     if (name === "width" || name === "height" || name === "settle" || name === "port") {
@@ -144,7 +150,7 @@ async function capture(args) {
     // playwright fall back to its own download only when it is absent.
     executablePath: existsSync(CHROMIUM_PATH) ? CHROMIUM_PATH : undefined,
     args: [
-      "--enable-unsafe-webgpu",
+      ...(args.unsafeWebgpu ? ["--enable-unsafe-webgpu"] : []),
       "--enable-features=Vulkan,UseSkiaRenderer",
       "--use-angle=swiftshader",
       "--disable-vulkan-surface",

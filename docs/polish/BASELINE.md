@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-12 · **Commit:** see `WU-000` in `LOG.md`
 **Evidence:** `evidence/baseline/` (WebGL2 fallback, 1600×900, 9 shots)
-**Counter-evidence:** `evidence/baseline-webgpu-blackscreen/` (WebGPU, all black)
+**Counter-evidence:** `evidence/artifact-unsafe-webgpu-flag/` (harness artifact, not a product defect)
 
 ## Technical inventory
 
@@ -30,22 +30,29 @@ reveal treatments, two grazer lineages, one coastal-forager fish lineage,
 vegetation guilds (broadleaf / conifer / windswept / mangrove), seagrass,
 streams, freshwater basins, and a volcanic lifecycle.
 
-## Two blocking defects
+## One blocking defect, and one environment limitation
 
-Both are in `BACKLOG.md` with full detail. Summarised because they define what
-this baseline is worth:
+**Defect — `npm install` fails on a clean clone** (corrupt `package-lock.json`
+entry). See `BACKLOG.md` P0-1.
 
-1. **`npm install` fails on a clean clone** (corrupt `package-lock.json` entry).
-2. **The WebGPU path renders nothing on Chromium 141+.** three 0.185.1 passes
-   `swizzle: 'rgba'` where Chromium now requires a dictionary; every
-   `createView()` throws. All nine WebGPU frames are pure black while the FPS
-   counter still reports "WebGPU · 60 fps" — the animation loop runs, only
-   rendering fails.
+**Environment limitation — real WebGPU is not testable here.** This sandbox has
+no GPU and exposes WebGPU only under `--enable-unsafe-webgpu`, which also turns
+on experimental IDL members a shipping browser does not have. Under that flag
+three 0.185.1's `swizzle = 'rgba'` becomes a hard type error and every frame
+renders black; without the flag there is no WebGPU adapter at all and the
+renderer falls back to WebGL2.
 
-**Consequence for this baseline:** every image below is from the WebGL2
-fallback, which THESIS §6 explicitly rules out as a visual target. Post-
-processing behaviour in particular may differ. **All visual scores are
-provisional and must be re-taken on WebGPU after P0-2 clears.**
+Phase 0 initially mis-filed that black screen as a P0 product defect. **It is
+not** — the owner confirms WebGPU works locally on this commit, and the retest
+without the flag confirms the sandbox simply cannot reach the shipping path.
+The retraction is recorded in `BACKLOG.md`.
+
+**Consequence for this baseline:** every image below is still from the WebGL2
+fallback, because that is the only backend this environment can render — not
+because anything is wrong with the product. THESIS §6 rules out WebGL2 as a
+visual *target*, and post-processing in particular may behave differently there.
+**All visual scores are therefore provisional and should be re-taken on real
+WebGPU hardware before any of them are trusted.**
 
 ## Performance
 

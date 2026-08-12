@@ -41,6 +41,11 @@ Derived from `THESIS.md` §6. THESIS wins any conflict.
   default. THESIS §6 states the visual bar means matching that pipeline, *not*
   approximating the look on classic WebGL2. The WebGL2 fallback is a safety net
   and an evidence workaround — **never** a target to tune against.
+- **WebGPU works on the owner's machine.** Automated sandboxes generally cannot
+  reach it (no GPU), and forcing it there with `--enable-unsafe-webgpu` exposes
+  experimental IDL members that produce failures a real player never sees.
+  **Never conclude the renderer is broken from a headless capture** — verify
+  with the owner first. Phase 0 got this wrong once; see BACKLOG P0-2 (retracted).
 - **Target platform:** modern Chromium desktop. Safari is knowingly unsupported.
 - **One world unit is one metre** (`src/render-scale.ts`). This contract anchors
   island and ocean extents, organism sizes, wave amplitude, camera distances,
@@ -72,8 +77,10 @@ npx tsc --noEmit                           # typecheck
 node scripts/capture.mjs --set baseline --webgl   # contact sheet evidence
 ```
 
-`--webgl` is currently mandatory for usable captures (BACKLOG P0-2). Drop it the
-moment the WebGPU path renders, and recapture the baseline on WebGPU.
+`--webgl` is needed for usable captures in GPU-less environments, which is a
+limitation of those environments, not of the game. Captured images are therefore
+fallback-backend evidence; treat visual scores taken from them as provisional
+until confirmed on real WebGPU hardware.
 
 ## Do not touch / ownership
 

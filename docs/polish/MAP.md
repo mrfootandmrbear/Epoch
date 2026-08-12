@@ -47,9 +47,11 @@ node scripts/capture.mjs --set baseline --only 02-island --webgl   # single shot
 Flags: `--set` (`baseline`|`detail`|`ui`), `--out`, `--width`, `--height`,
 `--settle`, `--only <substring>`, `--webgl`, `--port`.
 
-`--webgl` hides `navigator.gpu` to force the WebGL2 backend. **It is currently
-required for any usable image** — see BACKLOG P0-2. Remove it once the WebGPU
-path renders again.
+`--webgl` hides `navigator.gpu` to force the WebGL2 backend. It is required for
+usable images in GPU-less environments, which cannot reach WebGPU at all. Do not
+pass `--unsafe-webgpu` to work around that: it exposes experimental IDL members
+a shipping browser lacks and produces failures no real player sees (BACKLOG
+P0-2, retracted).
 
 Shot sets are the fixed comparison basis for every A/B. Add a new set rather
 than editing an existing one; editing invalidates all prior evidence.
