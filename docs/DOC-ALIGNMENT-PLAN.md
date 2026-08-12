@@ -140,7 +140,9 @@ No edits yet. Line 29 ("one primitive-rig adapter... preserving the seam for a f
 
 ### New documents
 
-None. Every proposal has a natural home in an existing doc. Resist adding a creature-specific roadmap — the split between sim authority (WILDLIFE) and visual fidelity (RENDERER) already accommodates this work, and a third roadmap would duplicate both ledgers.
+None proposed by this plan. Every proposal here has a natural home in an existing doc. Resist adding a creature-specific roadmap — the split between sim authority (WILDLIFE) and visual fidelity (RENDERER) already accommodates this work, and a third roadmap would duplicate both ledgers.
+
+Separately, `docs/INLAND-WATER-DESIGN.md` captures open design notes for rivers, waterfalls, and the brackish/mangrove river-mouth zone (sim flow accumulation, channel/waterfall/plunge-pool render pieces, ocean-seam questions) — not yet reconciled with WILDLIFE-ROADMAP.md or RENDERER-ROADMAP.md.
 
 ## Open decisions
 
