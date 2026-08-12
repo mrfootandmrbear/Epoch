@@ -16,7 +16,6 @@ import {
   smoothstep,
   texture,
   uniform,
-  uv,
   vec2,
   vertexColor,
 } from "three/tsl";
@@ -60,8 +59,9 @@ export function createTerrainMaterial(options: TerrainMaterialOptions): TerrainM
   const erosion = clamp(max(disturbance, runoff.mul(0.78)), 0, 1);
 
   // MaterialX Perlin avoids the large-coordinate precision and grid artifacts
-  // of the previous sine hash. UVs map exactly to the 380 m simulation domain.
-  const metres = uv().sub(0.5).mul(options.terrainExtent);
+  // of the previous sine hash. Shared world coordinates keep material detail
+  // correlatable with runoff and other terrain fields.
+  const metres = positionWorld.xz;
   const macro = mx_noise_float(metres.mul(0.075));
   const medium = mx_noise_float(metres.mul(0.42).add(vec2(17.3, -9.1)));
   const grain = mx_noise_float(metres.mul(1.55).add(vec2(-31.7, 22.4)));

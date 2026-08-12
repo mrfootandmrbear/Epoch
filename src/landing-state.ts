@@ -68,8 +68,6 @@ function terrainColor(
   x: number,
   z: number,
   climate: ClimateForces,
-  disturbance = 0,
-  slope = 0,
 ): Color {
   const variation = (hash(Math.floor(x / 8), Math.floor(z / 8)) - 0.5) * 0.07;
   const seaLevel = SEA_LEVEL[climate.seaLevel];
@@ -77,28 +75,15 @@ function terrainColor(
   const cold = climate.temperature === "cold";
   if (height < seaLevel + 0.8) return new Color(0.46 + variation, 0.38 + variation, 0.23);
   if (cold && height > 16) return new Color(0.72 + variation, 0.76 + variation, 0.72 + variation);
-  const base = height < 8 ? new Color(
-    0.19 - wetness * 0.12 + variation + disturbance * 0.2,
-    0.32 + wetness * 0.2 + variation - disturbance * 0.12,
-    0.14 - disturbance * 0.04,
+  return height < 8 ? new Color(
+    0.19 - wetness * 0.12 + variation,
+    0.32 + wetness * 0.2 + variation,
+    0.14,
   ) : height < 24 ? new Color(
-    0.12 - wetness * 0.08 + variation + disturbance * 0.19,
-    0.25 + wetness * 0.2 + variation - disturbance * 0.1,
+    0.12 - wetness * 0.08 + variation,
+    0.25 + wetness * 0.2 + variation,
     0.1,
-  ) : new Color(0.27 + variation + disturbance * 0.12, 0.28 + variation - disturbance * 0.08, 0.22);
-  // Broad young slopes should remain soil/ground cover. Reserve the rock
-  // treatment for genuinely steep faces and strongly disturbed terrain.
-  const rockExposure = Math.min(0.42, Math.max(0, (slope - 0.58) / 0.72) + disturbance * 0.14);
-  return base.lerp(new Color(0x716b5d).offsetHSL(0, 0, variation), rockExposure);
-}
-
-function terrainSlope(elevations: Float32Array, index: number): number {
-  const x = index % TERRAIN_SIDE;
-  const z = Math.floor(index / TERRAIN_SIDE);
-  if (x === 0 || z === 0 || x === TERRAIN_SIDE - 1 || z === TERRAIN_SIDE - 1) return 0;
-  const dx = (elevations[index + 1]! - elevations[index - 1]!) / (TERRAIN_STEP * 2);
-  const dz = (elevations[index + TERRAIN_SIDE]! - elevations[index - TERRAIN_SIDE]!) / (TERRAIN_STEP * 2);
-  return Math.hypot(dx, dz);
+  ) : new Color(0.27 + variation, 0.28 + variation, 0.22);
 }
 
 function formedTerrainColor(height: number, x: number, z: number): Color {
@@ -363,6 +348,7 @@ export interface WorldExperience {
   terrainHeightTexture: DataTexture;
   oceanMaskTexture: DataTexture;
   sculpt: (point: Vector3, direction: 1 | -1) => void;
+  finishSculpt: () => void;
   introduceDistantDrifter: (currentAge: number) => boolean;
   advance: (years: number, totalYears: number, climate: ClimateForces) => LineageReport;
   update: (elapsed: number, viewPosition?: Readonly<Vector3>) => void;
@@ -397,6 +383,7 @@ export function createLandingState(scene: Scene): WorldExperience {
   let activeClimate: ClimateForces = { ...DEFAULT_CLIMATE };
   let lastElapsed = 0;
   let terrainDirty = false;
+  let terrainStateDirty = false;
   const terrainPositions = terrain.geometry.attributes.position;
   const initialHeights = new Float32Array(terrainPositions.count);
   for (let i = 0; i < terrainPositions.count; i++) initialHeights[i] = terrainPositions.getY(i);
@@ -561,7 +548,10 @@ export function createLandingState(scene: Scene): WorldExperience {
     terrain.geometry.computeVertexNormals();
     terrain.geometry.computeBoundingSphere();
     syncShoreSurface();
-    syncTerrainDetails();
+    if (terrainStateDirty) {
+      terrainStateDirty = false;
+      syncTerrainMaterialState();
+    }
     if (revealed) groundLife();
   }
 
@@ -618,15 +608,12 @@ export function createLandingState(scene: Scene): WorldExperience {
         const y = heightAt(x, z);
         positions.setY(i, y);
         color.copy(revealed
-          ? terrainColor(
-            y, x, z, activeClimate, worldHistory.terrain.disturbance[i],
-            terrainSlope(worldHistory.terrain.elevations, i),
-          )
+          ? terrainColor(y, x, z, activeClimate)
           : formedTerrainColor(y, x, z));
         colors.setXYZ(i, color.r, color.g, color.b);
       }
     }
-    syncTerrainMaterialState();
+    terrainStateDirty = true;
     terrainDirty = true;
   }
 
@@ -635,6 +622,10 @@ export function createLandingState(scene: Scene): WorldExperience {
     terrainHeightTexture,
     oceanMaskTexture,
     sculpt,
+    finishSculpt() {
+      flushTerrainChanges();
+      syncTerrainDetails();
+    },
     introduceDistantDrifter(currentAge: number) {
       if (worldHistory.lineages.lineages.some((lineage) => lineage.status !== "extinct")) return false;
       const founders = createDrifterFounderHistory(currentAge, worldHistory.lineages.lineages.length);
@@ -662,10 +653,7 @@ export function createLandingState(scene: Scene): WorldExperience {
         const z = positions.getZ(i);
         const y = worldHistory.terrain.elevations[i]!;
         positions.setY(i, y);
-        color.copy(terrainColor(
-          y, x, z, climate, worldHistory.terrain.disturbance[i],
-          terrainSlope(worldHistory.terrain.elevations, i),
-        ));
+        color.copy(terrainColor(y, x, z, climate));
         colors.setXYZ(i, color.r, color.g, color.b);
       }
       colors.needsUpdate = true;

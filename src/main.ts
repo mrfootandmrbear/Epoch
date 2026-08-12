@@ -276,6 +276,7 @@ function sculptAt(clientX: number, clientY: number): void {
 }
 
 function endStroke(): void {
+  if (strokePointerId !== null) landingState.finishSculpt();
   if (strokePointerId !== null && renderer.domElement.hasPointerCapture(strokePointerId)) {
     // OrbitControls captures the first pointer too and may have released it
     // already, so never release blind — that throws NotFoundError.
