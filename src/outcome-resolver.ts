@@ -28,6 +28,7 @@ import {
 } from "./lineage-history";
 import { createMarineLineageHistory, resolveMarineLineages, type MarineLineageChange, type MarineLineageHistory, type MarinePopulationOutcome } from "./marine-lineage";
 import { resolveFounderEstablishment } from "./founder-establishment";
+import { resolveLocalEnvironmentSample } from "./environment";
 
 export interface HabitatSample {
   elevation: number;
@@ -129,6 +130,11 @@ export interface MarineEnergyExchange {
   readonly shorelineSubsidy: number;
 }
 
+export interface ReefEcosystemSignal {
+  readonly shelter: number;
+  readonly productivity: number;
+}
+
 export interface LandingOutcome {
   trees: TreeOutcome[];
   seagrass: SeagrassOutcome[];
@@ -165,6 +171,7 @@ export function sampleHabitat(
   x: number,
   z: number,
   climate?: ClimateForces,
+  runoff = 0,
 ): HabitatSample {
   const step = 5;
   const elevation = heightAt(x, z);
@@ -174,17 +181,18 @@ export function sampleHabitat(
   const south = heightAt(x, z - step);
   const dx = (east - west) / (step * 2);
   const dz = (north - south) / (step * 2);
-  const slope = Math.hypot(dx, dz);
   const concavity = (east + west + north + south) * 0.25 - elevation;
-  const rain = climate ? RAINFALL[climate.rainfall] : RAINFALL.temperate;
-  const wind = climate ? WIND[climate.wind] : WIND.westerly;
-  const windward = climate && wind.x !== 0 ? clamp01(0.5 + dx * wind.x * 0.32) : 0.5;
-  const moisture = clamp01(
-    0.48 + rain.moisture + (12 - elevation) / 30 + concavity * 0.12 - slope * 0.28
-      + (windward - 0.5) * 0.18,
+  const local = resolveLocalEnvironmentSample(
+    elevation,
+    dx,
+    dz,
+    concavity,
+    runoff,
+    climate ?? {
+      rainfall: "temperate", temperature: "mild", wind: "westerly", seaLevel: "present",
+    },
   );
-  const exposure = clamp01((0.18 + elevation / 38 + slope * 0.42) * wind.exposure);
-  return { elevation, slope, moisture, exposure };
+  return { elevation, slope: local.slope, moisture: local.moisture, exposure: local.exposure };
 }
 
 export function sampleEcosystem(
@@ -196,7 +204,8 @@ export function sampleEcosystem(
   nutrientsAt: HeightAt = () => 0.5,
   runoffAt: HeightAt = () => 0,
 ): EcosystemSample {
-  const habitat = sampleHabitat(heightAt, x, z, climate);
+  const runoff = clamp01(runoffAt(x, z));
+  const habitat = sampleHabitat(heightAt, x, z, climate, runoff);
   const step = 5;
   const localMean = (
     heightAt(x + step, z) + heightAt(x - step, z)
@@ -207,7 +216,14 @@ export function sampleEcosystem(
   const depth = sea - habitat.elevation;
   const rain = RAINFALL[climate.rainfall];
   const drainage = habitat.elevation > sea
-    ? clamp01(habitat.moisture * 0.72 + Math.max(0, concavity) * 0.2 + habitat.slope * 0.12)
+    ? resolveLocalEnvironmentSample(
+      habitat.elevation,
+      (heightAt(x + step, z) - heightAt(x - step, z)) / (step * 2),
+      (heightAt(x, z + step) - heightAt(x, z - step)) / (step * 2),
+      concavity,
+      runoff,
+      climate,
+    ).drainage
     : 0;
   const shallow = depth > 0 ? clamp01(1 - Math.abs(depth - 3) / 5) : 0;
   const coastalProductivity = shallow
@@ -220,10 +236,9 @@ export function sampleEcosystem(
     ? clamp01(habitat.exposure * 0.65 + habitat.slope * 0.55) * WIND[climate.wind].exposure
     : 0;
   const nutrients = clamp01(nutrientsAt(x, z));
-  const runoff = clamp01(runoffAt(x, z));
   return {
     ...habitat,
-    drainage: clamp01(drainage + runoff * 0.28),
+    drainage,
     coastalProductivity: clamp01(coastalProductivity * (0.68 + nutrients * 0.22 + runoff * 0.1)),
     nesting,
     lift,
@@ -567,6 +582,7 @@ export function resolveLanding(
   previousHistory: LineageHistory = createLineageHistory(),
   jumpYears = snapshot.totalYears,
   previousMarineHistory: MarineLineageHistory = createMarineLineageHistory(),
+  reef: ReefEcosystemSignal = { shelter: 0, productivity: 0 },
 ): LandingResolution {
   const heightAt = (x: number, z: number) => snapshotHeightAt(snapshot, x, z);
   const forageAt = (x: number, z: number) => snapshotForageAt(snapshot, x, z);
@@ -764,10 +780,13 @@ export function resolveLanding(
   const primaryProductivity = clamp01(
     coastalEnergy / Math.max(1, coastalSamples) * 0.78 + inheritedMarineNutrients * 0.22,
   );
-  const nurseryCapacity = clamp01(primaryProductivity * 0.55 + saltwaterSeagrass.length / 900 * 0.45);
+  const reefProductivity = clamp01(reef.productivity);
+  const reefShelter = clamp01(reef.shelter);
+  const primaryProductivityWithReef = clamp01(primaryProductivity * 0.82 + reefProductivity * 0.18);
+  const nurseryCapacity = clamp01(primaryProductivityWithReef * 0.42 + saltwaterSeagrass.length / 900 * 0.33 + reefShelter * 0.25);
   const preyAvailability = clamp01(primaryProductivity * 0.42 + nurseryCapacity * 0.28 + marineAbundance * 0.3);
   const marineEnergy: MarineEnergyExchange = {
-    primaryProductivity,
+    primaryProductivity: primaryProductivityWithReef,
     nurseryCapacity,
     preyAvailability,
     // This is available to future shoreline scavengers, nesting colonies,

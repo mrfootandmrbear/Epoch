@@ -5,6 +5,7 @@ import {
   DirectionalLight,
   HemisphereLight,
   MOUSE,
+  type Node,
   PerspectiveCamera,
   Raycaster,
   Scene,
@@ -14,7 +15,7 @@ import {
   WebGPURenderer,
 } from "three/webgpu";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { exponentialHeightFogFactor, fog, uniform } from "three/tsl";
+import { exponentialHeightFogFactor, fog, positionWorld, smoothstep, uniform } from "three/tsl";
 import { FFTOcean } from "./fft-ocean";
 import { createFFTOceanMesh } from "./fft-water";
 import { createLandingState } from "./landing-state";
@@ -48,6 +49,7 @@ import {
 } from "./climate";
 import { RENDER_SCALE } from "./render-scale";
 import type { VolcanicOutput } from "./volcanism";
+import { ENVIRONMENT_FIXTURES, isEnvironmentFixtureName } from "./environment-fixtures";
 
 const statusEl = document.getElementById("status")!;
 const lineagePanelEl = document.getElementById("lineage-panel")!;
@@ -93,7 +95,16 @@ scene.backgroundNode = atmosphereBackground.node;
 const heightFogColor = uniform(initialAtmosphere.fogColor.clone());
 const heightFogDensity = uniform(0.0002);
 const heightFogCeiling = uniform(10);
-scene.fogNode = fog(heightFogColor, exponentialHeightFogFactor(heightFogDensity, heightFogCeiling));
+const fogSeaLevel = uniform(SEA_LEVEL[DEFAULT_CLIMATE.seaLevel]);
+// Atmospheric moisture ends at the waterline. Submerged materials already
+// resolve spectral extinction and in-scatter; applying aerial fog again turns
+// clear tropical water into a grey-brown double-fogged volume.
+const aboveWaterFog = smoothstep(fogSeaLevel.sub(0.35), fogSeaLevel.add(0.35), positionWorld.y);
+const atmosphericFog = exponentialHeightFogFactor(heightFogDensity, heightFogCeiling) as Node<"float">;
+scene.fogNode = fog(
+  heightFogColor,
+  atmosphericFog.mul(aboveWaterFog),
+);
 
 const camera = new PerspectiveCamera(
   55,
@@ -127,7 +138,12 @@ const captureParams = new URLSearchParams(window.location.search);
 const captureShot = captureParams.get("shot");
 const captureMode = isGoldenShotName(captureShot);
 const liveHerdShowcase = captureParams.get("showcase") === "herd";
+const liveHerdContrast = captureParams.get("showcase") === "herd-contrast";
 const captureTime = Number(captureParams.get("time") ?? 42);
+const captureFixtureName = captureParams.get("fixture");
+const captureFixture = isEnvironmentFixtureName(captureFixtureName)
+  ? ENVIRONMENT_FIXTURES[captureFixtureName]
+  : undefined;
 const postProcessingOptions = readPostProcessingOptions(captureParams);
 let lastInteraction = performance.now() / 1000;
 const presentation = createPresentationController(camera, controls, (active) => {
@@ -163,6 +179,15 @@ scene.add(ambientLight);
 const hemisphereLight = new HemisphereLight(0xaed7ee, 0x5b4938, 0.28);
 scene.add(hemisphereLight);
 
+/** Direction the shadow-casting key light comes from — the sun by day, an antisolar moon at night. */
+const keyLightDirection = new Vector3().copy(sunDirection);
+const MOONLIGHT_INTENSITY = 0.13;
+
+function clampedSmoothstep(min: number, max: number, value: number): number {
+  const x = Math.min(1, Math.max(0, (value - min) / (max - min)));
+  return x * x * (3 - 2 * x);
+}
+
 function updateAtmosphere(elapsed: number): void {
   const profile: AtmosphereProfile = captureShot === "dawn"
     ? "dawn"
@@ -175,12 +200,24 @@ function updateAtmosphere(elapsed: number): void {
   sunDirection.copy(state.sunDirection);
   atmosphereBackground.update(state);
   sunLight.color.copy(state.sunColor);
-  sunLight.intensity = state.sunIntensity;
+  // Below the horizon the sun sits under the seabed, so pointing the key light
+  // along it lights nothing and re-renders the shadow map from beneath the
+  // island every night frame. Night is keyed from the antisolar direction
+  // instead. The swap happens well after sunset, where both contributions are
+  // near zero, so no lighting pops at the horizon crossing.
+  const moon = 1 - clampedSmoothstep(-0.25, -0.05, state.sunDirection.y);
+  keyLightDirection.copy(state.sunDirection);
+  if (moon > 0.5) keyLightDirection.negate();
+  sunLight.intensity = state.sunIntensity * (1 - moon) + MOONLIGHT_INTENSITY * moon;
   oceanMesh?.updateAtmosphere(state);
+  // The reef sits under this same sky. Sharing the sun keeps the caustic net
+  // and the water haze in step with the surface instead of lighting the seabed
+  // from a sun the water above it no longer has.
+  landingState.setAtmosphere(state.sunDirection, state.sunColor);
   ambientLight.color.copy(state.ambientColor);
   ambientLight.intensity = state.ambientIntensity;
   hemisphereLight.color.copy(state.ambientColor).offsetHSL(0.01, 0.04, 0.12);
-  hemisphereLight.groundColor.set(0x5b4938);
+  hemisphereLight.groundColor.set(0x405866);
   hemisphereLight.intensity = state.ambientIntensity * 0.95;
   heightFogColor.value.copy(state.fogColor);
   renderer.toneMappingExposure = state.exposure;
@@ -190,15 +227,21 @@ function updateAtmosphere(elapsed: number): void {
 const broadShadowCenter = new Vector3(0, 10, 0);
 function updateShadowCoverage(): void {
   sunLight.target.position.copy(broadShadowCenter);
-  sunLight.position.copy(broadShadowCenter).addScaledVector(sunDirection, 420);
+  sunLight.position.copy(broadShadowCenter).addScaledVector(keyLightDirection, 420);
   sunLight.target.updateMatrixWorld();
 }
 
 await Promise.all([loadTreeGeometryAssets(), loadSeagrassGeometryAssets()]);
 const landingState = createLandingState(scene);
-const captureVolcanism = captureParams.get("volcano") as VolcanicOutput | null;
+const captureVolcanism = (
+  captureParams.get("volcano")
+  ?? (captureFixture && "volcano" in captureFixture ? captureFixture.volcano : null)
+) as VolcanicOutput | null;
 if (captureMode && captureVolcanism && ["vigorous", "active", "waning", "extinct"].includes(captureVolcanism)) {
-  landingState.placeHotSpot(new Vector3(0, 0, 0), captureVolcanism);
+  const hotSpot = captureFixture && "hotSpot" in captureFixture
+    ? captureFixture.hotSpot
+    : { x: 0, z: 0 };
+  landingState.placeHotSpot(new Vector3(hotSpot.x, 0, hotSpot.z), captureVolcanism);
 }
 const raycaster = new Raycaster();
 const pointer = new Vector2();
@@ -229,6 +272,7 @@ function applyCommittedHeightFog(): void {
   const heightFog = resolveHeightFog(committedClimate);
   heightFogDensity.value = heightFog.density;
   heightFogCeiling.value = heightFog.ceiling;
+  fogSeaLevel.value = SEA_LEVEL[committedClimate.seaLevel];
 }
 applyCommittedHeightFog();
 
@@ -471,17 +515,24 @@ async function start() {
   }
 
   rendererReady = true;
-  applyOceanForces(DEFAULT_CLIMATE);
-  if (liveHerdShowcase) {
+  const captureClimate: ClimateForces = captureFixture
+    ? { ...captureFixture.climate }
+    : { ...DEFAULT_CLIMATE };
+  applyOceanForces(captureClimate);
+  if (liveHerdShowcase || liveHerdContrast) {
     landingState.advance(10_000, 10_000, DEFAULT_CLIMATE);
-    landingState.showcaseGrazerHerd();
-    presentation.applyShot("herd");
+    if (liveHerdContrast) landingState.showcaseHerdContrast();
+    else landingState.showcaseGrazerHerd();
+    presentation.applyShot(liveHerdContrast ? "herd-contrast" : "herd");
   }
   if (captureMode) {
-    const captureYears = Number(captureParams.get("years") ?? 10_000);
+    const captureYears = Number(captureParams.get("years") ?? captureFixture?.years ?? 10_000);
     if (captureParams.get("founders") === "drifter") landingState.introduceDistantDrifter(0);
-    landingState.advance(captureYears, captureYears, DEFAULT_CLIMATE);
+    committedClimate = captureClimate;
+    applyCommittedHeightFog();
+    landingState.advance(captureYears, captureYears, captureClimate);
     if (captureParams.get("herd") === "candidate") landingState.showcaseGrazerHerd();
+    if (captureParams.get("herd") === "contrast") landingState.showcaseHerdContrast();
     landingState.update(captureTime, camera.position);
   }
 

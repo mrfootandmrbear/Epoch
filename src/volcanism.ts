@@ -32,6 +32,9 @@ function routeLavaFlows(
   nutrients: Float32Array,
   forage: Float32Array,
   vegetationProtection: Float32Array,
+  substrateAge: Float32Array,
+  sediment: Float32Array,
+  carbonate: Float32Array,
   vent: HotSpot,
   strength: number,
   duration: number,
@@ -63,6 +66,9 @@ function routeLavaFlows(
       nutrients[current] *= 0.18;
       forage[current] *= 0.12;
       vegetationProtection[current] *= 0.08;
+      substrateAge[current] *= 0.08;
+      sediment[current] *= 0.18;
+      carbonate[current] = 0;
       budget -= 1;
       let next = -1;
       let best = Number.POSITIVE_INFINITY;
@@ -92,6 +98,9 @@ export function resolveVolcanicAccretion(
   const volcanicLoad = previous.volcanicLoad.slice();
   const disturbance = previous.disturbance.slice();
   const vegetationProtection = previous.vegetationProtection.slice();
+  const substrateAge = previous.substrateAge.slice();
+  const sediment = previous.sediment.slice();
+  const carbonate = previous.carbonate.slice();
   const forage = previous.forage.slice();
   const nutrients = previous.nutrients.slice();
   const step = previous.extent / (previous.side - 1);
@@ -126,13 +135,20 @@ export function resolveVolcanicAccretion(
         vegetationProtection[index] *= 1 - deposit;
         forage[index] *= 1 - deposit * 0.92;
         nutrients[index] *= 1 - deposit * 0.94;
+        substrateAge[index] *= 1 - deposit;
+        sediment[index] *= 1 - deposit * 0.86;
+        carbonate[index] *= 1 - deposit;
       }
     }
     routeLavaFlows(
       previous, elevations, basalt, volcanicLoad, disturbance, nutrients, forage,
-      vegetationProtection, vent, strength, duration, salt,
+      vegetationProtection, substrateAge, sediment, carbonate,
+      vent, strength, duration, salt,
     );
   }
 
-  return { ...previous, elevations, basalt, ash, volcanicLoad, disturbance, vegetationProtection, forage, nutrients };
+  return {
+    ...previous, elevations, basalt, ash, volcanicLoad, disturbance,
+    vegetationProtection, forage, nutrients, substrateAge, sediment, carbonate,
+  };
 }

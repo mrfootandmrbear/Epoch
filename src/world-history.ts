@@ -4,15 +4,25 @@ import { isPopulationIdentity } from "./population-archetypes";
 import { createTerrainHistory, type TerrainHistory } from "./terrain-history";
 import { createMarineLineageHistory, validateMarineLineageHistory, type MarineLineageHistory } from "./marine-lineage";
 import { VOLCANIC_OUTPUTS, type HotSpot } from "./volcanism";
+import { createReefHistory, type ReefHistory } from "./reef-succession";
+import { CORAL_GUILDS } from "./reef-succession";
+import { DEFAULT_CLIMATE, type ClimateForces } from "./climate";
 
-export const WORLD_HISTORY_VERSION = 5 as const;
+export const WORLD_HISTORY_VERSION = 7 as const;
 
 export interface WorldHistory {
   readonly version: typeof WORLD_HISTORY_VERSION;
   readonly terrain: TerrainHistory;
   readonly lineages: LineageHistory;
   readonly marineLineages: MarineLineageHistory;
+  readonly reef: ReefHistory;
   readonly hotSpots: readonly HotSpot[];
+}
+
+export interface InitialWorldState {
+  readonly totalYears: 0;
+  readonly climate: Readonly<ClimateForces>;
+  readonly history: WorldHistory;
 }
 
 export function createWorldHistory(
@@ -26,7 +36,21 @@ export function createWorldHistory(
     terrain: createTerrainHistory(elevations, side, extent),
     lineages: includeTerrestrialFounders ? createLineageHistory() : { lineages: [] },
     marineLineages: createMarineLineageHistory(),
+    reef: createReefHistory(),
     hotSpots: [],
+  };
+}
+
+/** The authored geological world that exists before any epoch is resolved. */
+export function createInitialWorldState(
+  elevations: Float32Array,
+  side: number,
+  extent: number,
+): InitialWorldState {
+  return {
+    totalYears: 0,
+    climate: Object.freeze({ ...DEFAULT_CLIMATE }),
+    history: createWorldHistory(elevations, side, extent, false),
   };
 }
 
@@ -116,6 +140,9 @@ export function validateWorldHistory(value: unknown): asserts value is WorldHist
   validateFloat32Field(terrain.basalt, expectedLength, "world history terrain.basalt", true);
   validateFloat32Field(terrain.ash, expectedLength, "world history terrain.ash", true);
   validateFloat32Field(terrain.volcanicLoad, expectedLength, "world history terrain.volcanicLoad", true);
+  validateFloat32Field(terrain.substrateAge, expectedLength, "world history terrain.substrateAge", true);
+  validateFloat32Field(terrain.sediment, expectedLength, "world history terrain.sediment", true);
+  validateFloat32Field(terrain.carbonate, expectedLength, "world history terrain.carbonate", true);
   if (!Number.isFinite(terrain.marineNutrients) || (terrain.marineNutrients as number) < 0 || (terrain.marineNutrients as number) > 1) {
     throw new RangeError("world history terrain.marineNutrients must be finite and within [0, 1]");
   }
@@ -130,6 +157,28 @@ export function validateWorldHistory(value: unknown): asserts value is WorldHist
     }
   }
   validateMarineLineageHistory(history.marineLineages);
+  const reef = requireRecord(history.reef, "world history reef");
+  if (!Array.isArray(reef.sites)) throw new TypeError("world history reef.sites must be an array");
+  const reefIds = new Set<string>();
+  reef.sites.forEach((value, index) => {
+    const site = requireRecord(value, `world history reef.sites[${index}]`);
+    if (typeof site.id !== "string" || site.id.length === 0) throw new TypeError(`world history reef.sites[${index}].id must be a non-empty string`);
+    if (reefIds.has(site.id)) throw new RangeError(`world history reef.sites[${index}].id duplicates ${site.id}`);
+    reefIds.add(site.id);
+    if (!Number.isFinite(site.x) || !Number.isFinite(site.z)) throw new RangeError(`world history reef.sites[${index}] coordinates must be finite`);
+    for (const field of ["livingCover", "framework", "deadFramework", "pioneerCover", "stress"] as const) {
+      const entry = site[field];
+      if (!Number.isFinite(entry) || (entry as number) < 0 || (entry as number) > 1) {
+        throw new RangeError(`world history reef.sites[${index}].${field} must be finite and within [0, 1]`);
+      }
+    }
+    const composition = requireRecord(site.composition, `world history reef.sites[${index}].composition`);
+    for (const guild of CORAL_GUILDS) {
+      if (!Number.isFinite(composition[guild]) || (composition[guild] as number) < 0 || (composition[guild] as number) > 1) {
+        throw new RangeError(`world history reef.sites[${index}].composition.${guild} must be finite and within [0, 1]`);
+      }
+    }
+  });
   if (!Array.isArray(history.hotSpots)) throw new TypeError("world history hotSpots must be an array");
   const hotSpotIds = new Set<string>();
   history.hotSpots.forEach((value, index) => {

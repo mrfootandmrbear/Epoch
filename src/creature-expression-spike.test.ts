@@ -1,10 +1,12 @@
-import { Mesh } from "three/webgpu";
+import { InstancedBufferAttribute, Mesh } from "three/webgpu";
 import { describe, expect, it } from "vitest";
 import {
   createCreatureExpressionSpike,
   createMarshGrazerGeometry,
+  setCreatureExpressionAt,
   GRAZER_MORPH_CHANNELS,
 } from "./creature-expression-spike";
+import { COAT_DETAIL_ATTRIBUTE } from "./creature-material";
 
 describe("creature expression architecture spike", () => {
   it("loads one topology-stable source across five shape and two pose channels", () => {
@@ -32,5 +34,35 @@ describe("creature expression architecture spike", () => {
     expect(probe.morphTargetInfluences![6]).toBe(0.5);
     expect(spike.morphTexture?.isDataTexture).toBe(true);
     expect(spike.instanceColor?.count).toBe(2);
+  });
+
+  it("carries insulation per instance for the coat shader to read", () => {
+    // A fragment shader cannot reach the morph texture, so the same insulation
+    // that drives body bulk is mirrored onto an instanced attribute. Surface
+    // and silhouette must never disagree about how thick a coat is.
+    const spike = createCreatureExpressionSpike([
+      { shape: [0.5, 0.5, 0.5, 0.05, 0.5], coatWarmth: 0.5, coatLightness: 0.5, walkPhase: 0 },
+      { shape: [0.5, 0.5, 0.5, 0.92, 0.5], coatWarmth: 0.5, coatLightness: 0.5, walkPhase: 0 },
+    ]);
+    const detail = spike.geometry.getAttribute(COAT_DETAIL_ATTRIBUTE);
+
+    // Instanced, not per-vertex: WebGPU keys the attribute's step mode off this.
+    expect(detail).toBeInstanceOf(InstancedBufferAttribute);
+    expect(detail.count).toBe(2);
+    expect(detail.getX(0)).toBeCloseTo(0.05, 5);
+    expect(detail.getX(1)).toBeCloseTo(0.92, 5);
+    // The seed differs per animal so neighbours do not share identical fur.
+    expect(detail.getY(0)).not.toBeCloseTo(detail.getY(1), 5);
+  });
+
+  it("keeps the coat attribute in step when an instance is re-expressed", () => {
+    const spike = createCreatureExpressionSpike([
+      { shape: [0.5, 0.5, 0.5, 0.1, 0.5], coatWarmth: 0.5, coatLightness: 0.5, walkPhase: 0 },
+    ]);
+    setCreatureExpressionAt(spike, 0, {
+      shape: [0.5, 0.5, 0.5, 0.87, 0.5], coatWarmth: 0.5, coatLightness: 0.5, walkPhase: 0,
+    });
+
+    expect(spike.geometry.getAttribute(COAT_DETAIL_ATTRIBUTE).getX(0)).toBeCloseTo(0.87, 5);
   });
 });

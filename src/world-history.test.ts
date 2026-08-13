@@ -24,6 +24,14 @@ describe("world history validation", () => {
     })).toThrow("world history marine lineages[0].energy must be within [0, 1]");
   });
 
+  it("rejects invalid persistent reef condition", () => {
+    const history = validHistory();
+    expect(() => validateWorldHistory({
+      ...history,
+      reef: { sites: [{ id: "reef:0", x: 0, z: 0, livingCover: 2, framework: 0, deadFramework: 0, pioneerCover: 0, stress: 0, composition: {} }] },
+    })).toThrow("world history reef.sites[0].livingCover must be finite and within [0, 1]");
+  });
+
   it("requires cross-domain marine ancestry to reference retained terrestrial history", () => {
     const history = validHistory();
     expect(() => validateWorldHistory({
@@ -38,7 +46,7 @@ describe("world history validation", () => {
 
   it("rejects state from another schema version", () => {
     expect(() => validateWorldHistory({ ...validHistory(), version: 0 }))
-      .toThrow("world history version must be 5, received 0");
+      .toThrow("world history version must be 7, received 0");
   });
 
   it("rejects terrain arrays that do not match the declared grid", () => {

@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "id": "epoch-reef-builder-family",
+  "displayName": "Epoch Reef Builder Family",
+  "category": "coral",
+  "stage": "accepted",
+  "role": "Build persistent shallow-water reef structure and flow-sorted benthic habitat",
+  "habitats": [
+    "warm photic shelf",
+    "wave-swept reef crest",
+    "sheltered leeward reef"
+  ],
+  "realWorldReferents": [
+    "Acropora branching and table corals",
+    "Porites massive bommies",
+    "brain coral meanders",
+    "gorgonian sea fans",
+    "crustose coralline algae"
+  ],
+  "silhouette": "A shared reef-building family whose flow-sorted colonies range from low encrusting mats through branching and plating crowns to massive domes, with each form readable at gameplay distance.",
+  "paletteFamily": "epoch-reef-tissue",
+  "scaleMeters": { "min": 0.04, "max": 5 },
+  "traits": {
+    "continuous": [
+      { "name": "colonyAge", "driver": "substrate age and uninterrupted growth", "range": [0, 1] },
+      { "name": "health", "driver": "heat stress moderated by depth and flow", "range": [0, 1] },
+      { "name": "flowExposure", "driver": "local current speed and shelter", "range": [0, 2.5] },
+      { "name": "livingColor", "driver": "symbiont condition and bounded pigment morph", "range": [0, 1] }
+    ],
+    "discrete": [
+      {
+        "name": "growthForm",
+        "driver": "light, current exposure, sediment load, and succession phase",
+        "variants": [
+          "encrusting",
+          "branching",
+          "plating",
+          "massive",
+          "meandroid",
+          "fan"
+        ]
+      }
+    ]
+  },
+  "source": {
+    "tool": "Seeded TypeScript geometry bundled and serialized by Vite/Node",
+    "files": ["source/generate-coral-geometry.mjs", "source/preview.ts", "source/preview.html"],
+    "procedure": "Run npm run asset:coral:generate from the repository root to rebuild deterministic near/far geometry caches."
+  },
+  "previews": [
+    "previews/reef-builder-front.png",
+    "previews/reef-builder-side.png",
+    "previews/reef-builder-top.png",
+    "previews/reef-builder-colony.png",
+    "previews/reef-builder-game-distance.png"
+  ],
+  "exports": ["exports/reef-builder-near.json", "exports/reef-builder-far.json"],
+  "lods": [
+    { "name": "near", "file": "exports/reef-builder-near.json", "maxTriangles": 5615 },
+    { "name": "far", "file": "exports/reef-builder-far.json", "maxTriangles": 1186 }
+  ],
+  "animations": { "required": [] },
+  "showcase": "previews/reef-builder-showcase.png",
+  "acceptance": {
+    "verdict": "Owner reviewed the paired mature-reef integration with persistent carbonate shelf and exposed basalt on 2026-08-13 and accepted it as passing for future iteration."
+  }
+}

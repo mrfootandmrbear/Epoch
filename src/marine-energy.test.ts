@@ -13,4 +13,13 @@ describe("marine energy exchange", () => {
     expect(result.outcome.marineEnergy.shorelineSubsidy).toBeGreaterThan(0);
     expect(result.outcome.populations).toEqual([]);
   });
+
+  it("lets reef structure raise nursery capacity without renderer state", () => {
+    const island = (x: number, z: number) => 18 - Math.hypot(x, z) * 0.2;
+    const snapshot = captureWorldSnapshot(island, 10_000, DEFAULT_CLIMATE);
+    const bare = resolveLanding(snapshot, { lineages: [] }, 10_000, undefined, { shelter: 0, productivity: 0 });
+    const reef = resolveLanding(snapshot, { lineages: [] }, 10_000, undefined, { shelter: 1, productivity: 1 });
+    expect(reef.outcome.marineEnergy.nurseryCapacity).toBeGreaterThan(bare.outcome.marineEnergy.nurseryCapacity);
+    expect(reef.outcome.marineEnergy.primaryProductivity).toBeGreaterThan(bare.outcome.marineEnergy.primaryProductivity);
+  });
 });

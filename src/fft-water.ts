@@ -1,4 +1,4 @@
-import { Color, DataTexture, Mesh, Node, NodeMaterial, PlaneGeometry, Vector3 } from "three/webgpu";
+import { Color, DataTexture, DoubleSide, Mesh, Node, NodeMaterial, PlaneGeometry, RingGeometry, Vector3 } from "three/webgpu";
 import {
   Fn,
   cameraPosition,
@@ -6,6 +6,7 @@ import {
   color,
   cos,
   dot,
+  faceDirection,
   float,
   floor,
   fract,
@@ -80,6 +81,10 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
   // water visually solid.
   material.transparent = true;
   material.depthWrite = false;
+  // The reef review camera swims below the surface. A front-sided sheet
+  // disappears from there, removing the luminous ceiling that visually says
+  // "clear sea" and leaving only the seabed to colour the frame.
+  material.side = DoubleSide;
   const mesh = new Mesh(geometry, material);
 
   const chopField = Fn(([x, z, distV]: [Node<"float">, Node<"float">, Node<"float">]) => {
@@ -128,7 +133,11 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
     .mul(smoothstep(0, 0.015, waterUv.y))
     .mul(float(1).sub(smoothstep(0.985, 1, waterUv.y)));
   const oceanMask = mix(float(1), texture(options.oceanMaskTexture, waterUv).r, insideWaterDomain);
-  const wave = swell.add(chop).mul(oceanMask).toVar("wave");
+  // How far out this patch is toward its own rim, in world radius. Waves and
+  // wave shading both retire before the rim so the patch meets the far-water
+  // skirt as one flat surface, whatever the camera is doing.
+  const patchRim = smoothstep(size * 0.40, size * 0.47, positionLocal.xz.length()).toVar("patchRim");
+  const wave = swell.add(chop).mul(oceanMask).mul(float(1).sub(patchRim)).toVar("wave");
   // A small horizontal displacement keeps crests directional. Pure vertical
   // heightfield motion makes broad swells expand and contract like gelatin.
   material.positionNode = positionLocal.add(vec3(wave.y.mul(-0.12), wave.x, wave.z.mul(-0.12)));
@@ -138,7 +147,7 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
   material.normalNode = transformNormalToView(waveNormal);
 
   const deepColor = color(new Color(0x041c26));
-  const shallowColor = color(new Color(0x1c6b78));
+  const shallowColor = color(new Color(0x008ca7));
   const zenithColor = uniform(new Color(0x4f8fb5));
   const horizonColor = uniform(options.atmosphere.fogColor.clone().offsetHSL(0, 0.01, 0.025));
   const foamColor = color(new Color(0xf3fbff));
@@ -152,8 +161,10 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
   const waterDepth = positionWorld.y.sub(terrainSurface);
   const shallowFactor = float(1).sub(smoothstep(0.7, 10, waterDepth)).mul(insideTerrain);
   const surfaceEyeDir = normalize(cameraPosition.sub(positionWorld));
+  const facingWaveNormal = waveNormal.mul(faceDirection);
+  const frontShare = faceDirection.mul(0.5).add(0.5);
   const surfaceFresnel = pow(
-    float(1.0).sub(clamp(dot(waveNormal, surfaceEyeDir), 0, 1)),
+    float(1.0).sub(clamp(dot(facingWaveNormal, surfaceEyeDir), 0, 1)),
     5.0,
   ).mul(0.96).add(0.04);
   // At a near-vertical view, productive shallows transmit enough light for
@@ -161,7 +172,11 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
   // Fresnel reflection restores an opaque water silhouette. The fade reaches
   // fully opaque water before the coastal-productivity depth band ends.
   const shallowTransmission = shallowFactor.mul(float(1).sub(surfaceFresnel));
-  material.opacityNode = oceanMask.mul(float(1).sub(shallowTransmission.mul(0.62)));
+  const surfaceOpacity = oceanMask.mul(float(1).sub(shallowTransmission.mul(0.62)));
+  // From below this is a bright, translucent ceiling rather than a mirror of
+  // the sky above. Keep enough alpha to reveal the moving wave field without
+  // hiding the air-side world beyond it.
+  material.opacityNode = mix(oceanMask.mul(0.26), surfaceOpacity, frontShare);
 
   const hash2 = Fn(([p]: [Node<"vec2">]) => {
     return fract(sin(dot(p, vec2(127.1, 311.7))).mul(43758.5453123));
@@ -204,13 +219,18 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
     return value;
   });
 
-  material.colorNode = Fn(() => {
-    const eyeDir = surfaceEyeDir;
-
-    const viewDist = length(cameraPosition.sub(positionWorld));
-    const distFade = smoothstep(60.0, 260.0, viewDist);
-    const shadingNormal = normalize(mix(waveNormal, vec3(0, 1, 0), distFade.mul(0.9)));
-
+  /**
+   * Open-water shading shared by the displaced patch and the far-water skirt.
+   *
+   * Both surfaces must agree wherever they overlap, so the base colour,
+   * reflection, sun path, and aerial fade all live here. Only the near patch
+   * adds wave normals, shallow seabed transmission, and shore foam.
+   */
+  const openWater = (
+    shadingNormal: Node<"vec3">,
+    shallow: Node<"float">,
+  ): Readonly<{ albedo: Node<"vec3">; aerial: Node<"float"> }> => {
+    const eyeDir = normalize(cameraPosition.sub(positionWorld));
     const cosTheta = clamp(dot(shadingNormal, eyeDir), 0, 1);
     const fresnel = pow(float(1.0).sub(cosTheta), 5.0).mul(0.96).add(0.04);
 
@@ -218,14 +238,20 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
     const baseWater = mix(
       deepColor,
       shallowColor,
-      clamp(shallowFactor.mul(0.88).add(diffuse.mul(0.16)), 0, 1),
+      clamp(shallow.mul(0.88).add(diffuse.mul(0.16)), 0, 1),
     );
 
     const sunReflectDir = normalize(reflect(sunDir.negate(), shadingNormal));
     // A broader, energy-limited sun path reads as reflected light near the
     // surface instead of isolated white discs at shoreline camera height.
-    const specularStrength = mix(float(0.58), float(1.45), distFade);
-    const specular = pow(max(dot(eyeDir, sunReflectDir), 0.0), 112)
+    const viewDist = length(cameraPosition.sub(positionWorld));
+    const specularStrength = mix(float(0.58), float(1.45), smoothstep(60.0, 260.0, viewDist));
+    // Distant water is shaded flat, so a single tight lobe mirrors the sun as
+    // one isolated white ellipse. Real water carries wave slopes far past the
+    // point where they can be resolved, scattering that reflection into a
+    // broad sun path — the wide second lobe stands in for those slopes.
+    const glint = max(dot(eyeDir, sunReflectDir), 0.0);
+    const specular = pow(glint, 112).mul(0.82).add(pow(glint, 9).mul(0.08))
       .mul(sunColorNode)
       .mul(specularStrength);
 
@@ -239,7 +265,38 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
       zenithColor,
       clamp(environmentReflectDir.y.mul(0.75).add(0.25), 0, 1),
     );
-    const albedo = mix(baseWater, reflectedSky, fresnel.mul(0.86)).add(specular);
+
+    return {
+      albedo: mix(
+        mix(shallowColor, color(new Color(0x55d4df)), 0.42),
+        mix(baseWater, reflectedSky, fresnel.mul(0.86)).add(specular),
+        frontShare,
+      ),
+      // Aerial perspective. Without it the sea holds its near-camera value all
+      // the way out and terminates in a hard line; with it the water loses
+      // contrast into the sky and the far edge of any finite plane stops
+      // being a visible boundary.
+      aerial: smoothstep(140, 3200, viewDist),
+    };
+  };
+
+  // A hair darker than the sky it fades into. That residual difference is the
+  // horizon line itself, rather than a geometric edge standing in for one.
+  const distantWater = mix(horizonColor, deepColor, float(0.07));
+
+  material.colorNode = Fn(() => {
+    const viewDist = length(cameraPosition.sub(positionWorld));
+    const distFade = smoothstep(60.0, 260.0, viewDist);
+    // Distance flattening alone is measured from the camera, so how flat the
+    // patch is at its own rim depends on where the camera is standing — orbit
+    // out and wave-shaded water would abut the dead-flat skirt again. The rim
+    // term is world-anchored, so the two always agree where they meet.
+    const shadingNormal = normalize(mix(
+      waveNormal,
+      vec3(0, 1, 0),
+      max(distFade.mul(0.9), patchRim),
+    ));
+    const { albedo, aerial } = openWater(shadingNormal, shallowFactor);
 
     // Turbulence only breaks up the shoreline ribbon below. Thresholding it
     // across open water produces isolated pale blobs that read as polka dots
@@ -255,10 +312,35 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
     const shoreBreakup = smoothstep(0.58, 0.88, turb.add(shorePulse));
     const shoreFoam = intersectionBand.mul(shoreBreakup).mul(0.86)
       .mul(float(1).sub(distFade.mul(0.55)));
-    const foamFactor = shoreFoam;
 
-    return mix(albedo, foamColor, foamFactor);
+    return mix(mix(albedo, foamColor, shoreFoam), distantWater, aerial);
   })();
+
+  // The far-water skirt. The displaced patch is only 1400m across, so its own
+  // edge was serving as the horizon — complete with visible corners. This ring
+  // carries the same open-water shading out to where aerial perspective has
+  // fully dissolved it into the sky, so the horizon becomes the horizon rather
+  // than the end of the simulation domain.
+  const farMaterial = new NodeMaterial();
+  farMaterial.side = DoubleSide;
+  farMaterial.colorNode = Fn(() => {
+    const { albedo, aerial } = openWater(vec3(0, 1, 0), float(0));
+    return mix(albedo, distantWater, aerial);
+  })();
+  const farGeometry = new RingGeometry(size * 0.44, 12000, 96, 1);
+  farGeometry.rotateX(-Math.PI / 2);
+  const farWater = new Mesh(farGeometry, farMaterial);
+  // Below the displaced patch so patch fragments in a wave trough are never
+  // depth-rejected against it, which would punch holes through to the skirt.
+  // The expected deepest trough over a tile is close to 0.4m, so 0.4 was
+  // exactly marginal; the skirt is only ever seen through opaque patch water,
+  // so extra clearance costs nothing.
+  farWater.position.y = -1;
+  // Last among the opaque draws, so the island depth-rejects most of this
+  // near-screen-filling surface instead of it being shaded and overdrawn.
+  farWater.renderOrder = 1;
+  farWater.frustumCulled = false;
+  mesh.add(farWater);
 
   const updateAtmosphere = (state: AtmosphereState) => {
     sunColorNode.value.copy(state.sunColor);

@@ -1,11 +1,13 @@
 # Epoch: Simulation–Rendering Gap Audit
 
-*Snapshot updated: 2026-08-12. Goal: keep simulation and rendering in tandem. Proposed follow-up work is reconciled in `docs/DOC-ALIGNMENT-PLAN.md`; this audit does not itself confer implementation or visual acceptance.*
+*Snapshot updated: 2026-08-13. Goal: keep simulation and rendering in tandem. Proposed follow-up work is reconciled in `docs/DOC-ALIGNMENT-PLAN.md`; this audit does not itself confer implementation or visual acceptance.*
 
 ## Rendering Correctly
 - **Terrain elevation** — TerrainHistory.elevations synced into Three.js plane geometry. Drives all terrain geometry, shadows, walkability, ocean depth reads.
-- **Disturbance, vegetationProtection, runoff, forage** — Packed into RGBA DataTexture. terrain-material.ts drives rock exposure, ground cover, erosion tinting, wet shore.
-- **Basalt + ash** — RG DataTexture (volcanicTexture). Blends basalt/ash color over base terrain.
+- **Disturbance, vegetationProtection, runoff, forage** — Packed into RGBA DataTexture. `terrain-material.ts` drives rock exposure, ground cover, erosion tinting, and wet shore.
+- **Local environment** — Rainfall × temperature selects one of nine foundations; terrain resolves moisture, exposure, drainage, water depth, sediment, frost potential, and a compact habitat class per cell. The renderer receives continuous fields, not biome colors.
+- **Substrate history** — Basalt, ash, substrate age, sediment, and reef-produced carbonate persist in terrain history. Fresh basalt suppresses carbonate; runoff sediment can bury it.
+- **Basalt, ash, carbonate, substrate age** — RGBA geological DataTexture. Materials preserve fresh volcanic ground, expose carbonate shelf, and use substrate maturity only for bounded surface treatment.
 - **Tree placement + morphology** — vegetation-renderer.ts consumes all morphology fields: guild, height, crown dims, lean, foliage HSL. Near/far LOD wired.
 - **Seagrass** — seagrass-renderer.ts consumes height, spread, scale, rotation, HSL. Per-tuft sway, near/far LOD.
 - **Land lineage traits → grazer** — All seven population means feed the accepted marsh-grazer. Stable renderer seeds add modest individual samples around those means; abundance controls visible instance count, and one `InstancedMesh` renders each lineage. The sim still stores no within-population variance.
@@ -40,8 +42,8 @@
 - **PLANNED — Waterfall transitions** — Segments reserved. No geometry, particles, or material layer.
 - **PLANNED — Snowfield/glacier surfaces** — No snow/ice layer for cold climates.
 - **PLANNED — Triplanar rock projection** — Conditional on capture review.
-- **PLANNED — Reef succession system** — Entirely greenfield. No sim fields, resolver, history, renderer, or asset.
-- **PLANNED — First coral asset family** — Blocked on reef-site contract.
+- **CANDIDATE — Reef succession system** — Persistent sites resolve cover, framework, stress, composition, and carbonate deposition from depth, light, currents, temperature, runoff/sediment, substrate age, and basalt.
+- **BUILT — First coral asset family** — Owner accepted the paired `epoch-reef-builder-family` integration on 2026-08-13; future major visual changes require their own verdict.
 - **PLANNED — First fish/marine asset family** — Brief not started. Immediate next step per WILDLIFE-ROADMAP.md.
 - **PLANNED — Aerial wildlife persistence** — No AerialLineageState, no nesting/metabolic model.
 - **PLANNED — Freshwater ecology** — Basin is habitat only. No ecological consumer defined.
