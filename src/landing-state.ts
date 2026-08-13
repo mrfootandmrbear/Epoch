@@ -643,8 +643,17 @@ export function createLandingState(scene: Scene): WorldExperience {
   function refreshReef(snapshot: WorldSnapshot, jumpYears = snapshot.totalYears): ReefOutcome {
     const seaLevel = SEA_LEVEL[activeClimate.seaLevel];
     currentField = buildCurrentField(snapshot, activeClimate);
+    // The persistent succession model evolves an *existing* reef across jumps:
+    // survivors, framework, and disturbance recovery on sites it already holds.
+    // A first landing has no inherited sites, so that path would build a reef up
+    // from bare rock inside a single jump and never leave the crustose pioneer
+    // phase — even on prime, long-submerged substrate. The reef a player arrives
+    // to should instead reflect how long the rock has been available, which is
+    // exactly the substrate-age maturity the legacy path derives. Seed from it
+    // whenever nothing is inherited; hand over to succession once sites exist.
+    const seededHistory = worldHistory.reef.sites.length > 0 ? worldHistory.reef : undefined;
     const outcome = resolveReef(snapshot, currentField, activeClimate, {
-      previousHistory: worldHistory.reef,
+      previousHistory: seededHistory,
       jumpYears,
     });
     reef.setReef(outcome.colonies);
