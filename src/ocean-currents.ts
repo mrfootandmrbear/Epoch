@@ -22,7 +22,15 @@ export interface CurrentField {
   readonly referenceSpeed: number;
   readonly flowX: Float32Array;
   readonly flowZ: Float32Array;
-  /** |flow| / referenceSpeed, clamped to 0..1. */
+  /**
+   * |flow| / referenceSpeed, so undisturbed open water sits at 1.
+   *
+   * Deliberately not capped at 1: water crossing a shallow reef crest really
+   * does outrun the open shelf, and that acceleration is the venturi that
+   * sorts branching coral from massive coral. Capping it would flatten the
+   * majority of the shelf onto a single value and throw the signal away.
+   * Bounded by SPEED_CEILING.
+   */
   readonly speed: Float32Array;
   /** Stagnant and recirculating water: leeward wake, lagoons, embayments. */
   readonly shelter: Float32Array;
@@ -41,6 +49,11 @@ export interface CurrentSample {
   readonly vorticity: number;
 }
 
+/**
+ * Upper bound on normalized speed. Open water is 1; a scoured crest reaches
+ * roughly twice that before the depth-averaged model stops being meaningful.
+ */
+export const SPEED_CEILING = 2.5;
 /** Friction floor. Below this the boundary layer eats the depth-averaged flow. */
 const FRICTION_DEPTH = 0.9;
 /** Depth over which transport saturates; deeper water carries no extra flux. */
@@ -318,7 +331,7 @@ export function buildCurrentField(snapshot: WorldSnapshot, climate?: ClimateForc
     const scale = referenceSpeed / Math.max(FRICTION_DEPTH, Math.min(TRANSPORT_DEPTH, effectiveDepth));
     flowX[i] = fluxX[i]! * scale;
     flowZ[i] = fluxZ[i]! * scale;
-    speed[i] = clamp01(Math.hypot(flowX[i]!, flowZ[i]!) / referenceSpeed);
+    speed[i] = Math.min(SPEED_CEILING, Math.hypot(flowX[i]!, flowZ[i]!) / referenceSpeed);
     shelter[i] = clamp01(1 - speed[i]! * 0.85 + shadow[i]! * 0.42);
   }
   for (let z = 1; z < side - 1; z++) {
@@ -363,14 +376,18 @@ export function sampleCurrent(field: CurrentField, x: number, z: number): Curren
 
 /**
  * Pack the field for a shader. RG carries the flow vector remapped into 0..1,
- * B carries normalized speed, A carries shelter.
+ * B carries normalized speed divided by SPEED_CEILING, A carries shelter.
+ *
+ * A consumer recovers metres per second as
+ * `(rg * 2 - 1) * referenceSpeed * SPEED_CEILING` and normalized speed as
+ * `b * SPEED_CEILING`.
  */
 export function packCurrentField(field: CurrentField, target: Float32Array): void {
+  const scale = 1 / Math.max(1e-6, field.referenceSpeed * SPEED_CEILING * 2);
   for (let i = 0; i < field.side * field.side; i++) {
-    const scale = 1 / Math.max(1e-6, field.referenceSpeed * 2);
     target[i * 4] = Math.max(0, Math.min(1, field.flowX[i]! * scale + 0.5));
     target[i * 4 + 1] = Math.max(0, Math.min(1, field.flowZ[i]! * scale + 0.5));
-    target[i * 4 + 2] = field.speed[i]!;
+    target[i * 4 + 2] = field.speed[i]! / SPEED_CEILING;
     target[i * 4 + 3] = field.shelter[i]!;
   }
 }
