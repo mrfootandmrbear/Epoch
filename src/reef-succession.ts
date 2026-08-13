@@ -447,7 +447,11 @@ export function resolveReef(
       // the power keeps most colonies young and lets a few run away, which is
       // what makes a metres-wide bommie read as exceptional.
       const ageRoll = hash(seed, 1433);
-      const localAge = clamp01(site.substrateAge * (0.35 + Math.pow(ageRoll, 2.1) * 1.5));
+      // Weighted hard toward the young. A reef is mostly recruits and small
+      // colonies with a few old ones standing over them; drawn from a narrow
+      // band instead, every colony comes out the same size and the reef reads
+      // as a field of uniform boulders rather than as living cover.
+      const localAge = clamp01(site.substrateAge * (0.2 + Math.pow(ageRoll, 2.2) * 1.6));
       // Heat stress bleaches; depth and moving water protect. A hot epoch's
       // shallow slack reef pales while the same reef stays coloured deeper.
       const heatStress = clamp01((warmth - 1.05) / 0.22);
