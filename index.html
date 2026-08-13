@@ -234,6 +234,26 @@
         cursor: default;
         opacity: .66;
       }
+      .brush-controls {
+        align-items: center;
+        margin: 8px auto;
+        font-size: 11px;
+        text-shadow: 0 2px 12px #000;
+      }
+      .brush-controls[hidden] { display: none; }
+      .brush-controls label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 10px;
+        border: 1px solid rgba(255,255,255,.16);
+        border-radius: 999px;
+        background: rgba(8,20,20,.58);
+        backdrop-filter: blur(12px);
+      }
+      .brush-controls input { width: 92px; accent-color: #b7c89f; }
+      .brush-controls output { min-width: 34px; color: rgba(247,243,232,.75); }
+      .brush-controls button { padding: 8px 12px; }
       #jump {
         margin-left: 8px;
         padding-inline: 24px;
@@ -437,6 +457,55 @@
       @media (min-width: 701px) and (max-width: 1100px) {
         #epoch-card { bottom: 190px; }
       }
+      #experience.player-shell {
+        left: 18px;
+        bottom: 18px;
+        width: min(370px, calc(100vw - 36px));
+        min-width: 280px;
+        min-height: 116px;
+        max-width: min(720px, calc(100vw - 36px));
+        max-height: calc(100vh - 36px);
+        transform: none;
+        resize: both;
+        overflow: auto;
+        box-sizing: border-box;
+        padding: 12px;
+        border: 1px solid rgba(255,255,255,.18);
+        border-radius: 14px;
+        background: rgba(5,14,15,.76);
+        box-shadow: 0 16px 55px rgba(0,0,0,.38);
+        backdrop-filter: blur(18px) saturate(1.15);
+        text-align: left;
+      }
+      #experience.player-shell.committed { transform: translateY(18px); }
+      .shell-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+      #experience #form-title { margin: 0; font-size: 21px; }
+      .shell-toggle {
+        appearance: none; border: 0; color: rgba(247,243,232,.72); background: transparent;
+        font: 600 10px/1 system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; cursor: pointer;
+      }
+      #experience #form-hint { margin: 5px 0 10px; font-size: 11px; line-height: 1.4; }
+      .shell-section { margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,.1); }
+      .shell-section > summary {
+        margin-bottom: 7px; color: rgba(247,243,232,.58); font: 700 9px/1 system-ui, sans-serif;
+        letter-spacing: .14em; text-transform: uppercase; cursor: pointer; list-style: none;
+      }
+      .shell-section > summary::-webkit-details-marker { display: none; }
+      .shell-section > summary::after { content: "−"; float: right; }
+      .shell-section:not([open]) > summary::after { content: "+"; }
+      #experience .actions { justify-content: flex-start; flex-wrap: wrap; gap: 6px; }
+      #experience .force-actions { margin-bottom: 0; }
+      #experience .actions button, #experience .actions select { padding-top: 8px; padding-bottom: 8px; font-size: 11px; }
+      #experience .actions select { min-width: 0; flex: 1 1 132px; }
+      #experience .tool-actions button { flex: 1 0 auto; padding-inline: 12px; }
+      #experience #jump { flex: 1 1 150px; margin-left: 0; }
+      .preset-copy { margin: 7px 2px 0; color: rgba(247,243,232,.58); font: 10px/1.35 system-ui, sans-serif; }
+      #experience.compact { width: 238px !important; height: auto !important; min-width: 0; min-height: 0; resize: none; overflow: hidden; }
+      #experience.compact .shell-body, #experience.compact #form-hint { display: none; }
+      @media (max-width: 700px) {
+        #experience.player-shell { left: 10px; bottom: 10px; width: calc(100vw - 20px); max-width: none; max-height: 58vh; resize: none; }
+        #epoch-card { bottom: min(62vh, 380px); }
+      }
     </style>
   </head>
   <body>
@@ -456,9 +525,20 @@
         <div class="reveal-phase" data-reveal-phase>rain · growth · frost · return</div>
       </div>
     </div>
-    <div id="experience">
-      <div id="form-title">Shape the island</div>
+    <div id="experience" class="player-shell">
+      <div class="shell-header">
+        <div id="form-title">Shape the island</div>
+        <button id="shell-toggle" class="shell-toggle" aria-expanded="true">Compact</button>
+      </div>
       <p id="form-hint">Drag to orbit. Scroll to move closer. Choose a shaping tool when the form calls for it.</p>
+      <div class="shell-body">
+      <details class="shell-section" open>
+        <summary>Starting world</summary>
+        <div class="actions"><select id="starting-world" aria-label="Starting world preset"></select></div>
+        <p class="preset-copy" id="starting-world-description">An old, varied island with a high spine and established drainage.</p>
+      </details>
+      <details class="shell-section" open>
+        <summary>Forces</summary>
       <div class="actions force-actions" aria-label="Climate forces">
         <select id="rainfall" aria-label="Rainfall regime">
           <option value="arid">Arid</option>
@@ -487,16 +567,43 @@
           <option value="extinct">Extinct vent</option>
         </select>
       </div>
+      </details>
       <div class="actions force-actions reveal-actions" aria-label="Reveal treatment">
         <select id="reveal-treatment" aria-label="Reveal treatment"></select>
       </div>
+      <details class="shell-section">
+        <summary>Arrival</summary>
       <div class="actions force-actions" aria-label="Dispersal opportunities">
+        <select id="drifter-food" aria-label="Founder food source">
+          <option value="ground-plants" selected>Ground plants</option>
+          <option value="woody-plants">Woody plants</option>
+          <option value="animal-prey">Animal prey</option>
+          <option value="mixed">Mixed foods</option>
+        </select>
+        <select id="drifter-size" aria-label="Founder size">
+          <option value="small">Small</option>
+          <option value="medium" selected>Medium</option>
+          <option value="large">Large</option>
+        </select>
+        <select id="drifter-climate" aria-label="Founder origin climate">
+          <option value="cold-open">Cold open</option>
+          <option value="cold-wet">Cold wet</option>
+          <option value="temperate-seasonal" selected>Temperate seasonal</option>
+          <option value="hot-dry">Hot dry</option>
+          <option value="hot-wet">Hot wet</option>
+        </select>
         <button id="distant-drifter">Distant Drifter</button>
       </div>
-      <div class="actions">
+      <p class="preset-copy" id="drifter-preview">A medium ground-plant feeder from a temperate seasonal climate. Exact anatomy will be generated when the raft is launched.</p>
+      </details>
+      <details class="shell-section" open>
+        <summary>Form &amp; jump</summary>
+      <div class="actions tool-actions">
         <button class="active" data-tool="look">Look</button>
         <button data-tool="raise">Raise land</button>
         <button data-tool="carve">Carve</button>
+        <button data-tool="level">Level</button>
+        <button data-tool="cliff">Cliff</button>
         <button data-tool="hotspot">Place hot spot</button>
         <select id="jump-years" aria-label="Jump duration">
           <option value="1">1 year</option>
@@ -511,6 +618,14 @@
           <option value="1000000">1 million years</option>
         </select>
         <button id="jump">Jump 1,000 years</button>
+      </div>
+      <div class="actions brush-controls" id="brush-controls" hidden>
+        <label>Size <input id="brush-size" type="range" min="6" max="60" step="1" value="18"><output id="brush-size-value">18 m</output></label>
+        <label>Strength <input id="brush-strength" type="range" min="0.25" max="4" step="0.25" value="1.25"><output id="brush-strength-value">1.25</output></label>
+        <button id="undo-sculpt" disabled aria-label="Undo terrain stroke">Undo</button>
+        <button id="redo-sculpt" disabled aria-label="Redo terrain stroke">Redo</button>
+      </div>
+      </details>
       </div>
     </div>
     <div id="epoch-card">

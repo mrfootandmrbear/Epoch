@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "id": "epoch-coastal-forager",
+  "displayName": "Epoch Coastal Forager",
+  "category": "fish",
+  "stage": "candidate",
+  "role": "mobile coastal consumer linking shallow productivity and reef shelter",
+  "habitats": ["shallow shelf", "reef shelf", "open coastal water"],
+  "realWorldReferents": ["wrasse for reef maneuverability", "jack for open-water streamlining", "sea bream for a readable generalist body"],
+  "silhouette": "A deep-bodied coastal fish with a forked tail, readable paired fins, and a continuous family profile that becomes longer in exposed water or deeper and broader around structure.",
+  "paletteFamily": "epoch-coastal-silver",
+  "scaleMeters": { "min": 0.35, "max": 1.4 },
+  "traits": {
+    "continuous": [
+      { "name": "bodySize", "driver": "food availability and energetic cost", "range": [0, 1] },
+      { "name": "streamlining", "driver": "wave exposure and open-water travel", "range": [0, 1] },
+      { "name": "depthPreference", "driver": "selected water-column depth", "range": [0, 1] },
+      { "name": "thermalTolerance", "driver": "local water temperature", "range": [0, 1] },
+      { "name": "maneuverability", "driver": "reef and seabed structural complexity", "range": [0, 1] },
+      { "name": "depthControl", "driver": "vertical movement through the water column", "range": [0, 1] }
+    ],
+    "discrete": []
+  },
+  "source": {
+    "tool": "deterministic Node.js topology generator",
+    "files": ["source/generate-coastal-forager.mjs", "source/coastal-forager.geometry.json"],
+    "procedure": "Run node assets/ecosystem/epoch-coastal-forager/source/generate-coastal-forager.mjs. A deterministic topology generator is used because the existing WebGPU renderer requires topology-stable per-instance morph targets; the authored fish remains one bounded family rather than a rotated land-animal rig."
+  },
+  "previews": [
+    "previews/front.png",
+    "previews/side.png",
+    "previews/top.png",
+    "previews/game-distance.png",
+    "previews/swim.png",
+    "previews/landing-showcase.png"
+  ],
+  "exports": ["exports/coastal-forager.runtime.json"],
+  "lods": [{ "name": "near", "file": "exports/coastal-forager.runtime.json", "maxTriangles": 308 }],
+  "animations": { "required": ["idle", "swim"] },
+  "showcase": "previews/landing-showcase.png",
+  "acceptance": { "verdict": "" }
+}

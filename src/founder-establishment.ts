@@ -1,4 +1,5 @@
 import { traitAdaptationRate } from "./lineage-history";
+import type { FounderEnvironmentFit } from "./founder-profile";
 
 export interface FounderEstablishmentState {
   readonly energy: number;
@@ -18,8 +19,7 @@ function clamp01(value: number): number {
 /** Resolve a small founder cohort against food actually present at its site. */
 export function resolveFounderEstablishment(
   previous: Readonly<FounderEstablishmentState>,
-  localForage: number,
-  habitatMoisture: number,
+  environment: Readonly<FounderEnvironmentFit>,
   jumpYears: number,
 ): FounderEstablishmentResult {
   const duration = clamp01(Math.log10(Math.max(1, jumpYears) + 1) / 6);
@@ -27,9 +27,10 @@ export function resolveFounderEstablishment(
     previous.feedingAdaptation
     + (1 - previous.feedingAdaptation) * traitAdaptationRate(jumpYears) * 0.65,
   );
-  const foodQuality = clamp01(localForage) * (0.82 + clamp01(habitatMoisture) * 0.18);
-  const intake = foodQuality * (0.25 + adaptation * 0.75);
-  const energy = clamp01(previous.energy + (intake - 0.38) * duration * 0.9);
+  const foodQuality = clamp01(environment.foodAvailability);
+  const intake = foodQuality * (0.25 + adaptation * 0.75) * clamp01(environment.climateFit);
+  const maintenance = 0.38 * Math.max(0.75, environment.metabolicCost);
+  const energy = clamp01(previous.energy + (intake - maintenance) * duration * 0.9);
   const abundance = clamp01(previous.abundance + (
     (intake - 0.4) * 0.55 + (energy - 0.38) * 0.15
   ) * duration);

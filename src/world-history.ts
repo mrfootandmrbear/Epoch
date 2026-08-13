@@ -7,6 +7,7 @@ import { VOLCANIC_OUTPUTS, type HotSpot } from "./volcanism";
 import { createReefHistory, type ReefHistory } from "./reef-succession";
 import { CORAL_GUILDS } from "./reef-succession";
 import { DEFAULT_CLIMATE, type ClimateForces } from "./climate";
+import { isFounderFoodSource, isFounderOriginClimate, isFounderSizeBand } from "./founder-profile";
 
 export const WORLD_HISTORY_VERSION = 7 as const;
 
@@ -107,6 +108,24 @@ function validateLineage(value: unknown, ids: Set<string>, index: number): Linea
   }
   if (lineage.traits !== undefined) {
     assertPopulationTraits(lineage.traits as Readonly<PopulationTraits>, `${context}.traits`);
+  }
+  if (lineage.founder !== undefined) {
+    const founder = requireRecord(lineage.founder, `${context}.founder`);
+    if (!isFounderFoodSource(founder.foodSource)) throw new RangeError(`${context}.founder.foodSource is not recognized`);
+    if (!isFounderSizeBand(founder.size)) throw new RangeError(`${context}.founder.size is not recognized`);
+    if (!isFounderOriginClimate(founder.originClimate)) throw new RangeError(`${context}.founder.originClimate is not recognized`);
+    if (!Number.isInteger(founder.generationSeed) || (founder.generationSeed as number) < 0) {
+      throw new RangeError(`${context}.founder.generationSeed must be a non-negative integer`);
+    }
+  }
+  if (lineage.foodAffinities !== undefined) {
+    const affinities = requireRecord(lineage.foodAffinities, `${context}.foodAffinities`);
+    for (const field of ["groundPlants", "woodyPlants", "animalPrey", "marineForage"] as const) {
+      const entry = affinities[field];
+      if (!Number.isFinite(entry) || (entry as number) < 0 || (entry as number) > 1) {
+        throw new RangeError(`${context}.foodAffinities.${field} must be finite and within [0, 1]`);
+      }
+    }
   }
   for (const field of ["abundance", "energy", "feedingAdaptation"] as const) {
     const entry = lineage[field];

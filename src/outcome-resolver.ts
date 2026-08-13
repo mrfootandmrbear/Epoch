@@ -28,6 +28,7 @@ import {
 } from "./lineage-history";
 import { createMarineLineageHistory, resolveMarineLineages, type MarineLineageChange, type MarineLineageHistory, type MarinePopulationOutcome } from "./marine-lineage";
 import { resolveFounderEstablishment } from "./founder-establishment";
+import { founderEnvironmentFit } from "./founder-profile";
 import { resolveLocalEnvironmentSample } from "./environment";
 
 export interface HabitatSample {
@@ -416,7 +417,9 @@ function resolveLineage(
   }
   const traits = previous.status === "active" && previous.traits
     ? blendPopulationTraits(previous.traits, target, traitAdaptationRate(jumpYears))
-    : target;
+    : previous.status === "not-established" && previous.founder && previous.traits
+      ? previous.traits
+      : target;
   if (import.meta.env.DEV) assertPopulationTraits(traits, `lineage ${previous.id} resolved traits`);
   const moved = previous.site ? Math.hypot(scored.x - previous.site.x, scored.z - previous.site.z) : 0;
   const duration = clamp01(Math.log10(Math.max(1, jumpYears) + 1) / 6);
@@ -424,11 +427,21 @@ function resolveLineage(
   const beforeEnergy = previous.energy ?? (founder ? 0.38 : 0.62);
   const beforeAbundance = previous.abundance ?? (founder ? 0.012 : 0.34);
   const intake = scored.habitat.forage * (0.75 + scored.habitat.moisture * 0.25);
+  const founderFit = previous.founder
+    ? founderEnvironmentFit(
+      previous.founder,
+      scored.habitat.forage,
+      scored.habitat.moisture,
+      snapshot.climate,
+      scored.habitat.coastalProductivity,
+      previous.foodAffinities,
+    )
+    : { foodAvailability: scored.habitat.forage * (0.82 + scored.habitat.moisture * 0.18), climateFit: 1, metabolicCost: 1 };
   const founderResolution = founder ? resolveFounderEstablishment({
     energy: beforeEnergy,
     abundance: beforeAbundance,
     feedingAdaptation: previous.feedingAdaptation ?? 0.28,
-  }, scored.habitat.forage, scored.habitat.moisture, jumpYears) : undefined;
+  }, founderFit, jumpYears) : undefined;
   const energy = founderResolution?.energy ?? clamp01(beforeEnergy + (intake - 0.48) * duration * 0.9);
   const abundance = founderResolution?.abundance ?? clamp01(beforeAbundance + (
     (intake - 0.52) * 0.8 + (energy - 0.45) * 0.15
