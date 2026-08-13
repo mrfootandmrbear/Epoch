@@ -119,7 +119,7 @@ export const waterTransmission = Fn(([path]: [Node<"vec2">]) => {
  * the scene murky rather than submerged.
  */
 export const waterHaze = Fn(([path]: [Node<"vec2">]) => {
-  return float(1).sub(exp(path.y.mul(-0.013)));
+  return float(1).sub(exp(path.y.mul(-0.018)));
 });
 
 /** Absorption and in-scattered haze applied to an unlit surface colour. */

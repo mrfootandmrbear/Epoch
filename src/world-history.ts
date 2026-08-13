@@ -6,8 +6,9 @@ import { createMarineLineageHistory, validateMarineLineageHistory, type MarineLi
 import { VOLCANIC_OUTPUTS, type HotSpot } from "./volcanism";
 import { createReefHistory, type ReefHistory } from "./reef-succession";
 import { CORAL_GUILDS } from "./reef-succession";
+import { DEFAULT_CLIMATE, type ClimateForces } from "./climate";
 
-export const WORLD_HISTORY_VERSION = 6 as const;
+export const WORLD_HISTORY_VERSION = 7 as const;
 
 export interface WorldHistory {
   readonly version: typeof WORLD_HISTORY_VERSION;
@@ -16,6 +17,12 @@ export interface WorldHistory {
   readonly marineLineages: MarineLineageHistory;
   readonly reef: ReefHistory;
   readonly hotSpots: readonly HotSpot[];
+}
+
+export interface InitialWorldState {
+  readonly totalYears: 0;
+  readonly climate: Readonly<ClimateForces>;
+  readonly history: WorldHistory;
 }
 
 export function createWorldHistory(
@@ -31,6 +38,19 @@ export function createWorldHistory(
     marineLineages: createMarineLineageHistory(),
     reef: createReefHistory(),
     hotSpots: [],
+  };
+}
+
+/** The authored geological world that exists before any epoch is resolved. */
+export function createInitialWorldState(
+  elevations: Float32Array,
+  side: number,
+  extent: number,
+): InitialWorldState {
+  return {
+    totalYears: 0,
+    climate: Object.freeze({ ...DEFAULT_CLIMATE }),
+    history: createWorldHistory(elevations, side, extent, false),
   };
 }
 
@@ -120,6 +140,9 @@ export function validateWorldHistory(value: unknown): asserts value is WorldHist
   validateFloat32Field(terrain.basalt, expectedLength, "world history terrain.basalt", true);
   validateFloat32Field(terrain.ash, expectedLength, "world history terrain.ash", true);
   validateFloat32Field(terrain.volcanicLoad, expectedLength, "world history terrain.volcanicLoad", true);
+  validateFloat32Field(terrain.substrateAge, expectedLength, "world history terrain.substrateAge", true);
+  validateFloat32Field(terrain.sediment, expectedLength, "world history terrain.sediment", true);
+  validateFloat32Field(terrain.carbonate, expectedLength, "world history terrain.carbonate", true);
   if (!Number.isFinite(terrain.marineNutrients) || (terrain.marineNutrients as number) < 0 || (terrain.marineNutrients as number) > 1) {
     throw new RangeError("world history terrain.marineNutrients must be finite and within [0, 1]");
   }

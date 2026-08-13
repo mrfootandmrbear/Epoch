@@ -1,4 +1,4 @@
-import { Color, DataTexture, Mesh, Node, NodeMaterial, PlaneGeometry, RingGeometry, Vector3 } from "three/webgpu";
+import { Color, DataTexture, DoubleSide, Mesh, Node, NodeMaterial, PlaneGeometry, RingGeometry, Vector3 } from "three/webgpu";
 import {
   Fn,
   cameraPosition,
@@ -6,6 +6,7 @@ import {
   color,
   cos,
   dot,
+  faceDirection,
   float,
   floor,
   fract,
@@ -80,6 +81,10 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
   // water visually solid.
   material.transparent = true;
   material.depthWrite = false;
+  // The reef review camera swims below the surface. A front-sided sheet
+  // disappears from there, removing the luminous ceiling that visually says
+  // "clear sea" and leaving only the seabed to colour the frame.
+  material.side = DoubleSide;
   const mesh = new Mesh(geometry, material);
 
   const chopField = Fn(([x, z, distV]: [Node<"float">, Node<"float">, Node<"float">]) => {
@@ -142,7 +147,7 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
   material.normalNode = transformNormalToView(waveNormal);
 
   const deepColor = color(new Color(0x041c26));
-  const shallowColor = color(new Color(0x1c6b78));
+  const shallowColor = color(new Color(0x008ca7));
   const zenithColor = uniform(new Color(0x4f8fb5));
   const horizonColor = uniform(options.atmosphere.fogColor.clone().offsetHSL(0, 0.01, 0.025));
   const foamColor = color(new Color(0xf3fbff));
@@ -156,8 +161,10 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
   const waterDepth = positionWorld.y.sub(terrainSurface);
   const shallowFactor = float(1).sub(smoothstep(0.7, 10, waterDepth)).mul(insideTerrain);
   const surfaceEyeDir = normalize(cameraPosition.sub(positionWorld));
+  const facingWaveNormal = waveNormal.mul(faceDirection);
+  const frontShare = faceDirection.mul(0.5).add(0.5);
   const surfaceFresnel = pow(
-    float(1.0).sub(clamp(dot(waveNormal, surfaceEyeDir), 0, 1)),
+    float(1.0).sub(clamp(dot(facingWaveNormal, surfaceEyeDir), 0, 1)),
     5.0,
   ).mul(0.96).add(0.04);
   // At a near-vertical view, productive shallows transmit enough light for
@@ -165,7 +172,11 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
   // Fresnel reflection restores an opaque water silhouette. The fade reaches
   // fully opaque water before the coastal-productivity depth band ends.
   const shallowTransmission = shallowFactor.mul(float(1).sub(surfaceFresnel));
-  material.opacityNode = oceanMask.mul(float(1).sub(shallowTransmission.mul(0.62)));
+  const surfaceOpacity = oceanMask.mul(float(1).sub(shallowTransmission.mul(0.62)));
+  // From below this is a bright, translucent ceiling rather than a mirror of
+  // the sky above. Keep enough alpha to reveal the moving wave field without
+  // hiding the air-side world beyond it.
+  material.opacityNode = mix(oceanMask.mul(0.26), surfaceOpacity, frontShare);
 
   const hash2 = Fn(([p]: [Node<"vec2">]) => {
     return fract(sin(dot(p, vec2(127.1, 311.7))).mul(43758.5453123));
@@ -256,7 +267,11 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
     );
 
     return {
-      albedo: mix(baseWater, reflectedSky, fresnel.mul(0.86)).add(specular),
+      albedo: mix(
+        mix(shallowColor, color(new Color(0x55d4df)), 0.42),
+        mix(baseWater, reflectedSky, fresnel.mul(0.86)).add(specular),
+        frontShare,
+      ),
       // Aerial perspective. Without it the sea holds its near-camera value all
       // the way out and terminates in a hard line; with it the water loses
       // contrast into the sky and the far edge of any finite plane stops
@@ -307,6 +322,7 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
   // fully dissolved it into the sky, so the horizon becomes the horizon rather
   // than the end of the simulation domain.
   const farMaterial = new NodeMaterial();
+  farMaterial.side = DoubleSide;
   farMaterial.colorNode = Fn(() => {
     const { albedo, aerial } = openWater(vec3(0, 1, 0), float(0));
     return mix(albedo, distantWater, aerial);

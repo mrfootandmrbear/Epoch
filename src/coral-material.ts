@@ -154,5 +154,5 @@ export function createCoralMaterial(options: CoralMaterialOptions): CoralMateria
  * above it rather than staying midday-blue under a red sun.
  */
 export function reefHazeColor(target: Color, sunColor: Color): Color {
-  return target.set(0x1d6376).lerp(sunColor, 0.22);
+  return target.set(0x008ca8).lerp(sunColor, 0.06);
 }

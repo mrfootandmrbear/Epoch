@@ -66,10 +66,10 @@ Insulation additionally reaches the fragment stage on an instanced attribute mir
 | `epoch-canopy-tree` | plant | **candidate** | Visible woody cover, soil protection, forage structure, and mangrove habitat. | Owner visual verdict on the recorded showcase and previews. |
 | `example-marsh-grazer` | animal | **accepted**; embodiment depth **experimenting** | Owner accepted the first fauna draft after revised topology/runtime export, four static views, island showcase, and paired live locomotion evidence. One instanced draw replaces each lineage's primitive groups. Herd scale has since risen to 96 per lineage with coat, LOD, and trait-driven movement layered on; a visible foreground WebGPU review run reported 60 fps and the same 15 draws. | Maintain the accepted evidence; future refinements must not silently replace it. The added embodiment work is tracked as **experimenting** in RENDERER-ROADMAP rungs 4–7 and still needs owner verdicts on density, coat read, LOD transitions, and movement. |
 | First marine lineage family | fish | **planned** | Visual proof of the first persistent non-land lineage. | Create a brief only when the marine experiment fixes its trait contract. |
-| `epoch-reef-builder-family` | coral | **candidate** | Six habitat-driven growth grammars have deterministic cached near/far exports, fixed previews, an in-engine showcase, and a recorded 60 fps / 15 draw foreground diagnostic. | Owner visual verdict on the candidate showcase. |
+| `epoch-reef-builder-family` | coral | **accepted** | Owner accepted the paired mature-reef integration on 2026-08-13, including persistent carbonate shelf, exposed basalt, current-sorted colonies, and shared underwater optics. | Preserve the accepted family while future iterations deepen reef ecology. |
 | First aerial lineage family | bird | **deferred** | Replaces the primitive flock after aerial persistence is proven. | Wait for the marine population abstraction to settle. |
 
-The marsh grazer is the first accepted fauna family. Primitive swimmers and birds remain integration adapters. The reef-builder is a visual candidate awaiting owner judgment.
+The marsh grazer is the first accepted fauna family. Primitive swimmers and birds remain integration adapters. The reef-builder is the first accepted coral family.
 
 ## Completed experiment: persistent marine lineage
 

@@ -12,6 +12,7 @@ export const GOLDEN_SHOTS = {
   // the water column are all functions of the path light takes to the eye, and
   // an over-water shot puts almost none of that path in frame.
   reef: { position: [116, -2.2, 128], target: [104, -7.2, 116] },
+  "reef-above": { position: [130, 16, 145], target: [104, -3, 116] },
   "forest-interior": { position: [-54, 9, 18], target: [-24, 10, -12] },
   herd: { position: [40, 30, 38], target: [17, 18, 9] },
   // Mid distance, framing both contrast herds at once: the rung-7 judgement is

@@ -11,6 +11,7 @@ import {
   smoothstep,
   texture,
   vec2,
+  vec3,
   vertexColor,
 } from "three/tsl";
 import { proceduralBump } from "./procedural-bump";
@@ -26,6 +27,7 @@ import {
 export interface TerrainMaterialOptions {
   readonly stateTexture: DataTexture;
   readonly volcanicTexture: DataTexture;
+  readonly environmentTexture: DataTexture;
   readonly terrainExtent: number;
   readonly seaLevel: number;
   /**
@@ -51,16 +53,23 @@ export function createTerrainMaterial(options: TerrainMaterialOptions): TerrainM
   const terrainUv = positionWorld.xz.div(options.terrainExtent).add(0.5);
   const state = texture(options.stateTexture, terrainUv);
   const volcanic = texture(options.volcanicTexture, terrainUv);
+  const environment = texture(options.environmentTexture, terrainUv);
   const disturbance = state.r;
   const protection = state.g;
   const runoff = state.b;
   const forage = state.a;
   const basalt = volcanic.r;
   const ash = volcanic.g;
+  const carbonateDeposit = volcanic.b;
+  const substrateAge = volcanic.a;
+  const localMoisture = environment.r;
+  const localExposure = environment.g;
+  const sediment = environment.b;
+  const frost = environment.a;
 
   const slope = float(1).sub(smoothstep(0.7, 0.91, normalWorld.y));
   const shore = float(1).sub(smoothstep(seaLevel.add(0.45), seaLevel.add(2.2), positionWorld.y));
-  const groundCover = clamp(max(protection, forage.mul(0.72)).mul(float(1).sub(slope)), 0, 1);
+  const groundCover = clamp(max(protection, forage.mul(0.72)).mul(localMoisture.mul(0.55).add(0.55)).mul(float(1).sub(slope)), 0, 1);
   const erosion = clamp(max(disturbance, runoff.mul(0.78)), 0, 1);
 
   // MaterialX Perlin avoids the large-coordinate precision and grid artifacts
@@ -88,14 +97,34 @@ export function createTerrainMaterial(options: TerrainMaterialOptions): TerrainM
     0.9,
   );
 
-  const soil = vertexColor().mul(macro.mul(0.11).add(0.97));
+  const drySoil = mix(vertexColor(), new Color(0x8a6740), float(1).sub(localMoisture).mul(0.42));
+  const soil = drySoil.mul(macro.mul(0.11).add(0.97));
   const vegetationFloor = mix(soil, new Color(0x2d4827), visibleCover.mul(0.42));
-  const exposedRock = mix(vegetationFloor, new Color(0x777064), rockExposure);
+  const exposedRock = mix(vegetationFloor, new Color(0x777064), rockExposure.add(localExposure.mul(0.08)));
   const erodedSoil = mix(exposedRock, new Color(0x75543a), erosion.mul(float(1).sub(slope)).mul(0.38));
   const volcanicGround = mix(erodedSoil, new Color(0x17191a), basalt.mul(0.88));
   const ashGround = mix(volcanicGround, new Color(0x625f59), ash.mul(0.58));
-  const wetGround = mix(ashGround, new Color(0x302b22), shore.mul(0.44).add(runoff.mul(0.12)));
-  const groundColor = wetGround.mul(medium.mul(0.055).mul(mediumFade).add(0.975));
+  const sedimentGround = mix(ashGround, new Color(0x806b4d), sediment.mul(0.42).mul(float(1).sub(basalt)));
+  const wetGround = mix(sedimentGround, new Color(0x302b22), shore.mul(0.44).add(runoff.mul(0.12)).add(localMoisture.mul(0.08)));
+  const groundDetail = wetGround.mul(medium.mul(0.055).mul(mediumFade).add(0.975));
+
+  // Mature reefs manufacture their own pale substrate from coral skeleton,
+  // shell and coralline debris. Keep the accepted volcanic shoreline intact:
+  // carbonate starts below the surf band, favours shelf-like upward faces,
+  // and yields wherever fresh basalt still dominates.
+  const waterDepth = max(float(0), seaLevel.sub(positionWorld.y));
+  const carbonateShelf = smoothstep(0.9, 2.6, waterDepth)
+    .mul(float(1).sub(smoothstep(15, 25, waterDepth)))
+    .mul(smoothstep(0.56, 0.88, normalWorld.y))
+    .mul(float(1).sub(basalt.mul(0.86)))
+    .mul(carbonateDeposit)
+    .mul(float(1).sub(sediment.mul(0.62)));
+  const carbonateVariation = macro.mul(0.045).add(medium.mul(0.025).mul(mediumFade));
+  const carbonate = vec3(0.61, 0.57, 0.44).add(carbonateVariation);
+  const carbonateGround = mix(groundDetail, carbonate, carbonateShelf.mul(0.74));
+  const frostCover = frost.mul(float(1).sub(slope.mul(0.72))).mul(float(1).sub(shore));
+  const frostColor = mix(new Color(0xb9c0bb), new Color(0xd9dfdc), substrateAge.mul(0.25));
+  const groundColor = mix(carbonateGround, frostColor, frostCover.mul(0.72));
 
   // The moving light net the surface focuses onto the seabed. It is the same
   // function the coral runs, on the same clock and sea level, so a caustic

@@ -24,6 +24,12 @@ export interface TerrainHistory {
   readonly ash: Float32Array;
   /** Persistent lithospheric load left by volcanic construction. */
   readonly volcanicLoad: Float32Array;
+  /** Locally weathered substrate maturity; fresh lava resets it. */
+  readonly substrateAge: Float32Array;
+  /** Persistent mineral sediment available for transport and coastal burial. */
+  readonly sediment: Float32Array;
+  /** Persistent reef-produced carbonate framework and depositional substrate. */
+  readonly carbonate: Float32Array;
   /** Nutrients delivered to coastal water and retained between jumps. */
   readonly marineNutrients: number;
 }
@@ -66,6 +72,9 @@ export function createTerrainHistory(
     basalt: new Float32Array(elevations.length),
     ash: new Float32Array(elevations.length),
     volcanicLoad: new Float32Array(elevations.length),
+    substrateAge: new Float32Array(elevations.length).fill(0.58),
+    sediment: new Float32Array(elevations.length).fill(0.08),
+    carbonate: new Float32Array(elevations.length),
     marineNutrients: 0.2,
   };
 }
@@ -85,6 +94,9 @@ export function resolveTerrainHistory(
   const nextBasalt = previous.basalt.slice();
   const nextAsh = previous.ash.slice();
   const nextVolcanicLoad = previous.volcanicLoad.slice();
+  const nextSubstrateAge = previous.substrateAge.slice();
+  const nextSediment = previous.sediment.slice();
+  const nextCarbonate = previous.carbonate.slice();
   const { weathering: duration, deepTime } = geomorphicDuration(jumpYears);
   const erosion = RAINFALL[climate.rainfall].erosion;
   const wind = WIND[climate.wind].exposure;
@@ -150,6 +162,19 @@ export function resolveTerrainHistory(
       nextBasalt[index] = clamp01(previous.basalt[index]! - weatheredBasalt);
       nextAsh[index] = clamp01(previous.ash[index]! * (1 - duration * (0.12 + rainSupply * 0.2)));
       nextVolcanicLoad[index] = clamp01(previous.volcanicLoad[index]! * (1 - deepTime * 0.018));
+      nextSubstrateAge[index] = clamp01(previous.substrateAge[index]!
+        + duration * (0.018 + rainSupply * 0.025) * (1 - previous.basalt[index]!));
+      const erodedMineral = clamp01(transport * 0.12 + nutrientLoss * 0.8);
+      const coastalDeposition = elevation <= sea + 5
+        ? nextRunoff[index]! * duration * (0.08 + Math.max(0, sea + 3 - elevation) * 0.018)
+        : 0;
+      nextSediment[index] = clamp01(previous.sediment[index]! * (1 - duration * 0.035)
+        + erodedMineral + coastalDeposition);
+      // Carbonate is persistent geology, but runoff can bury it and fresh
+      // basalt has priority over biological deposition.
+      nextCarbonate[index] = clamp01(previous.carbonate[index]!
+        * (1 - duration * (0.004 + nextSediment[index]! * 0.035))
+        * (1 - nextBasalt[index]! * 0.92));
       nextNutrients[index] = clamp01(nextNutrients[index]! + weatheredBasalt * 0.38);
       if (elevation <= sea + 4) {
         exportedNutrients += nutrientLoss * (0.5 + nextRunoff[index]! * 0.5);
@@ -172,11 +197,50 @@ export function resolveTerrainHistory(
     basalt: nextBasalt,
     ash: nextAsh,
     volcanicLoad: nextVolcanicLoad,
+    substrateAge: nextSubstrateAge,
+    sediment: nextSediment,
+    carbonate: nextCarbonate,
     marineNutrients: clamp01(
       previous.marineNutrients * (1 - duration * 0.24)
       + exportedNutrients / Math.max(1, coastalCells) * 7.5,
     ),
   };
+}
+
+/** Accumulate persistent carbonate around mature reef framework. */
+export function withReefDeposition(
+  history: TerrainHistory,
+  sites: readonly Readonly<{
+    x: number; z: number; framework: number; deadFramework: number; cover: number;
+  }>[],
+  jumpYears: number,
+): TerrainHistory {
+  if (sites.length === 0) return history;
+  const carbonate = history.carbonate.slice();
+  const sediment = history.sediment.slice();
+  const step = history.extent / (history.side - 1);
+  const half = history.extent / 2;
+  const duration = clamp01(Math.log10(Math.max(1, jumpYears)) / 6);
+  for (const site of sites) {
+    const production = clamp01(site.framework + site.deadFramework * 0.7 + site.cover * 0.3) * duration;
+    if (production < 0.01) continue;
+    const centerX = Math.round((site.x + half) / step);
+    const centerZ = Math.round((site.z + half) / step);
+    const radius = Math.max(2, Math.ceil((4 + production * 8) / step));
+    for (let dz = -radius; dz <= radius; dz++) for (let dx = -radius; dx <= radius; dx++) {
+      const x = centerX + dx; const z = centerZ + dz;
+      if (x < 0 || z < 0 || x >= history.side || z >= history.side) continue;
+      const falloff = 1 - Math.hypot(dx, dz) / radius;
+      if (falloff <= 0) continue;
+      const index = z * history.side + x;
+      const basaltSuppression = 1 - history.basalt[index]!;
+      const burial = 1 - sediment[index]! * 0.72;
+      carbonate[index] = clamp01(carbonate[index]!
+        + production * falloff * basaltSuppression * burial * 0.16);
+      sediment[index] = clamp01(sediment[index]! + production * falloff * 0.025);
+    }
+  }
+  return { ...history, carbonate, sediment };
 }
 
 export interface GrazingPopulation {

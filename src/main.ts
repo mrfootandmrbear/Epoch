@@ -5,6 +5,7 @@ import {
   DirectionalLight,
   HemisphereLight,
   MOUSE,
+  type Node,
   PerspectiveCamera,
   Raycaster,
   Scene,
@@ -14,7 +15,7 @@ import {
   WebGPURenderer,
 } from "three/webgpu";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { exponentialHeightFogFactor, fog, uniform } from "three/tsl";
+import { exponentialHeightFogFactor, fog, positionWorld, smoothstep, uniform } from "three/tsl";
 import { FFTOcean } from "./fft-ocean";
 import { createFFTOceanMesh } from "./fft-water";
 import { createLandingState } from "./landing-state";
@@ -48,6 +49,7 @@ import {
 } from "./climate";
 import { RENDER_SCALE } from "./render-scale";
 import type { VolcanicOutput } from "./volcanism";
+import { ENVIRONMENT_FIXTURES, isEnvironmentFixtureName } from "./environment-fixtures";
 
 const statusEl = document.getElementById("status")!;
 const lineagePanelEl = document.getElementById("lineage-panel")!;
@@ -93,7 +95,16 @@ scene.backgroundNode = atmosphereBackground.node;
 const heightFogColor = uniform(initialAtmosphere.fogColor.clone());
 const heightFogDensity = uniform(0.0002);
 const heightFogCeiling = uniform(10);
-scene.fogNode = fog(heightFogColor, exponentialHeightFogFactor(heightFogDensity, heightFogCeiling));
+const fogSeaLevel = uniform(SEA_LEVEL[DEFAULT_CLIMATE.seaLevel]);
+// Atmospheric moisture ends at the waterline. Submerged materials already
+// resolve spectral extinction and in-scatter; applying aerial fog again turns
+// clear tropical water into a grey-brown double-fogged volume.
+const aboveWaterFog = smoothstep(fogSeaLevel.sub(0.35), fogSeaLevel.add(0.35), positionWorld.y);
+const atmosphericFog = exponentialHeightFogFactor(heightFogDensity, heightFogCeiling) as Node<"float">;
+scene.fogNode = fog(
+  heightFogColor,
+  atmosphericFog.mul(aboveWaterFog),
+);
 
 const camera = new PerspectiveCamera(
   55,
@@ -129,6 +140,10 @@ const captureMode = isGoldenShotName(captureShot);
 const liveHerdShowcase = captureParams.get("showcase") === "herd";
 const liveHerdContrast = captureParams.get("showcase") === "herd-contrast";
 const captureTime = Number(captureParams.get("time") ?? 42);
+const captureFixtureName = captureParams.get("fixture");
+const captureFixture = isEnvironmentFixtureName(captureFixtureName)
+  ? ENVIRONMENT_FIXTURES[captureFixtureName]
+  : undefined;
 const postProcessingOptions = readPostProcessingOptions(captureParams);
 let lastInteraction = performance.now() / 1000;
 const presentation = createPresentationController(camera, controls, (active) => {
@@ -202,7 +217,7 @@ function updateAtmosphere(elapsed: number): void {
   ambientLight.color.copy(state.ambientColor);
   ambientLight.intensity = state.ambientIntensity;
   hemisphereLight.color.copy(state.ambientColor).offsetHSL(0.01, 0.04, 0.12);
-  hemisphereLight.groundColor.set(0x5b4938);
+  hemisphereLight.groundColor.set(0x405866);
   hemisphereLight.intensity = state.ambientIntensity * 0.95;
   heightFogColor.value.copy(state.fogColor);
   renderer.toneMappingExposure = state.exposure;
@@ -218,9 +233,15 @@ function updateShadowCoverage(): void {
 
 await Promise.all([loadTreeGeometryAssets(), loadSeagrassGeometryAssets()]);
 const landingState = createLandingState(scene);
-const captureVolcanism = captureParams.get("volcano") as VolcanicOutput | null;
+const captureVolcanism = (
+  captureParams.get("volcano")
+  ?? (captureFixture && "volcano" in captureFixture ? captureFixture.volcano : null)
+) as VolcanicOutput | null;
 if (captureMode && captureVolcanism && ["vigorous", "active", "waning", "extinct"].includes(captureVolcanism)) {
-  landingState.placeHotSpot(new Vector3(0, 0, 0), captureVolcanism);
+  const hotSpot = captureFixture && "hotSpot" in captureFixture
+    ? captureFixture.hotSpot
+    : { x: 0, z: 0 };
+  landingState.placeHotSpot(new Vector3(hotSpot.x, 0, hotSpot.z), captureVolcanism);
 }
 const raycaster = new Raycaster();
 const pointer = new Vector2();
@@ -251,6 +272,7 @@ function applyCommittedHeightFog(): void {
   const heightFog = resolveHeightFog(committedClimate);
   heightFogDensity.value = heightFog.density;
   heightFogCeiling.value = heightFog.ceiling;
+  fogSeaLevel.value = SEA_LEVEL[committedClimate.seaLevel];
 }
 applyCommittedHeightFog();
 
@@ -493,7 +515,10 @@ async function start() {
   }
 
   rendererReady = true;
-  applyOceanForces(DEFAULT_CLIMATE);
+  const captureClimate: ClimateForces = captureFixture
+    ? { ...captureFixture.climate }
+    : { ...DEFAULT_CLIMATE };
+  applyOceanForces(captureClimate);
   if (liveHerdShowcase || liveHerdContrast) {
     landingState.advance(10_000, 10_000, DEFAULT_CLIMATE);
     if (liveHerdContrast) landingState.showcaseHerdContrast();
@@ -501,9 +526,11 @@ async function start() {
     presentation.applyShot(liveHerdContrast ? "herd-contrast" : "herd");
   }
   if (captureMode) {
-    const captureYears = Number(captureParams.get("years") ?? 10_000);
+    const captureYears = Number(captureParams.get("years") ?? captureFixture?.years ?? 10_000);
     if (captureParams.get("founders") === "drifter") landingState.introduceDistantDrifter(0);
-    landingState.advance(captureYears, captureYears, DEFAULT_CLIMATE);
+    committedClimate = captureClimate;
+    applyCommittedHeightFog();
+    landingState.advance(captureYears, captureYears, captureClimate);
     if (captureParams.get("herd") === "candidate") landingState.showcaseGrazerHerd();
     if (captureParams.get("herd") === "contrast") landingState.showcaseHerdContrast();
     landingState.update(captureTime, camera.position);

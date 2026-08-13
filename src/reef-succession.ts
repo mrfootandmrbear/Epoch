@@ -4,6 +4,8 @@ import {
   snapshotBasaltAt,
   snapshotHeightAt,
   snapshotRunoffAt,
+  snapshotSedimentAt,
+  snapshotSubstrateAgeAt,
   type WorldSnapshot,
 } from "./world-snapshot";
 
@@ -420,10 +422,10 @@ export function resolveReef(
     const flowSample = sampleCurrent(current, x, z);
     const light = benthicLight(depth);
     const basalt = snapshotBasaltAt(snapshot, x, z);
-    const age = substrateAge(snapshot.totalYears, basalt);
+    const age = clamp01(snapshotSubstrateAgeAt(snapshot, x, z) * (1 - basalt * 0.92));
     // River plumes are the classic reef killer: freshwater and the silt it
     // carries smother recruits and cut the light the survivors need.
-    const turbidity = clamp01(snapshotRunoffAt(snapshot, x, z));
+    const turbidity = clamp01(snapshotRunoffAt(snapshot, x, z) * 0.62 + snapshotSedimentAt(snapshot, x, z) * 0.58);
     const depthFit = clamp01(1 - Math.abs(depth - OPTIMUM_DEPTH) / (PHOTIC_DEPTH * 0.72));
     // Some water movement is required — utterly slack water silts up — but a
     // site scoured well past the open-shelf current cannot hold a framework.

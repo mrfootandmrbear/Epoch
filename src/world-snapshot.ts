@@ -8,6 +8,9 @@ export interface WorldSnapshot {
   readonly nutrients?: Float32Array;
   readonly runoff?: Float32Array;
   readonly basalt?: Float32Array;
+  readonly substrateAge?: Float32Array;
+  readonly sediment?: Float32Array;
+  readonly carbonate?: Float32Array;
   readonly marineNutrients?: number;
   readonly climate: Readonly<ClimateForces>;
   readonly totalYears: number;
@@ -27,12 +30,18 @@ export function captureWorldSnapshot(
   runoffAt: HeightAt = () => 0,
   marineNutrients = 0.2,
   basaltAt: HeightAt = () => 0,
+  substrateAgeAt?: HeightAt,
+  sedimentAt: HeightAt = () => 0.08,
+  carbonateAt: HeightAt = () => 0,
 ): WorldSnapshot {
   const elevations = new Float32Array(gridSize * gridSize);
   const forage = new Float32Array(gridSize * gridSize);
   const nutrients = new Float32Array(gridSize * gridSize);
   const runoff = new Float32Array(gridSize * gridSize);
   const basalt = new Float32Array(gridSize * gridSize);
+  const substrateAge = new Float32Array(gridSize * gridSize);
+  const sediment = new Float32Array(gridSize * gridSize);
+  const carbonate = new Float32Array(gridSize * gridSize);
   for (let z = 0; z < gridSize; z++) {
     for (let x = 0; x < gridSize; x++) {
       const worldX = (x / (gridSize - 1) - 0.5) * extent;
@@ -42,6 +51,12 @@ export function captureWorldSnapshot(
       nutrients[z * gridSize + x] = Math.min(1, Math.max(0, nutrientsAt(worldX, worldZ)));
       runoff[z * gridSize + x] = Math.min(1, Math.max(0, runoffAt(worldX, worldZ)));
       basalt[z * gridSize + x] = Math.min(1, Math.max(0, basaltAt(worldX, worldZ)));
+      const inheritedSubstrateAge = substrateAgeAt
+        ? substrateAgeAt(worldX, worldZ)
+        : Math.min(1, Math.max(0, Math.log10(Math.max(1, totalYears)) / 5));
+      substrateAge[z * gridSize + x] = Math.min(1, Math.max(0, inheritedSubstrateAge));
+      sediment[z * gridSize + x] = Math.min(1, Math.max(0, sedimentAt(worldX, worldZ)));
+      carbonate[z * gridSize + x] = Math.min(1, Math.max(0, carbonateAt(worldX, worldZ)));
     }
   }
   return {
@@ -52,6 +67,9 @@ export function captureWorldSnapshot(
     nutrients,
     runoff,
     basalt,
+    substrateAge,
+    sediment,
+    carbonate,
     marineNutrients: Math.min(1, Math.max(0, marineNutrients)),
     climate: Object.freeze({ ...climate }),
     totalYears,
@@ -95,4 +113,18 @@ export function snapshotRunoffAt(snapshot: WorldSnapshot, x: number, z: number):
 
 export function snapshotBasaltAt(snapshot: WorldSnapshot, x: number, z: number): number {
   return snapshot.basalt ? sampleSnapshotField(snapshot, snapshot.basalt, x, z) : 0;
+}
+
+export function snapshotSubstrateAgeAt(snapshot: WorldSnapshot, x: number, z: number): number {
+  return snapshot.substrateAge
+    ? sampleSnapshotField(snapshot, snapshot.substrateAge, x, z)
+    : Math.min(1, Math.max(0, Math.log10(Math.max(1, snapshot.totalYears)) / 5));
+}
+
+export function snapshotSedimentAt(snapshot: WorldSnapshot, x: number, z: number): number {
+  return snapshot.sediment ? sampleSnapshotField(snapshot, snapshot.sediment, x, z) : 0.08;
+}
+
+export function snapshotCarbonateAt(snapshot: WorldSnapshot, x: number, z: number): number {
+  return snapshot.carbonate ? sampleSnapshotField(snapshot, snapshot.carbonate, x, z) : 0;
 }

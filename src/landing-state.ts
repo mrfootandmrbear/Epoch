@@ -12,7 +12,6 @@ import {
   Matrix4,
   PlaneGeometry,
   RedFormat,
-  RGFormat,
   RGBAFormat,
   RingGeometry,
   Scene,
@@ -30,7 +29,7 @@ import {
   setCreatureExpressionAt,
   type CreatureExpressionSample,
 } from "./creature-expression-spike";
-import { resolveTerrainHistory, withGrazingPressure, withVegetationProtection } from "./terrain-history";
+import { resolveTerrainHistory, withGrazingPressure, withReefDeposition, withVegetationProtection } from "./terrain-history";
 import { createVegetationRenderer } from "./vegetation-renderer";
 import { createSeagrassRenderer } from "./seagrass-renderer";
 import { createCoralRenderer } from "./coral-renderer";
@@ -46,14 +45,14 @@ import { createTerrainDetailRenderer } from "./terrain-detail-renderer";
 import { createStreamRenderer } from "./stream-renderer";
 import { resolveFreshwaterField } from "./freshwater-basins";
 import { captureWorldSnapshot, type WorldSnapshot } from "./world-snapshot";
-import { createWorldHistory, validateWorldHistory } from "./world-history";
+import { createInitialWorldState, validateWorldHistory } from "./world-history";
+import { packEnvironmentField, resolveEnvironmentField } from "./environment";
 import type { MarineLineageChange } from "./marine-lineage";
 import { findTerrainPath, isWalkable } from "./animal-navigation";
 import { approachHeading, deriveHerdBehavior, type HerdBehavior } from "./herd-behavior";
 import { sampleCoat } from "./coat-variation";
 import {
   DEFAULT_CLIMATE,
-  RAINFALL,
   SEA_LEVEL,
   type ClimateForces,
 } from "./climate";
@@ -82,29 +81,6 @@ function terrainHeight(x: number, z: number): number {
   return island * (7 + ridge + highlands * island + weathering) - river * island - 3.2;
 }
 
-function terrainColor(
-  height: number,
-  x: number,
-  z: number,
-  climate: ClimateForces,
-): Color {
-  const variation = (hash(Math.floor(x / 8), Math.floor(z / 8)) - 0.5) * 0.07;
-  const seaLevel = SEA_LEVEL[climate.seaLevel];
-  const wetness = RAINFALL[climate.rainfall].moisture;
-  const cold = climate.temperature === "cold";
-  if (height < seaLevel + 0.8) return new Color(0.46 + variation, 0.38 + variation, 0.23);
-  if (cold && height > 16) return new Color(0.72 + variation, 0.76 + variation, 0.72 + variation);
-  return height < 8 ? new Color(
-    0.19 - wetness * 0.12 + variation,
-    0.32 + wetness * 0.2 + variation,
-    0.14,
-  ) : height < 24 ? new Color(
-    0.12 - wetness * 0.08 + variation,
-    0.25 + wetness * 0.2 + variation,
-    0.1,
-  ) : new Color(0.27 + variation, 0.28 + variation, 0.22);
-}
-
 function formedTerrainColor(height: number, x: number, z: number): Color {
   const variation = (hash(Math.floor(x / 8), Math.floor(z / 8)) - 0.5) * 0.08;
   if (height < 0.8) return new Color(0.5 + variation, 0.41 + variation, 0.25);
@@ -115,6 +91,7 @@ function formedTerrainColor(height: number, x: number, z: number): Color {
 function makeTerrain(
   stateTexture: DataTexture,
   volcanicTexture: DataTexture,
+  environmentTexture: DataTexture,
   water: ReefWaterUniforms,
 ): Mesh<PlaneGeometry, TerrainMaterial> {
   const geometry = new PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, TERRAIN_SEGMENTS, TERRAIN_SEGMENTS);
@@ -139,6 +116,7 @@ function makeTerrain(
     createTerrainMaterial({
       stateTexture,
       volcanicTexture,
+      environmentTexture,
       terrainExtent: TERRAIN_SIZE,
       seaLevel: SEA_LEVEL[DEFAULT_CLIMATE.seaLevel],
       water,
@@ -151,7 +129,17 @@ function makeTerrain(
 
 function makeVolcanicTexture(): DataTexture {
   const result = new DataTexture(
-    new Float32Array(TERRAIN_SIDE * TERRAIN_SIDE * 2), TERRAIN_SIDE, TERRAIN_SIDE, RGFormat, FloatType,
+    new Float32Array(TERRAIN_SIDE * TERRAIN_SIDE * 4), TERRAIN_SIDE, TERRAIN_SIDE, RGBAFormat, FloatType,
+  );
+  result.minFilter = LinearFilter;
+  result.magFilter = LinearFilter;
+  result.needsUpdate = true;
+  return result;
+}
+
+function makeEnvironmentTexture(): DataTexture {
+  const result = new DataTexture(
+    new Float32Array(TERRAIN_SIDE * TERRAIN_SIDE * 4), TERRAIN_SIDE, TERRAIN_SIDE, RGBAFormat, FloatType,
   );
   result.minFilter = LinearFilter;
   result.magFilter = LinearFilter;
@@ -484,10 +472,11 @@ export interface LineageReport {
 export function createLandingState(scene: Scene): WorldExperience {
   const terrainStateTexture = makeTerrainStateTexture();
   const volcanicTexture = makeVolcanicTexture();
+  const environmentTexture = makeEnvironmentTexture();
   // Created before the terrain because the seabed reads the same submerged
   // state the reef standing on it does.
   const reefWater = createReefWaterUniforms(SEA_LEVEL[DEFAULT_CLIMATE.seaLevel]);
-  const terrain = makeTerrain(terrainStateTexture, volcanicTexture, reefWater);
+  const terrain = makeTerrain(terrainStateTexture, volcanicTexture, environmentTexture, reefWater);
   scene.add(terrain);
   const terrainDetails = createTerrainDetailRenderer(scene);
   const terrainHeightTexture = makeHeightTexture(terrain);
@@ -520,7 +509,8 @@ export function createLandingState(scene: Scene): WorldExperience {
   for (let i = 0; i < terrainPositions.count; i++) initialHeights[i] = terrainPositions.getY(i);
   // Coastal animals recruit from the sea and birds arrive under their own
   // power. Non-flying terrestrial animals require an over-water drifter.
-  let worldHistory = createWorldHistory(initialHeights, TERRAIN_SIDE, TERRAIN_SIZE, false);
+  const initialWorld = createInitialWorldState(initialHeights, TERRAIN_SIDE, TERRAIN_SIZE);
+  let worldHistory = initialWorld.history;
 
   function syncTerrainMaterialState(): void {
     packTerrainMaterialState(
@@ -530,10 +520,17 @@ export function createLandingState(scene: Scene): WorldExperience {
     terrainStateTexture.needsUpdate = true;
     const volcanicData = volcanicTexture.image.data as Float32Array;
     for (let index = 0; index < worldHistory.terrain.basalt.length; index++) {
-      volcanicData[index * 2] = worldHistory.terrain.basalt[index]!;
-      volcanicData[index * 2 + 1] = worldHistory.terrain.ash[index]!;
+      volcanicData[index * 4] = worldHistory.terrain.basalt[index]!;
+      volcanicData[index * 4 + 1] = worldHistory.terrain.ash[index]!;
+      volcanicData[index * 4 + 2] = worldHistory.terrain.carbonate[index]!;
+      volcanicData[index * 4 + 3] = worldHistory.terrain.substrateAge[index]!;
     }
     volcanicTexture.needsUpdate = true;
+    packEnvironmentField(
+      resolveEnvironmentField(worldHistory.terrain, activeClimate),
+      environmentTexture.image.data as Float32Array,
+    );
+    environmentTexture.needsUpdate = true;
     terrain.material.setSeaLevel(SEA_LEVEL[activeClimate.seaLevel]);
   }
   syncTerrainMaterialState();
@@ -625,6 +622,9 @@ export function createLandingState(scene: Scene): WorldExperience {
       (x, z) => terrainFieldAt(worldHistory.terrain.runoff, x, z),
       worldHistory.terrain.marineNutrients,
       (x, z) => terrainFieldAt(worldHistory.terrain.basalt, x, z),
+      (x, z) => terrainFieldAt(worldHistory.terrain.substrateAge, x, z),
+      (x, z) => terrainFieldAt(worldHistory.terrain.sediment, x, z),
+      (x, z) => terrainFieldAt(worldHistory.terrain.carbonate, x, z),
     );
   }
 
@@ -840,9 +840,7 @@ export function createLandingState(scene: Scene): WorldExperience {
         }
         const y = heightAt(x, z);
         positions.setY(i, y);
-        color.copy(revealed
-          ? terrainColor(y, x, z, activeClimate)
-          : formedTerrainColor(y, x, z));
+        color.copy(formedTerrainColor(y, x, z));
         colors.setXYZ(i, color.r, color.g, color.b);
       }
     }
@@ -918,7 +916,7 @@ export function createLandingState(scene: Scene): WorldExperience {
         const z = positions.getZ(i);
         const y = worldHistory.terrain.elevations[i]!;
         positions.setY(i, y);
-        color.copy(terrainColor(y, x, z, climate));
+        color.copy(formedTerrainColor(y, x, z));
         colors.setXYZ(i, color.r, color.g, color.b);
       }
       colors.needsUpdate = true;
@@ -935,7 +933,11 @@ export function createLandingState(scene: Scene): WorldExperience {
       const protectedTerrain = withVegetationProtection(worldHistory.terrain, outcome.trees);
       worldHistory = {
         ...worldHistory,
-        terrain: withGrazingPressure(protectedTerrain, outcome.populations, years),
+        terrain: withReefDeposition(
+          withGrazingPressure(protectedTerrain, outcome.populations, years),
+          reefOutcome.sites,
+          years,
+        ),
         lineages: resolution.nextHistory,
         marineLineages: resolution.nextMarineHistory,
         reef: reefOutcome.history,

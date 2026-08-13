@@ -23,16 +23,18 @@ Volcanic comparison uses the same camera and time with `&volcano=active` or anot
 
 **Current verdict:** **Candidate**. The four rungs are now visually distinguishable and the upper ladder changes coastline geometry. Owner review is still required before calling the §5 milestone accepted.
 
+**Sky/horizon regression boundary:** **Owner accepted on 2026-08-13.** The world-space solar arc, horizon haze composition, far-water continuity, and current sky/water meeting are protected by the fixed `whole-island` capture. This verdict applies only to sky/horizon presentation; it does not accept the reef-builder candidate or later climate-specific atmosphere work.
+
 ## Capability ledger
 
 | Area | Status | Present evidence | Next gate |
 |---|---|---|---|
 | Deep-time landform | **Candidate** | One-pass weathering, drainage incision, and coastal retreat; four-rung fixed captures; numeric regression test. | Owner verdict on magnitude and plausibility. |
 | Volcanic island history | **Experimenting** | A fixed player-placed hot spot accretes a bounded shield before erosion; vigorous/active/waning/extinct output is persistent, deterministic downhill flows resurface capped terrain, basalt and ash alter the terrain surface and ecology, bathymetry reaches −55 m, and retained volcanic load drives deep-time subsidence after extinction. | Capture the same vent as seamount, breached shield, carved island, and drowned remnant; tune life-cycle pacing and flow silhouettes from those frames. |
-| Atmosphere | **Experimenting** | Stable world-space sky over a real solar arc: azimuth and altitude derive from a fixed latitude and declination, so the sun rises in the east, reaches a 68° noon, sets in the west, and passes properly below the horizon through a compressed night. A ~0.6° disc, tight inner glow, broad forward-scatter halo, and a horizon haze band replace the former flat gradient; climate-driven exponential height fog makes wet/cold/calm lowlands visibly hazier while arid/windy/warm climates clear, with bounded ridge contrast. | Judge fixed arid/day, wet/dawn, and cold/calm frames; add clouds only after the lower atmosphere passes. |
-| Terrain shading | **Experimenting** | Height, climate, disturbance, slope, vegetation protection, runoff, and forage drive distinct ground regimes plus filtered MaterialX Perlin detail normals. Simulation elevation remains separate from cosmetic shading. | Tune regime strength from herd/forest/whole-island captures, then record the owner verdict. |
+| Atmosphere | **Sky/horizon built; climate integration experimenting** | Owner-accepted world-space sky over a real solar arc and continuous far-water horizon. Climate-driven exponential height fog remains a bounded lower-atmosphere modifier. | Preserve the accepted horizon; judge only climate fog contradictions in the environment fixtures. Add clouds later. |
+| Terrain shading | **Candidate** | Persistent geology and derived spatial environment fields drive moisture, exposure, sediment, frost, basalt, ash, carbonate, ground cover, and erosion regimes. Global climate no longer recolors vertex bands directly. | Judge the five environment fixtures without changing accepted sky/horizon composition. |
 | Ocean surface | **Experimenting** | Tessendorf/JONSWAP FFT with restrained broad swell, subtle multi-directional chop and horizontal crest displacement, Fresnel, analytic sky reflection, shallow transmission, and shoreline foam. A far-water skirt carries the same open-water shading out to where aerial perspective has fully dissolved it into the sky, and the displaced patch retires its waves and wave shading at a world-anchored rim so the two always meet as one flat surface, so the horizon is a horizon rather than the edge of the 1400 m patch. | Add crest/Jacobian foam and verify motion plus shallow/deep transitions. |
-| Reef landing renderer | **Candidate; awaiting owner verdict** | A current-sorted landing resolves up to 9,000 colonies across six cached near/far growth grammars, renders twelve instanced batches, and shares water-column absorption, haze and caustics with the seabed. The candidate package records orthographic and in-engine evidence; a foreground WebGPU run on 2026-08-13 reported 60 fps and 15 draws. | Owner visual verdict on `assets/ecosystem/epoch-reef-builder-family/previews/reef-builder-showcase.png`. |
+| Reef landing renderer | **Built for the first reef family** | Owner accepted the paired mature-reef integration on 2026-08-13: current-sorted colonies share water optics with the seabed, persistent framework deposits carbonate, and exposed basalt remains legible beside the surviving reef. | Preserve this evidence while iterating; later reef families and major visual changes require their own verdicts. |
 | Shadows | **Experimenting** | One broad 2048² island solar map keeps direct-light shadowing consistent across the authored terrain. | Verify island/shoreline/forest cameras and record the owner verdict; revisit true cascades only if close-range resolution requires them. |
 | Inland water and ice | **Experimenting** | Runoff remains explicit; deterministic downhill tracing now feeds a separate animated stream/creek ribbon renderer alongside freshwater basins. Terrain geometry remains authoritative and uncontaminated. | Validate channel placement and motion, then add waterfall transitions and climate-driven snowfield/glacier surfaces. |
 | Post-processing | **Built** as a bounded layer | TSL grading and restrained bloom; optional full-resolution GTAO evaluation path. | Revisit only alongside accepted materials and lighting. |
@@ -75,14 +77,14 @@ Rung 5 now has a visible foreground diagnostic reading of 60 fps and 15 draws on
 
 1. Capture one fixed vent across emergence and decline, then tune volcanic growth and subsidence pacing; keep the open-ocean start as a separate owner decision.
 2. Record the owner verdict on the four-rung milestone and tune geomorphic magnitude if requested.
-3. Validate the world-space sun and climate-driven height fog across arid/day, wet/dawn, and cold/calm frames; add authored clouds only after the lower atmosphere passes.
-4. Finish terrain: tune state-driven ground regimes and detail normals, then add triplanar rock projection only if fixed captures expose stretching.
+3. Preserve the accepted sky/horizon while validating climate-driven fog only where the environment fixtures reveal contradictions; add authored clouds later.
+4. Judge the five state-driven environment fixtures, then add triplanar rock projection only if they expose stretching.
 5. Finish water composition: absorption, refraction, choppy displacement, crest foam, and shallow/deep transitions.
 6. Replace island-wide shadow coverage with a close/far strategy.
 7. Validate accepted ecosystem assets in the landing renderer before expanding asset breadth.
 8. Extend freshwater into connected flowing surfaces: drainage-fed streams and creeks, waterfall transitions at steep drops, then persistent snowfield/glacier flow for suitable climates.
 9. Run the bounded creature expression spike, then advance the embodiment ladder in order; placement relative to the existing renderer work remains an owner scheduling decision.
-10. Record the owner verdict on the `epoch-reef-builder-family` candidate; its cached geometry and fixed previews are complete.
+10. Preserve the accepted `epoch-reef-builder-family` paired evidence while extending reef ecology incrementally.
 
 ## Maintenance rule
 

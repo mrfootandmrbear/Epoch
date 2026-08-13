@@ -3,7 +3,7 @@
   "id": "epoch-reef-builder-family",
   "displayName": "Epoch Reef Builder Family",
   "category": "coral",
-  "stage": "candidate",
+  "stage": "accepted",
   "role": "Build persistent shallow-water reef structure and flow-sorted benthic habitat",
   "habitats": [
     "warm photic shelf",
@@ -61,5 +61,7 @@
   ],
   "animations": { "required": [] },
   "showcase": "previews/reef-builder-showcase.png",
-  "acceptance": { "verdict": "" }
+  "acceptance": {
+    "verdict": "Owner reviewed the paired mature-reef integration with persistent carbonate shelf and exposed basalt on 2026-08-13 and accepted it as passing for future iteration."
+  }
 }
