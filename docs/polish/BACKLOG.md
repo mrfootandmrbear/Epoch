@@ -209,7 +209,16 @@ scorecard VFX note (foam = "detached open-water patches that read as artifacts")
   on wave steepness rather than a static mask.
 
 ### LW-4 · Cascade/whitewater reads as white scratches and clips terrain
-**Impact 4 · Cost 2 · Risk 2 · Score 1.00 · Status: OPEN**
+**Impact 4 · Cost 2 · Risk 2 · Score 1.00 · Status: FIXED (WU-004, ready for owner verdict)**
+
+Fixed in `cascade-renderer.ts`: ribbon vertices are now resampled against the
+terrain at their final normal-shifted footprint, with a minimum clearance that
+prevents steep-slope intersections. Connected per-reach curvature breaks the
+ruler-straight chord; the water is a wider, shallower sheet over a narrower,
+feathered scour band. Blue-grey foam is localized by aeration instead of
+overpowering the creek colour. The real-WebGPU `coat-detail&herd=contrast`
+comparison has no console warnings or errors; motion/fps remains unverified per
+the pane caveat.
 
 The highest-visibility eyesore — present on the volcano flanks
 (`?shot=reef-above&fixture=mature-warm-reef`), on slopes in the wide island

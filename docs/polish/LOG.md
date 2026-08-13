@@ -306,5 +306,16 @@ only dark slate, blue-grey or near-black. The real-WebGPU candidate contains no
 warm rubble and reports no console warnings or errors. Owner verdict remains
 the exact gate.
 
-**Next.** Slice B = LW-4, the dedicated cascade/whitewater geometry and colour
-unit with before/after evidence.
+**WU-004 — Slice B, cascade and whitewater.** The `coat-detail&herd=contrast`
+baseline confirmed a paper-white ruler-straight ribbon with brittle terrain
+contact. `writeCascadeGeometry` now resamples height at every vertex's final
+normal-shifted x/z footprint and guarantees minimum surface clearance; a
+focused test checks every emitted vertex against that contract. Reaches gain a
+small deterministic bow between fixed network endpoints, preserving continuity
+while breaking straight chords. The water profile is wider and 58% shallower,
+the scour band is narrower and more transparent, and foam moved from near-white
+to blue-grey with substantially reduced aeration gain. The retained real-WebGPU
+candidate reads as teal creek water entering the pond rather than white
+scratches, and reports no warnings or errors. Ready for owner verdict.
+
+**Next.** Slice C = LW-6, lighting intent across dawn, day and storm.

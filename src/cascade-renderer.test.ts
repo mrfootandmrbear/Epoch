@@ -8,6 +8,7 @@ import {
 } from "./cascade-renderer";
 import { classifyReach, resolveStreamSegments, type StreamSegment } from "./stream-network";
 import { createTerrainHistory, resolveTerrainHistory } from "./terrain-history";
+import { sampleTerrainHeight } from "./terrain-sampling";
 import type { ClimateForces } from "./climate";
 
 // Seed landform used only to exercise the cascade layer. This is the authored
@@ -137,6 +138,28 @@ describe("cascade coverage", () => {
       return max - min;
     };
     expect(spread(CASCADE_BED)).toBeGreaterThan(spread(CASCADE_WATER) * 1.5);
+  });
+
+  it("keeps the cascade a shallow sheet rather than a raised pipe", () => {
+    expect(CASCADE_WATER.depthScale).toBeLessThan(0.5);
+    expect(CASCADE_WATER.widthScale).toBeGreaterThan(1);
+  });
+
+  it("keeps every water vertex above the terrain at its final shifted footprint", () => {
+    const terrain = slope(6, 3);
+    const segment: StreamSegment = {
+      from: 0, to: 6, discharge: 0.9, drop: 3, length: 1, fromDistance: 5, toDistance: 4,
+    };
+    const store = buffers(8 * 4 * 6);
+    const count = writeCascadeGeometry(
+      terrain, [segment], store.positions, store.normals, store.uvs, store.aerations,
+    );
+    for (let vertex = 0; vertex < count; vertex++) {
+      const x = store.positions[vertex * 3]!;
+      const y = store.positions[vertex * 3 + 1]!;
+      const z = store.positions[vertex * 3 + 2]!;
+      expect(y - sampleTerrainHeight(terrain, x, z)).toBeGreaterThanOrEqual(0.011);
+    }
   });
 
   it("carries a per-reach aeration that rises with grade", () => {

@@ -101,13 +101,13 @@ export interface CascadeProfile {
 }
 
 /** The moving water surface itself. */
-export const CASCADE_WATER: CascadeProfile = { widthScale: 1, depthScale: 1, lift: 0 };
+export const CASCADE_WATER: CascadeProfile = { widthScale: 1.16, depthScale: 0.42, lift: 0 };
 /**
  * The scoured channel the water runs in. Water laid on unbroken hillside reads
  * as a hose on a lawn; a wider wet-rock band underneath gives it a bed without
  * touching the authoritative heightfield.
  */
-export const CASCADE_BED: CascadeProfile = { widthScale: 2.1, depthScale: 0, lift: -0.03 };
+export const CASCADE_BED: CascadeProfile = { widthScale: 1.82, depthScale: 0, lift: -0.03 };
 
 /** Write terrain-hugging ribbons along steep reaches for one surface profile. */
 export function writeCascadeGeometry(
@@ -151,10 +151,15 @@ export function writeCascadeGeometry(
     const ny = surfaceNormal[1];
     const nz = surfaceNormal[2] - pz * crossSlope;
     const scale = 1 / Math.max(1e-6, Math.hypot(nx, ny, nz));
+    const shiftedX = x + surfaceNormal[0] * lift;
+    const shiftedZ = z + surfaceNormal[2] * lift;
     return {
-      x: x + surfaceNormal[0] * lift,
-      y: sampleTerrainHeight(terrain, x, z) + surfaceNormal[1] * lift,
-      z: z + surfaceNormal[2] * lift,
+      x: shiftedX,
+      // The normal offset changes x/z on steep faces. Resample at that final
+      // footprint before applying vertical clearance; otherwise the vertex can
+      // still end below the very terrain point it is rendered over.
+      y: sampleTerrainHeight(terrain, shiftedX, shiftedZ) + Math.max(0.012, surfaceNormal[1] * lift),
+      z: shiftedZ,
       nx: nx * scale, ny: ny * scale, nz: nz * scale,
       u,
     };
@@ -196,8 +201,14 @@ export function writeCascadeGeometry(
       const j1 = 1 + bankJitter(segment.from, subdivision + 1) * 0.22;
       const w0 = (width * (1 - aeration * 0.3 * t0) * j0) / 2;
       const w1 = (width * (1 - aeration * 0.3 * t1) * j1) / 2;
-      const ax = fromX + dx * t0; const az = fromZ + dz * t0;
-      const bx = fromX + dx * t1; const bz = fromZ + dz * t1;
+      // Bow each reach between its fixed endpoints. This preserves network
+      // continuity while breaking the ruler-straight chord that made cascades
+      // look painted onto the terrain.
+      const bend = bankJitter(segment.from, 97) * Math.min(width * 0.34, horizontalLength * 0.1);
+      const bend0 = Math.sin(Math.PI * t0) * bend;
+      const bend1 = Math.sin(Math.PI * t1) * bend;
+      const ax = fromX + dx * t0 + px * bend0; const az = fromZ + dz * t0 + pz * bend0;
+      const bx = fromX + dx * t1 + px * bend1; const bz = fromZ + dz * t1 + pz * bend1;
       const d0 = segment.fromDistance + (segment.toDistance - segment.fromDistance) * t0;
       const d1 = segment.fromDistance + (segment.toDistance - segment.fromDistance) * t1;
 
@@ -294,7 +305,8 @@ function createDynamicGeometry(maxVertices: number, withAeration: boolean) {
 export function createCascadeRenderer(scene: Group): CascadeRenderer {
   const time = uniform(0);
   const creekColor = color(0x397985);
-  const foamColor = color(0xeef9ff);
+  // Foam in shadow and overcast light is blue-grey rather than paper white.
+  const foamColor = color(0xb8d7da);
 
   const bed = createDynamicGeometry(MAX_CASCADE_VERTICES, true);
   const bedMaterial = new MeshStandardNodeMaterial({
@@ -306,13 +318,13 @@ export function createCascadeRenderer(scene: Group): CascadeRenderer {
   // feathers into the hillside. Fading from the channel centre instead would
   // put the only visible scour exactly where the water already covers it.
   const bedCross = clamp(abs(uv().x.sub(0.5)).mul(2), 0, 1);
-  const bedScour = float(1).sub(smoothstep(0.3, 1, bedCross));
-  bedMaterial.colorNode = mix(color(0x7c6a51), color(0x584a3a), bedScour);
+  const bedScour = float(1).sub(smoothstep(0.18, 1, bedCross));
+  bedMaterial.colorNode = mix(color(0x706554), color(0x554f45), bedScour);
   // Spray keeps a channel's bed damp, so it is darker and a little glossier than
   // the ground beside it — but not so glossy that it mirrors sky and reads as a
   // second body of water competing with the stream it carries.
   bedMaterial.roughnessNode = mix(float(0.86), float(0.68), bedScour);
-  bedMaterial.opacityNode = clamp(bedScour.mul(0.9), 0, 1);
+  bedMaterial.opacityNode = clamp(bedScour.mul(0.66), 0, 1);
 
   const bedMesh = new Mesh(bed.geometry, bedMaterial);
   bedMesh.name = "drainage-channel-bed";
@@ -336,7 +348,7 @@ export function createCascadeRenderer(scene: Group): CascadeRenderer {
   // Shear against the rock aerates the edges of a chute before its core.
   const shear = abs(uv().x.sub(0.5)).mul(2);
   const whitewater = clamp(
-    aeration.mul(streak.mul(0.46).add(spray.mul(0.3)).add(0.06).add(shear.mul(0.22))),
+    aeration.mul(streak.mul(0.31).add(spray.mul(0.18)).add(0.035).add(shear.mul(0.14))),
     0,
     1,
   );
@@ -345,7 +357,7 @@ export function createCascadeRenderer(scene: Group): CascadeRenderer {
   // gloss or a cascade reads as wet plastic.
   cascadeMaterial.roughnessNode = mix(float(0.15), float(0.86), whitewater);
   cascadeMaterial.metalnessNode = float(0.02);
-  cascadeMaterial.opacityNode = clamp(float(0.66).add(whitewater.mul(0.32)), 0, 1);
+  cascadeMaterial.opacityNode = clamp(float(0.72).add(whitewater.mul(0.2)), 0, 1);
 
   const cascadeMesh = new Mesh(cascade.geometry, cascadeMaterial);
   cascadeMesh.name = "drainage-cascades";
@@ -369,7 +381,7 @@ export function createCascadeRenderer(scene: Group): CascadeRenderer {
   const falloff = float(1).sub(radial);
   // Foam concentrates on the impact and on the ring crests. Filling the whole
   // disc with white reads as a snow patch rather than a pool.
-  const churn = clamp(impact.mul(impact).mul(0.9).add(ripple.mul(falloff).mul(0.42)), 0, 1);
+  const churn = clamp(impact.mul(impact).mul(0.62).add(ripple.mul(falloff).mul(0.26)), 0, 1);
   plungeMaterial.colorNode = mix(creekColor, foamColor, churn);
   plungeMaterial.opacityNode = clamp(
     falloff.mul(falloff).mul(float(0.34).add(churn.mul(0.44))),
