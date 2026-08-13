@@ -30,13 +30,20 @@ import {
 /**
  * Extinction per metre of seawater, per channel.
  *
- * Red is absorbed roughly twenty times faster than blue, which is the entire
- * reason a reef goes blue-grey with depth and why a diver's torch restores
- * colour that was there all along. Hand-tuned toward clear tropical water: the
- * true coefficients would take the red out within a few metres and leave
- * nothing legible to look at.
+ * Red is absorbed several times faster than blue, which is the entire reason a
+ * reef goes blue-grey with depth and why a diver's torch restores colour that
+ * was there all along. The ratio between the channels is what sells the
+ * effect; the absolute rate is deliberately gentler than clear tropical water
+ * really is.
+ *
+ * That is a considered trade, not an oversight. At true coefficients a colony
+ * twenty metres away has lost about ninety percent of its red, so every
+ * species arrives at the eye as the same green-grey and the per-species colour
+ * this renderer exists to show becomes invisible past the first few metres.
+ * These rates keep a reef readable across a whole shot while still turning the
+ * far side of it blue.
  */
-export const EXTINCTION = Object.freeze({ red: 0.078, green: 0.026, blue: 0.014 });
+export const EXTINCTION = Object.freeze({ red: 0.032, green: 0.011, blue: 0.006 });
 
 /** Depth at which downwelling light has effectively stopped driving shading. */
 const LIGHT_DEPTH = 26;
@@ -104,9 +111,15 @@ export const waterTransmission = Fn(([path]: [Node<"vec2">]) => {
  * between the eye and the surface it is looking at. Saturating this is what
  * makes far coral become water instead of staying a small hard silhouette, and
  * so what removes the boundary between the reef and the open sea.
+ *
+ * This carries more of the underwater look than absorption does. A submerged
+ * scene reads blue because the column between the eye and the subject is
+ * itself glowing, not because the subject's own colour curdled — leaning on
+ * absorption alone turns warm sand and gold coral the same olive and leaves
+ * the scene murky rather than submerged.
  */
 export const waterHaze = Fn(([path]: [Node<"vec2">]) => {
-  return float(1).sub(exp(path.y.mul(-0.019)));
+  return float(1).sub(exp(path.y.mul(-0.013)));
 });
 
 /** Absorption and in-scattered haze applied to an unlit surface colour. */
@@ -160,12 +173,16 @@ export const causticLight = Fn(([time, seaLevel, upFacing, strength]: [
   Node<"float">, Node<"float">, Node<"float">, Node<"float">,
 ]) => {
   const depth = max(float(0), seaLevel.sub(positionWorld.y));
+  // Dry ground is at zero depth, which is also the depth at which the net is
+  // brightest — so without an explicit waterline the pattern climbs straight
+  // out of the sea and plays across the grass.
+  const submerged = smoothstep(0, 0.5, depth);
   const depthFade = float(1).sub(smoothstep(2, LIGHT_DEPTH, depth));
   // The pattern also blurs out with depth, so shallow water gets the sharp net
   // and deeper water only the broad bright patches.
   const focus = mix(float(0.45), float(1), depthFade);
   return caustics(time, positionWorld)
-    .mul(depthFade).mul(focus).mul(clamp(upFacing, 0, 1)).mul(strength);
+    .mul(submerged).mul(depthFade).mul(focus).mul(clamp(upFacing, 0, 1)).mul(strength);
 });
 
 /**

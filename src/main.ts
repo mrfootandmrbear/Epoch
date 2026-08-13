@@ -195,6 +195,10 @@ function updateAtmosphere(elapsed: number): void {
   if (moon > 0.5) keyLightDirection.negate();
   sunLight.intensity = state.sunIntensity * (1 - moon) + MOONLIGHT_INTENSITY * moon;
   oceanMesh?.updateAtmosphere(state);
+  // The reef sits under this same sky. Sharing the sun keeps the caustic net
+  // and the water haze in step with the surface instead of lighting the seabed
+  // from a sun the water above it no longer has.
+  landingState.setAtmosphere(state.sunDirection, state.sunColor);
   ambientLight.color.copy(state.ambientColor);
   ambientLight.intensity = state.ambientIntensity;
   hemisphereLight.color.copy(state.ambientColor).offsetHSL(0.01, 0.04, 0.12);

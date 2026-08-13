@@ -20,7 +20,7 @@ import { CORAL_GUILDS, type CoralColony, type CoralGuild } from "./reef-successi
 import { createReefWaterUniforms, type ReefWaterUniforms } from "./reef-water";
 import { RENDER_SCALE } from "./render-scale";
 
-const MAX_PER_GUILD = 1000;
+const MAX_PER_GUILD = 2600;
 const NEAR_DISTANCE = RENDER_SCALE.lod.coralNear;
 const LOD_REPARTITION_DISTANCE = RENDER_SCALE.lod.coralRepartition;
 const UP = new Vector3(0, 1, 0);
@@ -105,8 +105,12 @@ function makeInstanced(
  * when the camera has actually moved — because a reef is static once resolved
  * and only the camera changes what it needs.
  */
-export function createCoralRenderer(scene: Group, sunDirection: Vector3): CoralRenderer {
-  const water = createReefWaterUniforms();
+export function createCoralRenderer(
+  scene: Group,
+  sunDirection: Vector3,
+  shared?: ReefWaterUniforms,
+): CoralRenderer {
+  const water = shared ?? createReefWaterUniforms();
   const material = createCoralMaterial({ water, sunDirection });
   // Fans and plates are single-sided surfaces seen from both sides.
   material.side = DoubleSide;

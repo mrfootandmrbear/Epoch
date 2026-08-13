@@ -119,12 +119,15 @@ export function createCoralMaterial(options: CoralMaterialOptions): CoralMateria
     .mul(light)
     .mul(transmission)
     .mul(float(1).sub(haze));
-  material.emissiveNode = scatter.add(hazeColor.mul(haze));
+  // In-scattered light is still light: it has to dim with depth alongside
+  // everything else, or a deep colony ends up sitting in brighter water than
+  // the shallow one next to it.
+  material.emissiveNode = scatter.add(hazeColor.mul(haze).mul(light));
 
   // Polyp relief, retired once it stops resolving. Corallite structure is most
   // of what a colony looks like within touching distance and none of what it
   // looks like from across the reef.
-  const polypFade = float(1).sub(smoothstep(4, 16, viewDistance));
+  const polypFade = float(1).sub(smoothstep(10, 34, viewDistance));
   const polyps = mx_noise_float(positionLocal.mul(34).add(seed.mul(9.7)));
   material.normalNode = proceduralBump(polyps, polypFade.mul(0.85));
 
@@ -142,7 +145,14 @@ export function createCoralMaterial(options: CoralMaterialOptions): CoralMateria
   });
 }
 
-/** Haze colour that keeps the reef agreeing with the open-water renderer. */
+/**
+ * Haze colour that keeps the reef agreeing with the open-water renderer.
+ *
+ * Sunlit shallow water scatters a bright tropical cyan, not the near-navy of
+ * the deep-water term the surface shader uses for its own base. It carries a
+ * good share of the sun's colour, so the reef goes warm at dawn with the sky
+ * above it rather than staying midday-blue under a red sun.
+ */
 export function reefHazeColor(target: Color, sunColor: Color): Color {
-  return target.set(0x14566a).lerp(sunColor, 0.18);
+  return target.set(0x1d6376).lerp(sunColor, 0.22);
 }

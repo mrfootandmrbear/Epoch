@@ -403,8 +403,8 @@ function buildMassive(level: CoralGeometryLevel): BufferGeometry {
   const segments = level === "near" ? 30 : 16;
   const rings = level === "near" ? 14 : 7;
   dome(builder, segments, rings, (nx, ny, nz) => (
-    valueNoise3(nx * 2.3, ny * 2.3, nz * 2.3) * 0.11
-    + valueNoise3(nx * 6.1 + 12.3, ny * 6.1, nz * 6.1 - 4.2) * 0.045
+    valueNoise3(nx * 2.3, ny * 2.3, nz * 2.3) * 0.19
+    + valueNoise3(nx * 6.1 + 12.3, ny * 6.1, nz * 6.1 - 4.2) * 0.075
   ));
   return builder.build();
 }
@@ -420,7 +420,7 @@ function buildBrain(level: CoralGeometryLevel): BufferGeometry {
     // surface is, and what no amount of plain noise will produce.
     const field = valueNoise3(nx * 2.6, ny * 2.6, nz * 2.6);
     const meander = Math.sin(field * 13.5);
-    return meander * 0.055 + valueNoise3(nx * 7, ny * 7, nz * 7) * 0.014;
+    return meander * 0.1 + valueNoise3(nx * 7, ny * 7, nz * 7) * 0.02;
   });
   return builder.build();
 }

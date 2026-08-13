@@ -9,6 +9,7 @@ describe("golden shots", () => {
       "shoreline",
       "wave-height",
       "seagrass-meadow",
+      "reef",
       "forest-interior",
       "herd",
       "herd-contrast",

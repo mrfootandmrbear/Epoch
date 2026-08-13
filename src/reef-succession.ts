@@ -106,8 +106,14 @@ const SURF_DEPTH = 0.85;
 const PHOTIC_DEPTH = 32;
 /** Depth of the brightest, most productive band. */
 const OPTIMUM_DEPTH = 7;
-const MAX_SITES = 1500;
-const MAX_COLONIES = 2600;
+const MAX_SITES = 2600;
+/**
+ * A healthy reef holds 30-60% living cover. Spread thinly over a shelf this
+ * wide, a few thousand colonies reads as scattered stones on bare sand rather
+ * than as reef, so the budget is set by what cover has to look like at close
+ * range. Instancing means the cost of this is instance count, not draw count.
+ */
+const MAX_COLONIES = 9000;
 
 function clamp01(value: number): number {
   return Math.min(1, Math.max(0, value));
@@ -213,6 +219,12 @@ interface ColonyForm {
  * phase: a Porites bommie metres across is centuries of accretion, and it has
  * to read as obviously older than everything around it rather than as a
  * slightly larger version of the same boulder.
+ *
+ * Colour is chosen to survive the water rather than to look right on a swatch.
+ * Seawater strips red first, so a colony authored at the muted tan it actually
+ * reflects in air arrives at the eye as grey stone. These run saturated and a
+ * shade darker than the sand they stand on, which is what leaves them still
+ * reading as living tissue after several metres of absorption.
  */
 function colonyForm(
   guild: CoralGuild,
@@ -220,33 +232,73 @@ function colonyForm(
   variation: number,
   tint: number,
   site: ReefSite,
+  morph = 0,
 ): ColonyForm {
   const spread = 0.72 + variation * 0.62;
+  const base = warmColonyForm(guild, age, variation, tint, site, spread);
+  // Crust and gorgonians already own the cool end of the reef's palette; a
+  // morph would only take their identity away.
+  const takesMorph = guild !== "crustose-algae" && guild !== "sea-fan";
+  if (!takesMorph || morph < COOL_MORPH_SHARE) return base;
+  // A minority pigment morph. Zooxanthellate corals of one species come in
+  // strikingly different colours, and the cool morphs matter here beyond
+  // accuracy: every warm hue converges on the same olive once the water has
+  // taken its red, so a reef authored entirely in golds and tans arrives
+  // monochrome however much its saturation is raised. The cool morphs are what
+  // survive the water still looking like different animals.
+  const cool = (morph - COOL_MORPH_SHARE) / (1 - COOL_MORPH_SHARE);
+  return {
+    ...base,
+    hue: COOL_MORPH_HUE.start + cool * COOL_MORPH_HUE.span,
+    // Held well below the warm morphs' saturation. Blue survives the water
+    // almost intact, so a cool morph authored as boldly as a gold one arrives
+    // at full strength and reads as painted plastic rather than as tissue.
+    saturation: Math.min(0.66, base.saturation * 0.8 + 0.04),
+    lightness: base.lightness + 0.04,
+  };
+}
+
+/** Fraction of colonies keeping the ordinary warm pigment. */
+const COOL_MORPH_SHARE = 0.74;
+/** Teal through violet: the band the cool morphs draw from. */
+const COOL_MORPH_HUE = Object.freeze({ start: 0.45, span: 0.33 });
+
+function warmColonyForm(
+  guild: CoralGuild,
+  age: number,
+  variation: number,
+  tint: number,
+  site: ReefSite,
+  spread: number,
+): ColonyForm {
   switch (guild) {
     case "crustose-algae":
       return {
         radius: (0.45 + variation * 0.5) * (0.7 + age * 0.5),
         height: 0.035 + variation * 0.04,
         // The pink-violet band that gives a pioneer reef its colour.
-        hue: 0.92 + tint * 0.06,
-        saturation: 0.3 + tint * 0.2,
-        lightness: 0.44 + tint * 0.14,
+        hue: 0.9 + tint * 0.08,
+        saturation: 0.52 + tint * 0.26,
+        lightness: 0.36 + tint * 0.12,
       };
     case "staghorn":
       return {
-        radius: (0.34 + variation * 0.42) * (0.42 + age * 1.1) * spread,
-        height: (0.42 + variation * 0.5) * (0.4 + age * 1.35),
-        hue: 0.09 + tint * 0.05,
-        saturation: 0.32 + tint * 0.22,
-        lightness: 0.44 + tint * 0.16,
+        // A thicket stands taller than the boulders around it. Undersized, the
+        // branching reads as debris on top of a field of domes rather than as
+        // the structure that gives a swept reef its silhouette.
+        radius: (0.42 + variation * 0.5) * (0.5 + age * 1.25) * spread,
+        height: (0.62 + variation * 0.7) * (0.5 + age * 1.6),
+        hue: 0.07 + tint * 0.06,
+        saturation: 0.5 + tint * 0.28,
+        lightness: 0.33 + tint * 0.14,
       };
     case "table":
       return {
         radius: (0.62 + variation * 0.75) * (0.4 + age * 1.5),
         height: (0.22 + variation * 0.2) * (0.5 + age * 0.8),
-        hue: 0.1 + tint * 0.045,
-        saturation: 0.26 + tint * 0.2,
-        lightness: 0.42 + tint * 0.14,
+        hue: 0.09 + tint * 0.05,
+        saturation: 0.46 + tint * 0.26,
+        lightness: 0.31 + tint * 0.13,
       };
     case "massive-porites": {
       // A 0.4 m nub at recruitment through to a 5 m bommie: the outer end of
@@ -256,9 +308,10 @@ function colonyForm(
         radius,
         // Hemispherical, slightly flattened. Porites domes are wider than tall.
         height: radius * (0.62 + variation * 0.22),
-        hue: 0.11 + tint * 0.035,
-        saturation: 0.3 + tint * 0.18,
-        lightness: 0.38 + tint * 0.12,
+        // Gold through mustard: the colour a Porites dome actually holds.
+        hue: 0.1 + tint * 0.05,
+        saturation: 0.58 + tint * 0.24,
+        lightness: 0.29 + tint * 0.12,
       };
     }
     case "brain": {
@@ -266,9 +319,9 @@ function colonyForm(
       return {
         radius: scale * (0.5 + variation * 0.22),
         height: scale * (0.34 + variation * 0.14),
-        hue: 0.13 + tint * 0.05,
-        saturation: 0.22 + tint * 0.16,
-        lightness: 0.46 + tint * 0.14,
+        hue: 0.12 + tint * 0.07,
+        saturation: 0.44 + tint * 0.26,
+        lightness: 0.33 + tint * 0.13,
       };
     }
     case "sea-fan":
@@ -277,9 +330,9 @@ function colonyForm(
         height: (0.7 + variation * 0.8) * (0.45 + age * 1.2),
         // Gorgonians run purple through red-orange rather than the browns of
         // the zooxanthellate stony corals around them.
-        hue: 0.9 + tint * 0.12,
-        saturation: 0.32 + tint * 0.22 + site.flow * 0.08,
-        lightness: 0.4 + tint * 0.16,
+        hue: 0.86 + tint * 0.16,
+        saturation: 0.55 + tint * 0.28 + site.flow * 0.06,
+        lightness: 0.34 + tint * 0.15,
       };
   }
 }
@@ -370,17 +423,20 @@ export function resolveReef(
     const flowSample = sampleCurrent(current, site.x, site.z);
     // Cover is a fraction of substrate, so it has to drive how many colonies
     // stand on the site rather than only how big each one is.
-    const budget = Math.round(1 + site.cover * 11);
+    const budget = Math.round(1 + site.cover * 22);
     for (let c = 0; c < budget && colonies.length < maxColonies; c++) {
       const seed = s * 31 + c;
       if (hash(seed, 1409) > 0.22 + site.cover * 1.15) continue;
       const guild = pickGuild(weights, hash(seed, 1423));
       if (!guild) continue;
 
-      // Colonies scatter over a few metres of substrate rather than stacking
-      // on the site centre, so a site reads as a patch of reef, not a bouquet.
+      // Colonies scatter over a couple of metres of substrate rather than
+      // stacking on the site centre, so a site reads as a patch of reef and
+      // not a bouquet. Kept tight on purpose: reef grows in thickets with bare
+      // substrate between them, and scattering colonies evenly across the
+      // shelf would read as gravel however many of them there were.
       const spreadAngle = hash(seed, 1427) * Math.PI * 2;
-      const spreadRadius = Math.sqrt(hash(seed, 1429)) * 3.4;
+      const spreadRadius = Math.sqrt(hash(seed, 1429)) * 2.3;
       const x = site.x + Math.cos(spreadAngle) * spreadRadius;
       const z = site.z + Math.sin(spreadAngle) * spreadRadius;
       const y = snapshotHeightAt(snapshot, x, z);
@@ -399,7 +455,9 @@ export function resolveReef(
         1 - heatStress * clamp01(1 - depth / 14) * (0.75 - flowSample.speed * 0.45)
         - hash(seed, 1439) * 0.12,
       );
-      const form = colonyForm(guild, localAge, hash(seed, 1447), hash(seed, 1451), site);
+      const form = colonyForm(
+        guild, localAge, hash(seed, 1447), hash(seed, 1451), site, hash(seed, 1487),
+      );
       colonies.push({
         x, y, z,
         guild,

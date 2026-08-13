@@ -18,6 +18,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--", "--port", "5211", "--strictPort", "--force"],
       "port": 5211
+    },
+    {
+      "name": "epoch-dev-reef",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--", "--port", "5217", "--strictPort", "--force"],
+      "port": 5217
     }
   ]
 }

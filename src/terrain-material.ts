@@ -10,17 +10,30 @@ import {
   positionWorld,
   smoothstep,
   texture,
-  uniform,
   vec2,
   vertexColor,
 } from "three/tsl";
 import { proceduralBump } from "./procedural-bump";
+import {
+  causticLight,
+  downwelling,
+  opticalPath,
+  waterHaze,
+  waterTransmission,
+  type ReefWaterUniforms,
+} from "./reef-water";
 
 export interface TerrainMaterialOptions {
   readonly stateTexture: DataTexture;
   readonly volcanicTexture: DataTexture;
   readonly terrainExtent: number;
   readonly seaLevel: number;
+  /**
+   * Shared submerged shading state. The seabed and the colonies standing on it
+   * have to run the same caustics off the same clock, or the light net stops
+   * at the base of every colony.
+   */
+  readonly water: ReefWaterUniforms;
 }
 
 export type TerrainMaterial = MeshStandardNodeMaterial & {
@@ -30,7 +43,11 @@ export type TerrainMaterial = MeshStandardNodeMaterial & {
 /** World-space terrain identity layered over authoritative simulation geometry. */
 export function createTerrainMaterial(options: TerrainMaterialOptions): TerrainMaterial {
   const material = new MeshStandardNodeMaterial({ roughness: 0.91, metalness: 0 });
-  const seaLevel = uniform(options.seaLevel);
+  // One sea level for the shoreline band and for the caustics, taken from the
+  // shared submerged state rather than kept privately here: two copies of the
+  // same number is two chances for the waterline and the light net to disagree.
+  const seaLevel = options.water.seaLevel;
+  seaLevel.value = options.seaLevel;
   const terrainUv = positionWorld.xz.div(options.terrainExtent).add(0.5);
   const state = texture(options.stateTexture, terrainUv);
   const volcanic = texture(options.volcanicTexture, terrainUv);
@@ -78,7 +95,29 @@ export function createTerrainMaterial(options: TerrainMaterialOptions): TerrainM
   const volcanicGround = mix(erodedSoil, new Color(0x17191a), basalt.mul(0.88));
   const ashGround = mix(volcanicGround, new Color(0x625f59), ash.mul(0.58));
   const wetGround = mix(ashGround, new Color(0x302b22), shore.mul(0.44).add(runoff.mul(0.12)));
-  material.colorNode = wetGround.mul(medium.mul(0.055).mul(mediumFade).add(0.975));
+  const groundColor = wetGround.mul(medium.mul(0.055).mul(mediumFade).add(0.975));
+
+  // The moving light net the surface focuses onto the seabed. It is the same
+  // function the coral runs, on the same clock and sea level, so a caustic
+  // filament crosses from open sand onto a colony without breaking.
+  const caustic = causticLight(
+    options.water.time,
+    options.water.seaLevel,
+    normalWorld.y,
+    options.water.causticStrength,
+  );
+  const litGround = groundColor.mul(float(1).add(caustic.mul(1.35)));
+
+  // The seabed is under the same water as everything standing on it. Without
+  // this the sand kept its dry warm brown while the colonies on it were being
+  // stripped of red, so coral read as green stones on a beach; and the floor
+  // ran to the horizon at full contrast instead of dissolving into open water.
+  // Above the waterline every term here collapses to identity, so dry land is
+  // untouched.
+  const path = opticalPath(options.water.seaLevel);
+  const haze = waterHaze(path);
+  material.colorNode = litGround.mul(waterTransmission(path)).mul(float(1).sub(haze));
+  material.emissiveNode = options.water.hazeColor.mul(haze).mul(downwelling(seaLevel));
 
   const bumpHeight = macro.mul(0.32)
     .add(medium.mul(0.24).mul(mediumFade).mul(float(1).sub(rockExposure)))

@@ -7,6 +7,11 @@ export const GOLDEN_SHOTS = {
   shoreline: { position: [82, 7, 119], target: [26, 3, 20] },
   "wave-height": { position: [121, 4.8, 148], target: [28, 3.2, 24] },
   "seagrass-meadow": { position: [96, 20, 132], target: [48, -1.5, 62] },
+  // Camera under the surface and down among the colonies. Coral cannot be
+  // judged from above the water: absorption, subsurface scatter, caustics and
+  // the water column are all functions of the path light takes to the eye, and
+  // an over-water shot puts almost none of that path in frame.
+  reef: { position: [120, -1.1, 132], target: [98, -2.6, 110] },
   "forest-interior": { position: [-54, 9, 18], target: [-24, 10, -12] },
   herd: { position: [40, 30, 38], target: [17, 18, 9] },
   // Mid distance, framing both contrast herds at once: the rung-7 judgement is

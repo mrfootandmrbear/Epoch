@@ -33,13 +33,19 @@ import {
 import { resolveTerrainHistory, withGrazingPressure, withVegetationProtection } from "./terrain-history";
 import { createVegetationRenderer } from "./vegetation-renderer";
 import { createSeagrassRenderer } from "./seagrass-renderer";
+import { createCoralRenderer } from "./coral-renderer";
+import { reefHazeColor } from "./coral-material";
+import { createMarineSnow } from "./marine-snow";
+import { buildCurrentField, type CurrentField } from "./ocean-currents";
+import { resolveReef } from "./reef-succession";
+import { createReefWaterUniforms, type ReefWaterUniforms } from "./reef-water";
 import { createFreshwaterRenderer } from "./freshwater-renderer";
 import { createTerrainMaterial, type TerrainMaterial } from "./terrain-material";
 import { packTerrainMaterialState } from "./terrain-material-state";
 import { createTerrainDetailRenderer } from "./terrain-detail-renderer";
 import { createStreamRenderer } from "./stream-renderer";
 import { resolveFreshwaterField } from "./freshwater-basins";
-import { captureWorldSnapshot } from "./world-snapshot";
+import { captureWorldSnapshot, type WorldSnapshot } from "./world-snapshot";
 import { createWorldHistory, validateWorldHistory } from "./world-history";
 import type { MarineLineageChange } from "./marine-lineage";
 import { findTerrainPath, isWalkable } from "./animal-navigation";
@@ -106,7 +112,11 @@ function formedTerrainColor(height: number, x: number, z: number): Color {
   return new Color(0.31 + variation, 0.3 + variation, 0.27 + variation);
 }
 
-function makeTerrain(stateTexture: DataTexture, volcanicTexture: DataTexture): Mesh<PlaneGeometry, TerrainMaterial> {
+function makeTerrain(
+  stateTexture: DataTexture,
+  volcanicTexture: DataTexture,
+  water: ReefWaterUniforms,
+): Mesh<PlaneGeometry, TerrainMaterial> {
   const geometry = new PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, TERRAIN_SEGMENTS, TERRAIN_SEGMENTS);
   geometry.rotateX(-Math.PI / 2);
   const positions = geometry.attributes.position;
@@ -131,6 +141,7 @@ function makeTerrain(stateTexture: DataTexture, volcanicTexture: DataTexture): M
       volcanicTexture,
       terrainExtent: TERRAIN_SIZE,
       seaLevel: SEA_LEVEL[DEFAULT_CLIMATE.seaLevel],
+      water,
     }),
   );
   terrain.castShadow = true;
@@ -455,6 +466,12 @@ export interface WorldExperience {
   showcaseGrazerHerd: () => void;
   showcaseHerdContrast: () => void;
   advance: (years: number, totalYears: number, climate: ClimateForces) => LineageReport;
+  /**
+   * Track the sky the ocean renderer is already using, so the submerged
+   * materials light and haze from the same sun rather than drifting out of
+   * agreement with the water above them.
+   */
+  setAtmosphere: (sunDirection: Vector3, sunColor: Color) => void;
   update: (elapsed: number, viewPosition?: Readonly<Vector3>) => void;
 }
 
@@ -467,7 +484,10 @@ export interface LineageReport {
 export function createLandingState(scene: Scene): WorldExperience {
   const terrainStateTexture = makeTerrainStateTexture();
   const volcanicTexture = makeVolcanicTexture();
-  const terrain = makeTerrain(terrainStateTexture, volcanicTexture);
+  // Created before the terrain because the seabed reads the same submerged
+  // state the reef standing on it does.
+  const reefWater = createReefWaterUniforms(SEA_LEVEL[DEFAULT_CLIMATE.seaLevel]);
+  const terrain = makeTerrain(terrainStateTexture, volcanicTexture, reefWater);
   scene.add(terrain);
   const terrainDetails = createTerrainDetailRenderer(scene);
   const terrainHeightTexture = makeHeightTexture(terrain);
@@ -478,6 +498,9 @@ export function createLandingState(scene: Scene): WorldExperience {
   life.visible = false;
   const vegetation = createVegetationRenderer(life);
   const seagrass = createSeagrassRenderer(life);
+  const reef = createCoralRenderer(life, new Vector3(0.4, 0.72, 0.3).normalize(), reefWater);
+  const marineSnow = createMarineSnow(life, reef.water);
+  const reefHaze = new Color();
   const lineageRenderers = new Map<string, LineageRenderState>();
   const freshwater = createFreshwaterRenderer(life);
   const streams = createStreamRenderer(life);
@@ -487,6 +510,7 @@ export function createLandingState(scene: Scene): WorldExperience {
   let revealed = false;
   let activeClimate: ClimateForces = { ...DEFAULT_CLIMATE };
   let lastElapsed = 0;
+  let lastSnowElapsed = 0;
   let frameIndex = 0;
   const lastLodViewPosition = new Vector3(Number.POSITIVE_INFINITY, 0, 0);
   let terrainDirty = false;
@@ -602,6 +626,25 @@ export function createLandingState(scene: Scene): WorldExperience {
       worldHistory.terrain.marineNutrients,
       (x, z) => terrainFieldAt(worldHistory.terrain.basalt, x, z),
     );
+  }
+
+  let currentField: CurrentField | undefined;
+
+  /**
+   * Solve the prevailing current and resolve the reef standing in it.
+   *
+   * Order matters: the flow field is an input to where coral can live, not a
+   * decoration applied afterwards, so it is solved from the same immutable
+   * snapshot the rest of the landing resolves from. The marine snow then
+   * drifts on that identical field, which is why the particulate thickens in
+   * the same lee where the massive corals are.
+   */
+  function refreshReef(snapshot: WorldSnapshot): void {
+    const seaLevel = SEA_LEVEL[activeClimate.seaLevel];
+    currentField = buildCurrentField(snapshot, activeClimate);
+    reef.setReef(resolveReef(snapshot, currentField, activeClimate).colonies);
+    reef.setSeaLevel(seaLevel);
+    marineSnow.setField(currentField, heightAt, seaLevel);
   }
 
   function refreshFreshwater(totalYears = 0): void {
@@ -879,6 +922,7 @@ export function createLandingState(scene: Scene): WorldExperience {
       syncShoreSurface();
       life.visible = true;
       const snapshot = currentSnapshot(totalYears);
+      refreshReef(snapshot);
       const resolution = resolveLanding(snapshot, worldHistory.lineages, years, worldHistory.marineLineages);
       const { outcome } = resolution;
       currentOutcome = outcome;
@@ -973,12 +1017,20 @@ export function createLandingState(scene: Scene): WorldExperience {
           : undefined,
       };
     },
+    setAtmosphere(sunDirection: Vector3, sunColor: Color) {
+      reef.setLighting(sunDirection, sunColor, reefHazeColor(reefHaze, sunColor));
+    },
     update(elapsed: number, viewPosition?: Readonly<Vector3>) {
       streams.update(elapsed);
       if (viewPosition) {
         vegetation.updateLod(viewPosition);
         seagrass.update(elapsed, viewPosition);
         updateCreatureLod(viewPosition);
+        reef.update(elapsed, viewPosition);
+        // Snow drifts on its own clock: it has to keep moving during the jump
+        // transition, when the herds are frozen and `revealed` is still false.
+        marineSnow.update(elapsed - lastSnowElapsed, viewPosition);
+        lastSnowElapsed = elapsed;
       }
       flushTerrainChanges();
       if (!revealed) return;
