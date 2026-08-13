@@ -62,6 +62,7 @@ import { resolveVolcanicAccretion } from "./volcanism";
 import type { VolcanicOutput } from "./volcanism";
 import { startingWorldPreset, type StartingWorldPreset } from "./starting-world-presets";
 import { createFishRenderer } from "./fish-renderer";
+import { createDistantDrifterRenderer } from "./distant-drifter-renderer";
 import {
   applyHeightBrush,
   applyCliffStroke,
@@ -491,6 +492,8 @@ export function createLandingState(scene: Scene): WorldExperience {
   const streams = createStreamRenderer(life);
   const fish = createFishRenderer(life);
   const aerialAnimals = addAerialAnimals(life);
+  const distantDrifter = createDistantDrifterRenderer();
+  scene.add(distantDrifter.group);
   scene.add(life);
   let revealed = false;
   let activeClimate: ClimateForces = { ...DEFAULT_CLIMATE };
@@ -909,6 +912,7 @@ export function createLandingState(scene: Scene): WorldExperience {
     resetStartingWorld(preset) {
       revealed = false;
       life.visible = false;
+      distantDrifter.hide();
       activeClimate = { ...preset.climate };
       terrainEditHistory.clear();
       lineageRenderers.forEach((renderer) => {
@@ -946,6 +950,7 @@ export function createLandingState(scene: Scene): WorldExperience {
           lineages: [...worldHistory.lineages.lineages, ...founders.lineages],
         },
       };
+      distantDrifter.reveal(founders.lineages[0]!.founder!, SEA_LEVEL[activeClimate.seaLevel]);
       return true;
     },
     showcaseGrazerHerd() {
@@ -986,6 +991,7 @@ export function createLandingState(scene: Scene): WorldExperience {
       }, samples);
     },
     advance(years: number, totalYears: number, climate: ClimateForces) {
+      distantDrifter.hide();
       revealed = true;
       activeClimate = { ...climate };
       // A jump transforms more terrain-history fields than a sculpt snapshot
@@ -1111,6 +1117,7 @@ export function createLandingState(scene: Scene): WorldExperience {
       reef.setLighting(sunDirection, sunColor, reefHazeColor(reefHaze, sunColor));
     },
     update(elapsed: number, viewPosition?: Readonly<Vector3>) {
+      distantDrifter.update(elapsed, SEA_LEVEL[activeClimate.seaLevel]);
       streams.update(elapsed);
       if (viewPosition) {
         vegetation.updateLod(viewPosition);
