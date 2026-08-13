@@ -127,6 +127,7 @@ const captureParams = new URLSearchParams(window.location.search);
 const captureShot = captureParams.get("shot");
 const captureMode = isGoldenShotName(captureShot);
 const liveHerdShowcase = captureParams.get("showcase") === "herd";
+const liveHerdContrast = captureParams.get("showcase") === "herd-contrast";
 const captureTime = Number(captureParams.get("time") ?? 42);
 const postProcessingOptions = readPostProcessingOptions(captureParams);
 let lastInteraction = performance.now() / 1000;
@@ -489,16 +490,18 @@ async function start() {
 
   rendererReady = true;
   applyOceanForces(DEFAULT_CLIMATE);
-  if (liveHerdShowcase) {
+  if (liveHerdShowcase || liveHerdContrast) {
     landingState.advance(10_000, 10_000, DEFAULT_CLIMATE);
-    landingState.showcaseGrazerHerd();
-    presentation.applyShot("herd");
+    if (liveHerdContrast) landingState.showcaseHerdContrast();
+    else landingState.showcaseGrazerHerd();
+    presentation.applyShot(liveHerdContrast ? "herd-contrast" : "herd");
   }
   if (captureMode) {
     const captureYears = Number(captureParams.get("years") ?? 10_000);
     if (captureParams.get("founders") === "drifter") landingState.introduceDistantDrifter(0);
     landingState.advance(captureYears, captureYears, DEFAULT_CLIMATE);
     if (captureParams.get("herd") === "candidate") landingState.showcaseGrazerHerd();
+    if (captureParams.get("herd") === "contrast") landingState.showcaseHerdContrast();
     landingState.update(captureTime, camera.position);
   }
 

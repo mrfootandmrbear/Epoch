@@ -43,6 +43,7 @@ import { captureWorldSnapshot } from "./world-snapshot";
 import { createWorldHistory, validateWorldHistory } from "./world-history";
 import type { MarineLineageChange } from "./marine-lineage";
 import { findTerrainPath, isWalkable } from "./animal-navigation";
+import { approachHeading, deriveHerdBehavior, type HerdBehavior } from "./herd-behavior";
 import {
   DEFAULT_CLIMATE,
   RAINFALL,
@@ -242,6 +243,8 @@ interface LineageRenderState {
   readonly animals: readonly AnimalInstanceState[];
   readonly navigation: readonly AnimalNavigationState[];
   readonly previousSiteMarker: Mesh;
+  /** Movement read off this lineage's trait means; replaced whenever they change. */
+  behavior: HerdBehavior;
 }
 
 function createLineageRenderState(
@@ -286,6 +289,11 @@ function createLineageRenderState(
     animals,
     navigation: animals.map(() => ({ path: [], waypoint: 0, journey: 0 })),
     previousSiteMarker,
+    // Mid-range means until the lineage resolves its own.
+    behavior: deriveHerdBehavior({
+      bodyMass: 1, legLength: 1, footWidth: 1, insulation: 0.5,
+      coatLightness: 0.5, coatWarmth: 0.5, hornLength: 1,
+    }),
   };
 }
 
@@ -294,6 +302,39 @@ const herdRotation = new Quaternion();
 const herdScale = new Vector3(0.9, 0.9, 0.9);
 const herdHidden = new Vector3(0, 0, 0);
 const HERD_UP = new Vector3(0, 1, 0);
+
+/** The accepted marsh-grazer's showcase means. */
+const SHOWCASE_GRAZER_TRAITS: PopulationTraits = {
+  bodyMass: 1.08,
+  legLength: 1.05,
+  footWidth: 1.04,
+  insulation: 0.42,
+  coatLightness: 0.48,
+  coatWarmth: 0.58,
+  hornLength: 0.92,
+};
+
+/** Light, long-legged, bare-coated: fast, wide-spread, loose-holding. */
+const CONTRAST_NIMBLE_TRAITS: PopulationTraits = {
+  bodyMass: 0.78,
+  legLength: 1.36,
+  footWidth: 0.7,
+  insulation: 0.04,
+  coatLightness: 0.72,
+  coatWarmth: 0.78,
+  hornLength: 1.4,
+};
+
+/** Heavy, short-legged, deeply insulated: slow, wide-turning, tightly packed. */
+const CONTRAST_BULKY_TRAITS: PopulationTraits = {
+  bodyMass: 1.37,
+  legLength: 0.73,
+  footWidth: 1.32,
+  insulation: 0.96,
+  coatLightness: 0.2,
+  coatWarmth: 0.14,
+  hornLength: 0.54,
+};
 
 function normalizedTrait(key: keyof PopulationTraits, value: number): number {
   const bounds = POPULATION_TRAIT_BOUNDS[key];
@@ -392,6 +433,7 @@ export interface WorldExperience {
   finishSculpt: () => void;
   introduceDistantDrifter: (currentAge: number) => boolean;
   showcaseGrazerHerd: () => void;
+  showcaseHerdContrast: () => void;
   advance: (years: number, totalYears: number, climate: ClimateForces) => LineageReport;
   update: (elapsed: number, viewPosition?: Readonly<Vector3>) => void;
 }
@@ -531,6 +573,45 @@ export function createLandingState(scene: Scene): WorldExperience {
     const created = createLineageRenderState(life, id, identity);
     lineageRenderers.set(id, created);
     return created;
+  }
+
+  /**
+   * Seats one showcase herd on the ground around a point. A phyllotaxis
+   * scatter spreads it evenly without the read of a grid, and stays
+   * deterministic so the fixed captures are reproducible.
+   */
+  function placeShowcaseHerd(
+    id: string,
+    traits: PopulationTraits,
+    centerX: number,
+    centerZ: number,
+  ): void {
+    const renderer = rendererFor(id, "sheltered-grazer");
+    renderer.behavior = deriveHerdBehavior(traits);
+    const spread = 26;
+    renderer.animals.forEach((animal, index) => {
+      const radial = Math.sqrt((index + 0.5) / renderer.animals.length) * spread;
+      const angle = index * 2.399963;
+      const x = centerX + Math.cos(angle) * radial + (hash(index, renderer.seed + 311) - 0.5) * 3.4;
+      const z = centerZ + Math.sin(angle) * radial + (hash(index, renderer.seed + 407) - 0.5) * 3.4;
+      animal.position.set(x, heightAt(x, z), z);
+      animal.rotationY = -0.55 + hash(index, renderer.seed + 204) * 0.45;
+      animal.visible = isWalkable(heightAt, x, z, activeClimate);
+      setCreatureExpressionAt(
+        renderer.herd,
+        index,
+        expressionSample(traits, index, renderer.seed, animal.walkPhase),
+      );
+      const navigation = renderer.navigation[index]!;
+      // Routes are requested lazily under the per-frame budget; pathing
+      // ninety-six animals in one call would stall the frame.
+      navigation.path = [];
+      navigation.waypoint = 0;
+      navigation.journey = 0;
+    });
+    if (renderer.herd.morphTexture) renderer.herd.morphTexture.needsUpdate = true;
+    if (renderer.herd.instanceColor) renderer.herd.instanceColor.needsUpdate = true;
+    syncHerdMatrices(renderer);
   }
 
   function syncShoreSurface(): void {
@@ -707,44 +788,14 @@ export function createLandingState(scene: Scene): WorldExperience {
       return true;
     },
     showcaseGrazerHerd() {
-      const renderer = rendererFor("candidate-grazer-showcase", "sheltered-grazer");
-      const traits: PopulationTraits = {
-        bodyMass: 1.08,
-        legLength: 1.05,
-        footWidth: 1.04,
-        insulation: 0.42,
-        coatLightness: 0.48,
-        coatWarmth: 0.58,
-        hornLength: 0.92,
-      };
-      // A phyllotaxis scatter spreads the herd evenly without the read of a
-      // grid, and stays deterministic so the fixed capture is reproducible.
-      const centerX = 17;
-      const centerZ = 9;
-      const spread = 26;
-      renderer.animals.forEach((animal, index) => {
-        const radial = Math.sqrt((index + 0.5) / renderer.animals.length) * spread;
-        const angle = index * 2.399963;
-        const x = centerX + Math.cos(angle) * radial + (hash(index, renderer.seed + 311) - 0.5) * 3.4;
-        const z = centerZ + Math.sin(angle) * radial + (hash(index, renderer.seed + 407) - 0.5) * 3.4;
-        animal.position.set(x, heightAt(x, z), z);
-        animal.rotationY = -0.55 + hash(index, renderer.seed + 204) * 0.45;
-        animal.visible = isWalkable(heightAt, x, z, activeClimate);
-        setCreatureExpressionAt(
-          renderer.herd,
-          index,
-          expressionSample(traits, index, renderer.seed, animal.walkPhase),
-        );
-        const navigation = renderer.navigation[index]!;
-        // Routes are requested lazily under the per-frame budget; pathing
-        // ninety-six animals in one call would stall the frame.
-        navigation.path = [];
-        navigation.waypoint = 0;
-        navigation.journey = 0;
-      });
-      if (renderer.herd.morphTexture) renderer.herd.morphTexture.needsUpdate = true;
-      if (renderer.herd.instanceColor) renderer.herd.instanceColor.needsUpdate = true;
-      syncHerdMatrices(renderer);
+      placeShowcaseHerd("candidate-grazer-showcase", SHOWCASE_GRAZER_TRAITS, 17, 9);
+    },
+    showcaseHerdContrast() {
+      // The rung-7 fixture: two populations at opposite trait means on the same
+      // ground, so pace, turn radius, and how tightly each group holds can be
+      // judged from movement alone rather than from labels.
+      placeShowcaseHerd("contrast-nimble-showcase", CONTRAST_NIMBLE_TRAITS, -14, 34);
+      placeShowcaseHerd("contrast-bulky-showcase", CONTRAST_BULKY_TRAITS, 44, -14);
     },
     advance(years: number, totalYears: number, climate: ClimateForces) {
       revealed = true;
@@ -807,6 +858,7 @@ export function createLandingState(scene: Scene): WorldExperience {
           renderer.previousSiteMarker.visible = false;
           return;
         }
+        renderer.behavior = deriveHerdBehavior(lineage.traits);
         const visibleAnimals = Math.max(1, Math.ceil((lineage.abundance ?? 0.34) * renderer.animals.length));
         // The site footprint grows with the number actually present, so a
         // sparse population still reads as a loose band and a full herd is not
@@ -893,6 +945,7 @@ export function createLandingState(scene: Scene): WorldExperience {
           centerZ /= visibleCount;
         }
         let pathBudget = PATHS_PER_FRAME;
+        const behavior = renderer.behavior;
         renderer.animals.forEach((animal, index) => {
         if (!animal.visible) return;
         const state = renderer.navigation[index]!;
@@ -931,27 +984,40 @@ export function createLandingState(scene: Scene): WorldExperience {
         }
         if (visibleCount > 1) {
           const centerDistance = Math.hypot(centerX - animal.position.x, centerZ - animal.position.z);
-          if (centerDistance > 17) {
-            dx += (centerX - animal.position.x) * 0.22;
-            dz += (centerZ - animal.position.z) * 0.22;
+          if (centerDistance > behavior.cohesionRadius) {
+            dx += (centerX - animal.position.x) * behavior.cohesionStrength;
+            dz += (centerZ - animal.position.z) * behavior.cohesionStrength;
           }
           for (const other of renderer.animals) {
             if (!other.visible || other === animal) continue;
             const awayX = animal.position.x - other.position.x;
             const awayZ = animal.position.z - other.position.z;
             const spacing = Math.hypot(awayX, awayZ);
-            if (spacing > 0 && spacing < 4.5) {
-              dx += (awayX / spacing) * (4.5 - spacing) * 0.7;
-              dz += (awayZ / spacing) * (4.5 - spacing) * 0.7;
+            if (spacing > 0 && spacing < behavior.spacing) {
+              dx += (awayX / spacing) * (behavior.spacing - spacing) * 0.7;
+              dz += (awayZ / spacing) * (behavior.spacing - spacing) * 0.7;
             }
           }
         }
         const steeredDistance = Math.hypot(dx, dz);
         if (steeredDistance < 0.001) return;
-        const speed = 2.4 + (index % 3) * 0.18;
+        // Individuals vary slightly around the population's pace so a herd of
+        // one mean does not move in lockstep.
+        const speed = behavior.strideSpeed * (0.92 + (index % 3) * 0.055);
+        // Heading is rate-limited and the animal travels along where it is
+        // actually pointing, not along the raw steer vector. That is what makes
+        // turn radius visible: a heavy, long-legged herd swings wide out of a
+        // course change while a light one pivots almost in place.
+        animal.rotationY = approachHeading(
+          animal.rotationY,
+          Math.atan2(-dz, dx),
+          behavior.turnRate * delta,
+        );
+        const headingX = Math.cos(animal.rotationY);
+        const headingZ = -Math.sin(animal.rotationY);
         const step = Math.min(distance, speed * delta);
-        const nextX = animal.position.x + (dx / steeredDistance) * step;
-        const nextZ = animal.position.z + (dz / steeredDistance) * step;
+        const nextX = animal.position.x + headingX * step;
+        const nextZ = animal.position.z + headingZ * step;
         if (!isWalkable(heightAt, nextX, nextZ, activeClimate)) {
           state.path = [];
           state.waypoint = 0;
@@ -960,9 +1026,9 @@ export function createLandingState(scene: Scene): WorldExperience {
         animal.position.x = nextX;
         animal.position.z = nextZ;
         animal.position.y = heightAt(animal.position.x, animal.position.z);
-        animal.rotationY = Math.atan2(-dz, dx);
         animal.position.y += Math.sin(elapsed * 7 + index) * 0.035;
-        animal.walkPhase = (animal.walkPhase + delta * (0.9 + speed * 0.08)) % 1;
+        animal.walkPhase = (animal.walkPhase
+          + delta * behavior.strideCadence * (0.9 + speed * 0.08)) % 1;
         const morphData = renderer.herd.morphTexture?.source.data.data;
         if (morphData) {
           const stride = 8;

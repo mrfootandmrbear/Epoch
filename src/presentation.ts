@@ -9,6 +9,9 @@ export const GOLDEN_SHOTS = {
   "seagrass-meadow": { position: [96, 20, 132], target: [48, -1.5, 62] },
   "forest-interior": { position: [-54, 9, 18], target: [-24, 10, -12] },
   herd: { position: [40, 30, 38], target: [17, 18, 9] },
+  // Mid distance, framing both contrast herds at once: the rung-7 judgement is
+  // whether two populations read apart from movement alone at this range.
+  "herd-contrast": { position: [15, 74, 132], target: [15, 14, 10] },
   dawn: { position: [142, 43, -126], target: [0, 15, 0] },
   storm: { position: [-150, 58, -132], target: [0, 12, 0] },
 } as const;
