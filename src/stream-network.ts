@@ -11,6 +11,37 @@ export interface StreamSegment {
   readonly toDistance: number;
 }
 
+/** Below this discharge a reach carries no visible water surface. */
+export const MIN_VISIBLE_DISCHARGE = 0.12;
+/** Above this grade water aerates instead of holding a coherent creek surface. */
+export const CREEK_MAX_GRADE = 0.22;
+/** Above this grade water separates from the bed and plunges. */
+export const FALL_MIN_GRADE = 1;
+
+export type ReachKind = "dry" | "creek" | "rapid" | "fall";
+
+/**
+ * One classification shared by every inland-water renderer. The grade bands are
+ * a rendering decision, not hydrology: the resolver owns discharge and drop, and
+ * this only decides which surface treatment reads correctly for that pair.
+ */
+export function classifyReach(segment: StreamSegment): ReachKind {
+  if (segment.discharge < MIN_VISIBLE_DISCHARGE) return "dry";
+  const grade = segment.drop / segment.length;
+  if (grade <= CREEK_MAX_GRADE) return "creek";
+  return grade < FALL_MIN_GRADE ? "rapid" : "fall";
+}
+
+/**
+ * How aerated a steep reach reads, 0 at the creek seam and 1 on a sheer face.
+ * Continuity at the seam is what keeps a river from changing material abruptly
+ * where its grade crosses a threshold.
+ */
+export function reachAeration(segment: StreamSegment): number {
+  const grade = segment.drop / segment.length;
+  return Math.max(0, Math.min(1, (grade - CREEK_MAX_GRADE) / (1.45 - CREEK_MAX_GRADE)));
+}
+
 const DX = [-1, 0, 1, -1, 1, -1, 0, 1] as const;
 const DZ = [-1, -1, -1, 0, 0, 1, 1, 1] as const;
 

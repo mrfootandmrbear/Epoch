@@ -44,6 +44,7 @@ import { createTerrainMaterial, type TerrainMaterial } from "./terrain-material"
 import { packTerrainMaterialState } from "./terrain-material-state";
 import { createTerrainDetailRenderer } from "./terrain-detail-renderer";
 import { createStreamRenderer } from "./stream-renderer";
+import { createCascadeRenderer } from "./cascade-renderer";
 import { resolveFreshwaterField } from "./freshwater-basins";
 import { captureWorldSnapshot, type WorldSnapshot } from "./world-snapshot";
 import { createInitialWorldState, validateWorldHistory } from "./world-history";
@@ -490,6 +491,7 @@ export function createLandingState(scene: Scene): WorldExperience {
   const lineageRenderers = new Map<string, LineageRenderState>();
   const freshwater = createFreshwaterRenderer(life);
   const streams = createStreamRenderer(life);
+  const cascades = createCascadeRenderer(life);
   const fish = createFishRenderer(life);
   const aerialAnimals = addAerialAnimals(life);
   const distantDrifter = createDistantDrifterRenderer();
@@ -583,6 +585,7 @@ export function createLandingState(scene: Scene): WorldExperience {
   function syncTerrainDetails(): void {
     terrainDetails.update(worldHistory.terrain, heightAt, SEA_LEVEL[activeClimate.seaLevel]);
     streams.setTerrain(worldHistory.terrain, SEA_LEVEL[activeClimate.seaLevel]);
+    cascades.setTerrain(worldHistory.terrain, SEA_LEVEL[activeClimate.seaLevel]);
   }
   syncTerrainDetails();
 
@@ -1128,6 +1131,7 @@ export function createLandingState(scene: Scene): WorldExperience {
     update(elapsed: number, viewPosition?: Readonly<Vector3>) {
       distantDrifter.update(elapsed, SEA_LEVEL[activeClimate.seaLevel]);
       streams.update(elapsed);
+      cascades.update(elapsed);
       if (viewPosition) {
         vegetation.updateLod(viewPosition);
         seagrass.update(elapsed, viewPosition);
