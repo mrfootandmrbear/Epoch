@@ -1,17 +1,12 @@
-import { Color, DataTexture, MeshStandardNodeMaterial, Node } from "three/webgpu";
+import { Color, DataTexture, MeshStandardNodeMaterial } from "three/webgpu";
 import {
-  Fn,
-  abs,
   cameraPosition,
   clamp,
-  faceDirection,
   float,
   max,
   mix,
   mx_noise_float,
-  normalView,
   normalWorld,
-  positionView,
   positionWorld,
   smoothstep,
   texture,
@@ -19,6 +14,7 @@ import {
   vec2,
   vertexColor,
 } from "three/tsl";
+import { proceduralBump } from "./procedural-bump";
 
 export interface TerrainMaterialOptions {
   readonly stateTexture: DataTexture;
@@ -30,18 +26,6 @@ export interface TerrainMaterialOptions {
 export type TerrainMaterial = MeshStandardNodeMaterial & {
   setSeaLevel(value: number): void;
 };
-
-/** Perturb a procedural surface without requiring UV-addressable bump textures. */
-const proceduralBump = Fn(([height, strength]: [Node<"float">, Node<"float">]) => {
-  const sigmaX = positionView.dFdx().normalize();
-  const sigmaY = positionView.dFdy().normalize();
-  const heightDerivative = vec2(height.dFdx(), height.dFdy()).mul(strength);
-  const r1 = sigmaY.cross(normalView);
-  const r2 = normalView.cross(sigmaX);
-  const determinant = sigmaX.dot(r1).mul(faceDirection);
-  const gradient = determinant.sign().mul(heightDerivative.x.mul(r1).add(heightDerivative.y.mul(r2)));
-  return abs(determinant).mul(normalView).sub(gradient).normalize();
-});
 
 /** World-space terrain identity layered over authoritative simulation geometry. */
 export function createTerrainMaterial(options: TerrainMaterialOptions): TerrainMaterial {

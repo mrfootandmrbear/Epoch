@@ -585,10 +585,10 @@ export function createLandingState(scene: Scene): WorldExperience {
     traits: PopulationTraits,
     centerX: number,
     centerZ: number,
+    spread = 26,
   ): void {
     const renderer = rendererFor(id, "sheltered-grazer");
     renderer.behavior = deriveHerdBehavior(traits);
-    const spread = 26;
     renderer.animals.forEach((animal, index) => {
       const radial = Math.sqrt((index + 0.5) / renderer.animals.length) * spread;
       const angle = index * 2.399963;
@@ -791,11 +791,11 @@ export function createLandingState(scene: Scene): WorldExperience {
       placeShowcaseHerd("candidate-grazer-showcase", SHOWCASE_GRAZER_TRAITS, 17, 9);
     },
     showcaseHerdContrast() {
-      // The rung-7 fixture: two populations at opposite trait means on the same
-      // ground, so pace, turn radius, and how tightly each group holds can be
-      // judged from movement alone rather than from labels.
-      placeShowcaseHerd("contrast-nimble-showcase", CONTRAST_NIMBLE_TRAITS, -14, 34);
-      placeShowcaseHerd("contrast-bulky-showcase", CONTRAST_BULKY_TRAITS, 44, -14);
+      // The rung-6 and rung-7 fixture: two populations at opposite trait means
+      // on the same ground, seated close enough that one near camera reaches
+      // both coats and one mid camera judges both gaits.
+      placeShowcaseHerd("contrast-nimble-showcase", CONTRAST_NIMBLE_TRAITS, 6, 16, 11);
+      placeShowcaseHerd("contrast-bulky-showcase", CONTRAST_BULKY_TRAITS, 30, 0, 11);
     },
     advance(years: number, totalYears: number, climate: ClimateForces) {
       revealed = true;

@@ -12,6 +12,7 @@ describe("golden shots", () => {
       "forest-interior",
       "herd",
       "herd-contrast",
+      "coat-detail",
       "dawn",
       "storm",
     ]);
