@@ -50,7 +50,7 @@ import {
   SEA_LEVEL,
   type ClimateForces,
 } from "./climate";
-import { RENDER_SCALE } from "./render-scale";
+import { RENDER_SCALE, creaturePoseInterval } from "./render-scale";
 import { resolveVolcanicAccretion } from "./volcanism";
 import type { VolcanicOutput } from "./volcanism";
 
@@ -223,6 +223,9 @@ const HERD_INSTANCE_COUNT = 96;
  */
 const PATHS_PER_FRAME = 3;
 
+/** Repartition creature LOD at least this often even from a still camera. */
+const LOD_REPARTITION_FRAMES = 120;
+
 interface AnimalNavigationState {
   path: Vector3[];
   waypoint: number;
@@ -234,6 +237,11 @@ interface AnimalInstanceState {
   rotationY: number;
   visible: boolean;
   walkPhase: number;
+  /**
+   * Frames between walk-cycle morph writes for this animal: 1 near, higher at
+   * mid distance, and 0 once it is far enough that the pose is frozen.
+   */
+  poseInterval: number;
 }
 
 interface LineageRenderState {
@@ -258,6 +266,7 @@ function createLineageRenderState(
     rotationY: 0,
     visible: false,
     walkPhase: hash(index, seed + 171),
+    poseInterval: 1,
   }));
   const emptySample: CreatureExpressionSample = {
     shape: [0.5, 0.5, 0.5, 0.5, 0.5],
@@ -467,6 +476,8 @@ export function createLandingState(scene: Scene): WorldExperience {
   let revealed = false;
   let activeClimate: ClimateForces = { ...DEFAULT_CLIMATE };
   let lastElapsed = 0;
+  let frameIndex = 0;
+  const lastLodViewPosition = new Vector3(Number.POSITIVE_INFINITY, 0, 0);
   let terrainDirty = false;
   let terrainStateDirty = false;
   const terrainPositions = terrain.geometry.attributes.position;
@@ -506,6 +517,34 @@ export function createLandingState(scene: Scene): WorldExperience {
     const c = worldHistory.terrain.elevations[z1 * TERRAIN_SIDE + x0]!;
     const d = worldHistory.terrain.elevations[z1 * TERRAIN_SIDE + x1]!;
     return (a + (b - a) * tx) + ((c + (d - c) * tx) - (a + (b - a) * tx)) * tz;
+  }
+
+  /**
+   * Creature counterpart to the vegetation renderer's `updateLod`: repartition
+   * only when the camera has actually moved, then let each animal keep its
+   * band until the next repartition.
+   *
+   * Vegetation swaps geometry between bands. A herd cannot -- one instanced
+   * draw per lineage is the accepted arrangement, and splitting it by distance
+   * would cost the draw count that arrangement exists to protect. What degrades
+   * instead is how often per-instance trait expression is resampled, which is
+   * the per-frame cost creatures have and trees do not.
+   */
+  function updateCreatureLod(viewPosition: Readonly<Vector3>): void {
+    // Unlike trees, animals cross band boundaries under their own power, so a
+    // still camera cannot be taken as proof that nothing has changed. A slow
+    // heartbeat repartitions anyway.
+    const moved = lastLodViewPosition.distanceTo(viewPosition) >= RENDER_SCALE.lod.creatureRepartition;
+    if (!moved && frameIndex % LOD_REPARTITION_FRAMES !== 0) return;
+    lastLodViewPosition.copy(viewPosition);
+    for (const renderer of lineageRenderers.values()) {
+      for (const animal of renderer.animals) {
+        animal.poseInterval = creaturePoseInterval(Math.hypot(
+          animal.position.x - viewPosition.x,
+          animal.position.z - viewPosition.z,
+        ));
+      }
+    }
   }
 
   function syncTerrainDetails(): void {
@@ -612,6 +651,9 @@ export function createLandingState(scene: Scene): WorldExperience {
     if (renderer.herd.morphTexture) renderer.herd.morphTexture.needsUpdate = true;
     if (renderer.herd.instanceColor) renderer.herd.instanceColor.needsUpdate = true;
     syncHerdMatrices(renderer);
+    // The herd has moved wholesale, so its LOD bands are stale whatever the
+    // camera did. Same reason the vegetation renderer invalidates on setTrees.
+    lastLodViewPosition.set(Number.POSITIVE_INFINITY, 0, 0);
   }
 
   function syncShoreSurface(): void {
@@ -842,6 +884,8 @@ export function createLandingState(scene: Scene): WorldExperience {
       validateWorldHistory(worldHistory);
       vegetation.setTrees(outcome.trees, heightAt, SEA_LEVEL[activeClimate.seaLevel]);
       seagrass.setMeadow(outcome.seagrass, heightAt);
+      // Sites are about to be reseated, so every animal's LOD band is stale.
+      lastLodViewPosition.set(Number.POSITIVE_INFINITY, 0, 0);
       for (const renderer of lineageRenderers.values()) {
         if (!outcome.populations.some((lineage) => lineage.id === renderer.id)) {
           renderer.animals.forEach((animal) => { animal.visible = false; });
@@ -923,11 +967,13 @@ export function createLandingState(scene: Scene): WorldExperience {
       if (viewPosition) {
         vegetation.updateLod(viewPosition);
         seagrass.update(elapsed, viewPosition);
+        updateCreatureLod(viewPosition);
       }
       flushTerrainChanges();
       if (!revealed) return;
       const delta = Math.min(0.05, Math.max(0, elapsed - lastElapsed));
       lastElapsed = elapsed;
+      frameIndex++;
       lineageRenderers.forEach((renderer) => {
         // The herd centroid is one property of the whole group, so it is
         // resolved once per frame rather than rebuilt inside every animal.
@@ -946,6 +992,9 @@ export function createLandingState(scene: Scene): WorldExperience {
         }
         let pathBudget = PATHS_PER_FRAME;
         const behavior = renderer.behavior;
+        // The morph texture is one upload for the whole herd, so it is only
+        // worth re-sending if some animal in it actually re-posed this frame.
+        let posesWritten = false;
         renderer.animals.forEach((animal, index) => {
         if (!animal.visible) return;
         const state = renderer.navigation[index]!;
@@ -1027,18 +1076,26 @@ export function createLandingState(scene: Scene): WorldExperience {
         animal.position.z = nextZ;
         animal.position.y = heightAt(animal.position.x, animal.position.z);
         animal.position.y += Math.sin(elapsed * 7 + index) * 0.035;
+        // The phase keeps advancing even when the pose is not written, so an
+        // animal that comes back into range resumes mid-stride rather than
+        // snapping to wherever it was frozen.
         animal.walkPhase = (animal.walkPhase
           + delta * behavior.strideCadence * (0.9 + speed * 0.08)) % 1;
+        const interval = animal.poseInterval;
+        if (interval === 0 || (frameIndex + index) % interval !== 0) return;
         const morphData = renderer.herd.morphTexture?.source.data.data;
         if (morphData) {
           const stride = 8;
           const phase = animal.walkPhase;
           morphData[index * stride + 6] = phase < 0.5 ? 1 - phase * 2 : 0;
           morphData[index * stride + 7] = phase >= 0.5 ? phase * 2 - 1 : 0;
+          posesWritten = true;
         }
         });
         syncHerdMatrices(renderer);
-        if (renderer.herd.morphTexture) renderer.herd.morphTexture.needsUpdate = true;
+        if (posesWritten && renderer.herd.morphTexture) {
+          renderer.herd.morphTexture.needsUpdate = true;
+        }
       });
       coastalAnimals.forEach((animal, index) => {
         if (!animal.visible) return;
