@@ -72,3 +72,48 @@ a standing rule: never conclude the renderer is broken from a headless capture.
 **Lesson worth keeping.** A capture harness that "succeeds" can still be
 measuring a configuration no player has. Flags that force a feature into
 existence change what is being tested.
+
+---
+
+## WU-001 · Phase 1 live-world visual audit (2026-08-13)
+
+**Hypothesis.** The live world (fish, drifter, water, herds, coral, lighting) has
+never had a hostile-reviewer pass on the real renderer. Drive the deterministic
+capture URLs through the **WebGPU** backend in the browser pane and produce a
+ranked, actionable slice plan — measurement and planning, no gameplay/render code
+changed.
+
+**Change.** No source changed. Added the `LW-1…LW-8` findings and a recommended
+slice sequence to `BACKLOG.md`, and retired the "Phase 1 — not yet run"
+placeholder. Header dates advanced to 2026-08-13.
+
+**Findings.** Full detail in `BACKLOG.md`. Headline, ranked by
+impact ÷ (cost × risk):
+
+- **LW-1 (3.00)** fish colour ≈`HSL(0.39,0.38,0.52)` matches the water column →
+  near-invisible in their own hero camera; cheap colour fix.
+- **LW-2 / LW-3 (1.50)** flat encrusting corals read as paper cutouts; foam is a
+  bright shoreline decal band plus detached open-water blobs.
+- **LW-4 (1.00)** the cascade/whitewater renderer (newest system, commit
+  `2d22874`) reads as white scratches and clips through terrain — highest raw
+  visibility, its own WU.
+- **LW-6 (0.67)** dawn/day/storm all resolve to one hazy mid-tone; grading never
+  reaches the ground or water.
+- **LW-7 (0.50)** systemic flat sea: max wind 18 m/s, no storm tier
+  (`climate.ts:33`), swell damped to 0.22 (`render-scale.ts:10`); contradicts the
+  owner water reference. Biggest unit.
+- **LW-8 (0.33)** herd within-population uniformity + flat coats — but
+  **cross-population divergence reads well** (nimble vs bulky); a confirmed
+  strength to protect.
+
+**Two evidence caveats.** (1) The pane throttles rAF, so every shot is a still at
+`time=42` — motion, gait, foam animation, drifter bob and fps were **not**
+judged; the LW-8 pose complaint especially needs a moving capture. (2) Findings
+are prepared for the owner-verdict gate, not accepted through it.
+
+**Verdict.** Live-world slice of Phase 1 triaged with WebGPU evidence. Remaining
+domains (geometry, textures, image quality, physics/collision, UI/HUD,
+micro-polish) still un-audited.
+
+**Next.** Slice A = LW-1 + LW-3 (+ LW-2) — cheap, low-risk legibility wins with
+the best return per session. LW-4 and LW-7 each earn a dedicated WU.
