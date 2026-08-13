@@ -56,6 +56,7 @@ import {
 import { RENDER_SCALE } from "./render-scale";
 import type { VolcanicOutput } from "./volcanism";
 import { ENVIRONMENT_FIXTURES, isEnvironmentFixtureName } from "./environment-fixtures";
+import { STARTING_WORLD_PRESETS, startingWorldPreset } from "./starting-world-presets";
 
 const statusEl = document.getElementById("status")!;
 const lineagePanelEl = document.getElementById("lineage-panel")!;
@@ -84,6 +85,17 @@ const brushSizeValueEl = document.getElementById("brush-size-value") as HTMLOutp
 const brushStrengthValueEl = document.getElementById("brush-strength-value") as HTMLOutputElement;
 const undoSculptEl = document.getElementById("undo-sculpt") as HTMLButtonElement;
 const redoSculptEl = document.getElementById("redo-sculpt") as HTMLButtonElement;
+const playerShellEl = experienceEl;
+const shellToggleEl = document.getElementById("shell-toggle") as HTMLButtonElement;
+const startingWorldEl = document.getElementById("starting-world") as HTMLSelectElement;
+const startingWorldDescriptionEl = document.getElementById("starting-world-description")!;
+
+for (const preset of STARTING_WORLD_PRESETS) {
+  const option = document.createElement("option");
+  option.value = preset.id;
+  option.textContent = preset.name;
+  startingWorldEl.appendChild(option);
+}
 
 for (const option of revealTreatmentOptions()) {
   const element = document.createElement("option");
@@ -351,6 +363,14 @@ function readClimate(): ClimateForces {
   };
 }
 
+function writeClimate(forces: Readonly<ClimateForces>): void {
+  rainfallEl.value = forces.rainfall;
+  temperatureEl.value = forces.temperature;
+  windEl.value = forces.wind;
+  seaLevelEl.value = forces.seaLevel;
+  climate = { ...forces };
+}
+
 function setTool(tool: FormTool): void {
   formTool = tool;
   syncCameraGestures();
@@ -528,6 +548,27 @@ window.addEventListener("keydown", (event) => {
   syncBrushControls();
 });
 
+shellToggleEl.addEventListener("click", () => {
+  const compact = playerShellEl.classList.toggle("compact");
+  shellToggleEl.setAttribute("aria-expanded", String(!compact));
+  shellToggleEl.textContent = compact ? "Expand" : "Compact";
+});
+
+startingWorldEl.addEventListener("change", () => {
+  const preset = startingWorldPreset(startingWorldEl.value);
+  endStroke();
+  setTool("look");
+  landingState.resetStartingWorld(preset);
+  writeClimate(preset.climate);
+  volcanicOutputEl.value = preset.volcanicOutput;
+  committedClimate = { ...preset.climate };
+  applyCommittedHeightFog();
+  applyOceanForces(preset.climate);
+  startingWorldDescriptionEl.textContent = preset.description;
+  formHintEl.textContent = `${preset.name} loaded. Shape it further or set the forces for its first jump.`;
+  syncBrushControls();
+});
+
 jumpYearsEl.addEventListener("change", () => {
   jumpButtonEl.textContent = `Jump ${formatYears(Number(jumpYearsEl.value))}`;
 });
@@ -561,6 +602,7 @@ jumpButtonEl.addEventListener("click", () => {
   climate = readClimate();
   const nextClimate = { ...climate };
   jumped = true;
+  startingWorldEl.disabled = true;
   endStroke();
   syncCameraGestures();
   experienceEl.classList.add("committed");

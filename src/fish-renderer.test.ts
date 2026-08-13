@@ -47,5 +47,6 @@ describe("coastal forager renderer", () => {
 
     renderer.setPopulation(undefined, []);
     expect(renderer.mesh.count).toBe(0);
+    expect(renderer.mesh.visible).toBe(false);
   });
 });

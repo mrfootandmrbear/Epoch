@@ -140,6 +140,11 @@ export function createVegetationRenderer(scene: Group): VegetationRenderer {
         for (const mesh of [batch.branches, batch.leaves]) {
           mesh.count = count;
           mesh.instanceMatrix.needsUpdate = true;
+          // The instances are repartitioned between near/far batches as the
+          // camera moves. InstancedMesh does not invalidate its aggregate
+          // bounds when matrices change, so stale bounds can make a whole
+          // stand disappear at particular view angles.
+          mesh.computeBoundingSphere();
         }
         if (batch.leaves.instanceColor) batch.leaves.instanceColor.needsUpdate = true;
       }

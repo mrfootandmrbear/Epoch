@@ -89,6 +89,9 @@ export function createFishRenderer(parent: Group): FishRenderer {
   }));
   mesh.castShadow = true;
   mesh.receiveShadow = true;
+  // Three's morph node expects an instanced morph texture only when count > 1;
+  // a visible zero-count mesh instead reaches its absent uniform-array path.
+  mesh.visible = false;
   parent.add(mesh);
 
   function setMorph(index: number, expression: FishExpression, swim: number): void {
@@ -128,6 +131,7 @@ export function createFishRenderer(parent: Group): FishRenderer {
       setMorph(index, state.expression, Math.sin(phase * 4.8) * (0.36 + state.expression.streamlining * 0.26));
     });
     mesh.count = count;
+    mesh.visible = count > 0;
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.morphTexture) mesh.morphTexture.needsUpdate = true;
     mesh.computeBoundingSphere();

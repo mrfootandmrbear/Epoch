@@ -59,6 +59,7 @@ import {
 import { RENDER_SCALE, creaturePoseInterval } from "./render-scale";
 import { resolveVolcanicAccretion } from "./volcanism";
 import type { VolcanicOutput } from "./volcanism";
+import { startingWorldPreset, type StartingWorldPreset } from "./starting-world-presets";
 import { createFishRenderer } from "./fish-renderer";
 import {
   applyHeightBrush,
@@ -79,16 +80,6 @@ const TERRAIN_STEP = TERRAIN_SIZE / TERRAIN_SEGMENTS;
 function hash(x: number, z: number): number {
   const n = Math.sin(x * 127.1 + z * 311.7) * 43758.5453;
   return n - Math.floor(n);
-}
-
-function terrainHeight(x: number, z: number): number {
-  const d = Math.hypot(x * 0.92, z * 1.08);
-  const island = Math.max(0, 1 - Math.pow(d / 165, 2.25));
-  const ridge = 20 * Math.exp(-Math.pow((x + 24 + z * 0.16) / 38, 2));
-  const highlands = 13 * Math.sin(x * 0.038 + z * 0.016) + 7 * Math.sin(z * 0.071);
-  const weathering = 3.5 * Math.sin(x * 0.17) * Math.cos(z * 0.13);
-  const river = 9 * Math.exp(-Math.pow((x - 18 - 16 * Math.sin(z * 0.025)) / 10, 2));
-  return island * (7 + ridge + highlands * island + weathering) - river * island - 3.2;
 }
 
 function formedTerrainColor(height: number, x: number, z: number): Color {
@@ -112,7 +103,7 @@ function makeTerrain(
   for (let i = 0; i < positions.count; i++) {
     const x = positions.getX(i);
     const z = positions.getZ(i);
-    const y = terrainHeight(x, z);
+    const y = startingWorldPreset("weathered-island").heightAt(x, z);
     positions.setY(i, y);
     color.copy(formedTerrainColor(y, x, z));
     colors[i * 3] = color.r;
@@ -286,6 +277,10 @@ function createLineageRenderState(
   };
   const herd = createCreatureExpressionSpike(animals.map(() => emptySample));
   herd.name = `grazer-herd:${id}`;
+  // A zero-count instanced morph mesh falls through Three.js's non-instanced
+  // morph path, where no uniform influence array exists. Keep empty herds out
+  // of shader compilation until at least one animal is drawable.
+  herd.visible = false;
   scene.add(herd);
   const markerColor = new Color().setHSL(hash(seed, 503), 0.3, 0.54);
   const previousSiteMarker = new Mesh(
@@ -407,6 +402,7 @@ function syncHerdMatrices(renderer: LineageRenderState): void {
     renderer.herd.setMatrixAt(index, herdMatrix);
   });
   renderer.herd.count = drawn;
+  renderer.herd.visible = drawn > 0;
   renderer.herd.instanceMatrix.needsUpdate = true;
   renderer.herd.computeBoundingSphere();
 }
@@ -447,6 +443,7 @@ export interface WorldExperience {
   undoSculpt: () => boolean;
   redoSculpt: () => boolean;
   sculptHistory: () => Readonly<{ canUndo: boolean; canRedo: boolean }>;
+  resetStartingWorld: (preset: StartingWorldPreset) => void;
   introduceDistantDrifter: (currentAge: number) => boolean;
   showcaseGrazerHerd: () => void;
   showcaseHerdContrast: () => void;
@@ -907,6 +904,37 @@ export function createLandingState(scene: Scene): WorldExperience {
     },
     sculptHistory() {
       return { canUndo: terrainEditHistory.canUndo, canRedo: terrainEditHistory.canRedo };
+    },
+    resetStartingWorld(preset) {
+      revealed = false;
+      life.visible = false;
+      activeClimate = { ...preset.climate };
+      terrainEditHistory.clear();
+      lineageRenderers.forEach((renderer) => {
+        renderer.animals.forEach((animal) => { animal.visible = false; });
+        renderer.previousSiteMarker.visible = false;
+        syncHerdMatrices(renderer);
+      });
+      const positions = terrain.geometry.attributes.position;
+      const elevations = new Float32Array(positions.count);
+      for (let index = 0; index < positions.count; index++) {
+        const x = positions.getX(index);
+        const z = positions.getZ(index);
+        const y = preset.heightAt(x, z);
+        positions.setY(index, y);
+        elevations[index] = y;
+      }
+      worldHistory = createInitialWorldState(elevations, TERRAIN_SIDE, TERRAIN_SIZE).history;
+      if (preset.hotSpot) {
+        worldHistory = {
+          ...worldHistory,
+          hotSpots: [{ id: "island-vent", ...preset.hotSpot, output: preset.volcanicOutput }],
+        };
+      }
+      syncTerrainGeometryFromHistory();
+      flushTerrainChanges();
+      syncTerrainDetails();
+      freshwater.setField(resolveFreshwaterField(currentSnapshot(0), SEA_LEVEL[preset.climate.seaLevel], preset.climate.rainfall));
     },
     introduceDistantDrifter(currentAge: number) {
       if (worldHistory.lineages.lineages.some((lineage) => lineage.status !== "extinct")) return false;
