@@ -21,6 +21,11 @@ export const RENDER_SCALE = Object.freeze({
     // frozen entirely and the herd's morph texture stops being re-uploaded.
     creaturePoseFar: 300,
     creatureRepartition: 10,
+    // Coral is small and dense, and it is looked at from close range far more
+    // than a tree is. The near band is tighter than the tree band for that
+    // reason, not because the geometry is cheaper.
+    coralNear: 46,
+    coralRepartition: 5,
   }),
 });
 
