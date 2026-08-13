@@ -44,6 +44,7 @@ import { createWorldHistory, validateWorldHistory } from "./world-history";
 import type { MarineLineageChange } from "./marine-lineage";
 import { findTerrainPath, isWalkable } from "./animal-navigation";
 import { approachHeading, deriveHerdBehavior, type HerdBehavior } from "./herd-behavior";
+import { sampleCoat } from "./coat-variation";
 import {
   DEFAULT_CLIMATE,
   RAINFALL,
@@ -360,6 +361,16 @@ function expressionSample(
   const value = (key: keyof PopulationTraits, channel: number) => (
     Math.max(0, Math.min(1, normalizedTrait(key, traits[key]) + variation(channel)))
   );
+  // Shape keeps its narrow band: per-axis trait variance is a simulation
+  // question the wildlife roadmap has not answered. Coat colour is already
+  // documented as phenotype the renderer may sample, so it carries the
+  // site-specific spread that stops a herd reading as clones.
+  const coat = sampleCoat(
+    normalizedTrait("coatWarmth", traits.coatWarmth),
+    normalizedTrait("coatLightness", traits.coatLightness),
+    index,
+    seed,
+  );
   return {
     shape: [
       value("bodyMass", 0),
@@ -368,8 +379,8 @@ function expressionSample(
       value("insulation", 3),
       value("hornLength", 4),
     ],
-    coatWarmth: value("coatWarmth", 5),
-    coatLightness: value("coatLightness", 6),
+    coatWarmth: coat.warmth,
+    coatLightness: coat.lightness,
     walkPhase,
   };
 }

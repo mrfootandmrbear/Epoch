@@ -74,12 +74,7 @@ export function createCreatureExpressionSpike(
     probe.morphTargetInfluences![5] = phase < 0.5 ? 1 - phase * 2 : 0;
     probe.morphTargetInfluences![6] = phase >= 0.5 ? phase * 2 - 1 : 0;
     result.setMorphAt(index, probe);
-    coat.setHSL(
-      0.075 - clamp01(sample.coatWarmth) * 0.035,
-      0.24 + clamp01(sample.coatWarmth) * 0.24,
-      0.25 + clamp01(sample.coatLightness) * 0.28,
-    );
-    result.setColorAt(index, coat);
+    result.setColorAt(index, coatColorFor(sample, coat));
   });
 
   result.instanceMatrix.needsUpdate = true;
@@ -138,11 +133,25 @@ export function setCreatureExpressionAt(
   probe.morphTargetInfluences![5] = phase < 0.5 ? 1 - phase * 2 : 0;
   probe.morphTargetInfluences![6] = phase >= 0.5 ? phase * 2 - 1 : 0;
   herd.setMorphAt(index, probe);
-  herd.setColorAt(index, coatColor.setHSL(
-    0.075 - clamp01(sample.coatWarmth) * 0.035,
-    0.24 + clamp01(sample.coatWarmth) * 0.24,
-    0.25 + clamp01(sample.coatLightness) * 0.28,
-  ));
+  herd.setColorAt(index, coatColorFor(sample, coatColor));
 }
 
 const coatColor = new Color();
+
+/**
+ * The two coat scalars as a colour.
+ *
+ * The tonal range is wider than the original band. With one mesh shared by
+ * every population, colour is most of what separates one animal from the next,
+ * and a range this narrow compressed a whole herd's worth of variation into a
+ * few percent of lightness. Population means still land where they always did;
+ * only the distance the extremes can travel from them has grown.
+ */
+function coatColorFor(sample: CreatureExpressionSample, out: Color): Color {
+  const warmth = clamp01(sample.coatWarmth);
+  return out.setHSL(
+    0.082 - warmth * 0.045,
+    0.17 + warmth * 0.32,
+    0.19 + clamp01(sample.coatLightness) * 0.44,
+  );
+}
