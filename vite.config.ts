@@ -11,6 +11,7 @@ export default defineConfig(({ command }) => ({
       input: {
         main: resolve(__dirname, "index.html"),
         creaturePreview: resolve(__dirname, "creature-preview.html"),
+        fishPreview: resolve(__dirname, "fish-preview.html"),
       },
     },
   },

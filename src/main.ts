@@ -1,13 +1,19 @@
 import {
   ACESFilmicToneMapping,
   AmbientLight,
+  BufferGeometry,
   Color,
   DirectionalLight,
   HemisphereLight,
+  Line,
+  LineBasicMaterial,
+  Mesh,
+  MeshBasicMaterial,
   MOUSE,
   type Node,
   PerspectiveCamera,
   Raycaster,
+  RingGeometry,
   Scene,
   TOUCH,
   Vector2,
@@ -71,6 +77,13 @@ const temperatureEl = document.getElementById("temperature") as HTMLSelectElemen
 const windEl = document.getElementById("wind") as HTMLSelectElement;
 const seaLevelEl = document.getElementById("sea-level") as HTMLSelectElement;
 const volcanicOutputEl = document.getElementById("volcanic-output") as HTMLSelectElement;
+const brushControlsEl = document.getElementById("brush-controls")!;
+const brushSizeEl = document.getElementById("brush-size") as HTMLInputElement;
+const brushStrengthEl = document.getElementById("brush-strength") as HTMLInputElement;
+const brushSizeValueEl = document.getElementById("brush-size-value") as HTMLOutputElement;
+const brushStrengthValueEl = document.getElementById("brush-strength-value") as HTMLOutputElement;
+const undoSculptEl = document.getElementById("undo-sculpt") as HTMLButtonElement;
+const redoSculptEl = document.getElementById("redo-sculpt") as HTMLButtonElement;
 
 for (const option of revealTreatmentOptions()) {
   const element = document.createElement("option");
@@ -233,6 +246,21 @@ function updateShadowCoverage(): void {
 
 await Promise.all([loadTreeGeometryAssets(), loadSeagrassGeometryAssets()]);
 const landingState = createLandingState(scene);
+const terrainCursor = new Mesh(
+  new RingGeometry(0.92, 1, 64),
+  new MeshBasicMaterial({ color: 0xe5edbc, transparent: true, opacity: 0.82, depthTest: false }),
+);
+terrainCursor.rotation.x = -Math.PI / 2;
+terrainCursor.renderOrder = 100;
+terrainCursor.visible = false;
+scene.add(terrainCursor);
+const cliffPreview = new Line(
+  new BufferGeometry(),
+  new LineBasicMaterial({ color: 0xffd98b, transparent: true, opacity: 0.92, depthTest: false }),
+);
+cliffPreview.renderOrder = 101;
+cliffPreview.visible = false;
+scene.add(cliffPreview);
 const captureVolcanism = (
   captureParams.get("volcano")
   ?? (captureFixture && "volcano" in captureFixture ? captureFixture.volcano : null)
@@ -245,9 +273,25 @@ if (captureMode && captureVolcanism && ["vigorous", "active", "waning", "extinct
 }
 const raycaster = new Raycaster();
 const pointer = new Vector2();
-type FormTool = "look" | "raise" | "carve" | "hotspot";
+type FormTool = "look" | "raise" | "carve" | "level" | "cliff" | "hotspot";
 let formTool: FormTool = "look";
 let jumped = false;
+
+function brushSettings() {
+  return { radius: Number(brushSizeEl.value), strength: Number(brushStrengthEl.value) };
+}
+
+function syncBrushControls(): void {
+  const sculpting = formTool === "raise" || formTool === "carve" || formTool === "level" || formTool === "cliff";
+  brushControlsEl.hidden = !sculpting;
+  brushSizeValueEl.value = `${brushSizeEl.value} m`;
+  brushStrengthValueEl.value = Number(brushStrengthEl.value).toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
+  terrainCursor.scale.setScalar(Number(brushSizeEl.value));
+  const history = landingState.sculptHistory();
+  undoSculptEl.disabled = !history.canUndo || jumped;
+  redoSculptEl.disabled = !history.canRedo || jumped;
+  if (!sculpting || formTool === "cliff") terrainCursor.visible = false;
+}
 
 // Gesture arbitration. A shaping tool takes the primary gesture (left-drag /
 // one finger) and nothing else, so the camera is never taken away mid-sculpt:
@@ -255,6 +299,9 @@ let jumped = false;
 // `controls.enabled` is left alone here — presentation mode owns that flag.
 const activePointers = new Set<number>();
 let strokePointerId: number | null = null;
+let lastSculptPoint: Vector3 | null = null;
+let cliffStart: Vector3 | null = null;
+let cliffEnd: Vector3 | null = null;
 // Where a stroke started, held until we know it is a stroke and not the first
 // finger of a pinch. Flushed on the first move (drag) or on release (tap).
 let strokeOrigin: { x: number; y: number } | null = null;
@@ -307,6 +354,7 @@ function readClimate(): ClimateForces {
 function setTool(tool: FormTool): void {
   formTool = tool;
   syncCameraGestures();
+  syncBrushControls();
   document.querySelectorAll<HTMLButtonElement>("[data-tool]").forEach((button) => {
     button.classList.toggle("active", button.dataset.tool === tool);
   });
@@ -317,14 +365,32 @@ function setTool(tool: FormTool): void {
         ? "Drag across the land to build ridges and refuges — right-drag or two fingers still move the camera."
         : tool === "carve"
           ? "Drag across the land to cut valleys and channels — right-drag or two fingers still move the camera."
-          : "Tap once to place the island's fixed volcanic source.";
+          : tool === "level"
+            ? "Brush across rough ground to form shelves, plains, and level valley floors."
+            : tool === "cliff"
+              ? "Drag along the cliff edge. The terrain on the left side of the stroke rises on release."
+              : "Tap once to place the island's fixed volcanic source.";
+}
+
+function terrainHit(clientX: number, clientY: number) {
+  pointer.set((clientX / window.innerWidth) * 2 - 1, -(clientY / window.innerHeight) * 2 + 1);
+  raycaster.setFromCamera(pointer, camera);
+  return raycaster.intersectObject(landingState.terrain, false)[0];
+}
+
+function updateTerrainCursor(clientX: number, clientY: number): void {
+  if (jumped || (formTool !== "raise" && formTool !== "carve" && formTool !== "level")) {
+    terrainCursor.visible = false;
+    return;
+  }
+  const hit = terrainHit(clientX, clientY);
+  terrainCursor.visible = hit !== undefined;
+  if (hit) terrainCursor.position.set(hit.point.x, hit.point.y + 0.18, hit.point.z);
 }
 
 function sculptAt(clientX: number, clientY: number): void {
   if (jumped || formTool === "look") return;
-  pointer.set((clientX / window.innerWidth) * 2 - 1, -(clientY / window.innerHeight) * 2 + 1);
-  raycaster.setFromCamera(pointer, camera);
-  const hit = raycaster.intersectObject(landingState.terrain, false)[0];
+  const hit = terrainHit(clientX, clientY);
   if (!hit) return;
   if (formTool === "hotspot") {
     landingState.placeHotSpot(hit.point, volcanicOutputEl.value as VolcanicOutput);
@@ -332,7 +398,38 @@ function sculptAt(clientX: number, clientY: number): void {
     formHintEl.textContent = "The hot spot is fixed here. Jump time to let its shield grow.";
     return;
   }
-  landingState.sculpt(hit.point, formTool === "raise" ? 1 : -1);
+  const settings = brushSettings();
+  const direction = formTool === "raise" ? 1 : -1;
+  const applyDab = (point: Vector3) => {
+    if (formTool === "level") landingState.level(point, settings);
+    else landingState.sculpt(point, direction, settings);
+  };
+  if (!lastSculptPoint) {
+    applyDab(hit.point);
+    lastSculptPoint = hit.point.clone();
+    return;
+  }
+  const dx = hit.point.x - lastSculptPoint.x;
+  const dz = hit.point.z - lastSculptPoint.z;
+  const distance = Math.hypot(dx, dz);
+  const spacing = Math.max(1, settings.radius * 0.18);
+  const steps = Math.floor(distance / spacing);
+  for (let step = 1; step <= steps; step++) {
+    const amount = (step * spacing) / distance;
+    applyDab(new Vector3(
+      lastSculptPoint.x + dx * amount,
+      hit.point.y,
+      lastSculptPoint.z + dz * amount,
+    ));
+  }
+  if (steps > 0) {
+    const amount = (steps * spacing) / distance;
+    lastSculptPoint.set(
+      lastSculptPoint.x + dx * amount,
+      hit.point.y,
+      lastSculptPoint.z + dz * amount,
+    );
+  }
 }
 
 function endStroke(): void {
@@ -344,6 +441,11 @@ function endStroke(): void {
   }
   strokePointerId = null;
   strokeOrigin = null;
+  lastSculptPoint = null;
+  cliffStart = null;
+  cliffEnd = null;
+  cliffPreview.visible = false;
+  syncBrushControls();
 }
 
 renderer.domElement.addEventListener("pointerdown", (event) => {
@@ -357,13 +459,32 @@ renderer.domElement.addEventListener("pointerdown", (event) => {
   }
   strokePointerId = event.pointerId;
   strokeOrigin = { x: event.clientX, y: event.clientY };
+  landingState.beginSculpt();
+  if (formTool === "cliff") {
+    const hit = terrainHit(event.clientX, event.clientY);
+    cliffStart = hit?.point.clone() ?? null;
+    cliffEnd = cliffStart?.clone() ?? null;
+  }
   renderer.domElement.setPointerCapture(event.pointerId);
 });
 
 renderer.domElement.addEventListener("pointermove", (event) => {
+  updateTerrainCursor(event.clientX, event.clientY);
   if (event.pointerId !== strokePointerId) return;
   if (activePointers.size > 1) {
     endStroke();
+    return;
+  }
+  if (formTool === "cliff") {
+    const hit = terrainHit(event.clientX, event.clientY);
+    if (!cliffStart || !hit) return;
+    cliffEnd = hit.point.clone();
+    cliffPreview.geometry.setFromPoints([
+      new Vector3(cliffStart.x, cliffStart.y + 0.35, cliffStart.z),
+      new Vector3(cliffEnd.x, cliffEnd.y + 0.35, cliffEnd.z),
+    ]);
+    cliffPreview.visible = cliffStart.distanceTo(cliffEnd) >= 1;
+    strokeOrigin = null;
     return;
   }
   strokeOrigin = null;
@@ -373,17 +494,38 @@ renderer.domElement.addEventListener("pointermove", (event) => {
 function finishPointer(event: PointerEvent): void {
   activePointers.delete(event.pointerId);
   if (event.pointerId !== strokePointerId) return;
+  if (formTool === "cliff" && event.type === "pointerup" && cliffStart && cliffEnd) {
+    landingState.cliff(cliffStart, cliffEnd, brushSettings());
+  }
   // A press with no movement is still a deliberate dab — apply it on release,
   // once we know no second finger arrived.
-  if (strokeOrigin && event.type === "pointerup") sculptAt(strokeOrigin.x, strokeOrigin.y);
+  if (formTool !== "cliff" && strokeOrigin && event.type === "pointerup") sculptAt(strokeOrigin.x, strokeOrigin.y);
   endStroke();
 }
 
 renderer.domElement.addEventListener("pointerup", finishPointer);
 renderer.domElement.addEventListener("pointercancel", finishPointer);
+renderer.domElement.addEventListener("pointerleave", () => { terrainCursor.visible = false; });
 
 document.querySelectorAll<HTMLButtonElement>("[data-tool]").forEach((button) => {
   button.addEventListener("click", () => setTool(button.dataset.tool as FormTool));
+});
+
+for (const input of [brushSizeEl, brushStrengthEl]) input.addEventListener("input", syncBrushControls);
+undoSculptEl.addEventListener("click", () => {
+  if (landingState.undoSculpt()) formHintEl.textContent = "Undid the last terrain stroke.";
+  syncBrushControls();
+});
+redoSculptEl.addEventListener("click", () => {
+  if (landingState.redoSculpt()) formHintEl.textContent = "Restored the terrain stroke.";
+  syncBrushControls();
+});
+window.addEventListener("keydown", (event) => {
+  if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "z" || jumped) return;
+  event.preventDefault();
+  const changed = event.shiftKey ? landingState.redoSculpt() : landingState.undoSculpt();
+  if (changed) formHintEl.textContent = event.shiftKey ? "Restored the terrain stroke." : "Undid the last terrain stroke.";
+  syncBrushControls();
 });
 
 jumpYearsEl.addEventListener("change", () => {
@@ -533,6 +675,7 @@ async function start() {
     landingState.advance(captureYears, captureYears, captureClimate);
     if (captureParams.get("herd") === "candidate") landingState.showcaseGrazerHerd();
     if (captureParams.get("herd") === "contrast") landingState.showcaseHerdContrast();
+    if (captureParams.get("fish") === "candidate") landingState.showcaseFish();
     landingState.update(captureTime, camera.position);
   }
 

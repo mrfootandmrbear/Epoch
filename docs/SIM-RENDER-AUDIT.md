@@ -26,15 +26,14 @@
 - **TerrainHistory.volcanicLoad** — Drives subsidence but not in volcanic texture. No visual cue for lithospheric loading.
 - **FreshwaterField.depth** — Computed per cell. freshwater-renderer.ts reads only surface elevation. Shallow and deep pools look identical.
 - **Waterfall segments** — resolveStreamSegments identifies steep-drop reaches and reserves them for a "dedicated waterfall layer." That layer does not exist.
-- **Marine traits beyond bodySize** — streamlining, depthPreference, thermalTolerance, maneuverability, depthControl all simulated. Only bodySize drives swimmer scale. Mesh is trait-invariant.
-- **Marine band (benthic/midwater/surface)** — Tracked in 3-node water column graph. All swimmers render at same Y regardless of band.
+- **Marine trait nuance** — the candidate coastal-forager expresses body size, streamlining, maneuverability, depth control, thermal tolerance, energy, and resolved water-band placement. Depth preference selects that band but has no additional cosmetic cue, by design.
 - **Land lineage energy** — In resolver + report. The accepted expression renderer does not read it. A starving population has fewer visible instances through abundance but no independent condition/posture cue.
-- **Marine lineage energy** — Same issue. Shown in report, no visual correlate.
+- **Marine lineage energy** — Candidate fish now use energy for saturation, condition, and swim cadence; owner visual verdict remains.
 - **Terrestrial feedingAdaptation** — Computed in founder resolver, not in PopulationTraits, no visual.
 - **MarineEnergyExchange fields** (primaryProductivity, nurseryCapacity, preyAvailability, shorelineSubsidy) — Feed aerial score correctly. No independent visual layer. shorelineSubsidy computed, nothing consumes it.
 - **Aerial population persistence** — Stateless: no species identity, no persistence across jumps, no trait variation. 12 identical primitive birds regenerated each jump.
 - **Within-population trait variation** — The sim stores means but no variance per terrestrial trait axis. Current individual differences are stable renderer sampling, not inherited simulation state.
-- **Primitive swimmer + bird meshes** — Integration adapters per WILDLIFE-ROADMAP.md. Not accepted visual assets.
+- **Primitive bird mesh** — Integration adapter per WILDLIFE-ROADMAP.md. The primitive swimmer has been replaced by a candidate fish family.
 
 ## Planned (not implemented on either side)
 - **PLANNED — Clouds** — Deferred until lower atmosphere passes accepted.
@@ -44,14 +43,14 @@
 - **PLANNED — Triplanar rock projection** — Conditional on capture review.
 - **CANDIDATE — Reef succession system** — Persistent sites resolve cover, framework, stress, composition, and carbonate deposition from depth, light, currents, temperature, runoff/sediment, substrate age, and basalt.
 - **BUILT — First coral asset family** — Owner accepted the paired `epoch-reef-builder-family` integration on 2026-08-13; future major visual changes require their own verdict.
-- **PLANNED — First fish/marine asset family** — Brief not started. Immediate next step per WILDLIFE-ROADMAP.md.
+- **CANDIDATE — First fish/marine asset family** — `epoch-coastal-forager` is integrated and awaits owner visual judgment.
 - **PLANNED — Aerial wildlife persistence** — No AerialLineageState, no nesting/metabolic model.
 - **PLANNED — Freshwater ecology** — Basin is habitat only. No ecological consumer defined.
 - **PLANNED — Full cross-domain food web loop** — Runoff→coast→marine partially wired. Marine→aerial→land (guano) not persistent.
 - **PLANNED — Cross-domain ancestry (land → water)** — Schema reserved, no resolver logic fires it.
 - **PLANNED — Jump-transition visual treatment** — Explicitly deferred in THESIS.md §2.1 and §8.
 - **PLANNED — Per-population trait variance and lineage DNA** — No fixed hereditary record yet covers variance, trajectories, ancestral snapshots, environmental imprint, or branching history.
-- **PLANNED — Per-instance trait expression and GPU sampling** — A source-stage marsh-grazer probe verifies the Three.js data contract, but there is no accepted expression mesh, stable instance-seed contract, or in-engine morph/animation performance proof.
+- **BUILT for first grazer; CANDIDATE for first fish — Instanced trait expression** — Both use topology-stable instanced morph storage. Fish instances currently share their lineage means; no per-instance biological sampling is claimed.
 - **PLANNED — Insulation surface treatment and trait LOD** — No fur/shell treatment or distance-scaled creature expression.
 - **PLANNED — Trait-driven behavior** — Herd movement is trait-independent.
 - **PLANNED — Field-notebook lineage card** — Existing lineage reporting is textual; the richer successor has no fixed data or delivery contract.

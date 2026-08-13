@@ -59,6 +59,16 @@ import {
 import { RENDER_SCALE, creaturePoseInterval } from "./render-scale";
 import { resolveVolcanicAccretion } from "./volcanism";
 import type { VolcanicOutput } from "./volcanism";
+import { createFishRenderer } from "./fish-renderer";
+import {
+  applyHeightBrush,
+  applyCliffStroke,
+  applyLevelBrush,
+  captureTerrainEditSnapshot,
+  restoreTerrainEditSnapshot,
+  TerrainEditHistory,
+  type TerrainBrushSettings,
+} from "./terrain-edit";
 
 const TERRAIN_SIZE = RENDER_SCALE.islandExtent;
 const TERRAIN_HALF = TERRAIN_SIZE / 2;
@@ -401,25 +411,6 @@ function syncHerdMatrices(renderer: LineageRenderState): void {
   renderer.herd.computeBoundingSphere();
 }
 
-function addCoastalSwimmers(scene: Group): Group[] {
-  const skin = new MeshStandardMaterial({ color: 0x79a8ad, roughness: 0.42 });
-  return Array.from({ length: 10 }, (_, index) => {
-    const swimmer = new Group();
-    const body = new Mesh(new SphereGeometry(1, 14, 8), skin);
-    body.scale.set(1.9, 0.48, 0.62);
-    const dorsal = new Mesh(new ConeGeometry(0.28, 0.9, 5), skin);
-    dorsal.position.set(-0.1, 0.52, 0);
-    const tail = new Mesh(new ConeGeometry(0.42, 0.9, 4), skin);
-    tail.rotation.z = Math.PI / 2;
-    tail.position.x = -2;
-    swimmer.add(body, dorsal, tail);
-    swimmer.userData.index = index;
-    swimmer.visible = false;
-    scene.add(swimmer);
-    return swimmer;
-  });
-}
-
 function addAerialAnimals(scene: Group): Group[] {
   const plumage = new MeshStandardMaterial({ color: 0xf2ead8, roughness: 0.62 });
   return Array.from({ length: 12 }, (_, index) => {
@@ -446,13 +437,20 @@ export interface WorldExperience {
   terrain: Mesh;
   terrainHeightTexture: DataTexture;
   oceanMaskTexture: DataTexture;
-  sculpt: (point: Vector3, direction: 1 | -1) => void;
+  beginSculpt: () => void;
+  sculpt: (point: Vector3, direction: 1 | -1, settings: Readonly<TerrainBrushSettings>) => void;
+  level: (point: Vector3, settings: Readonly<TerrainBrushSettings>) => void;
+  cliff: (start: Vector3, end: Vector3, settings: Readonly<TerrainBrushSettings>) => void;
   placeHotSpot: (point: Vector3, output: VolcanicOutput) => void;
   setVolcanicOutput: (output: VolcanicOutput) => void;
   finishSculpt: () => void;
+  undoSculpt: () => boolean;
+  redoSculpt: () => boolean;
+  sculptHistory: () => Readonly<{ canUndo: boolean; canRedo: boolean }>;
   introduceDistantDrifter: (currentAge: number) => boolean;
   showcaseGrazerHerd: () => void;
   showcaseHerdContrast: () => void;
+  showcaseFish: () => void;
   advance: (years: number, totalYears: number, climate: ClimateForces) => LineageReport;
   /**
    * Track the sky the ocean renderer is already using, so the submerged
@@ -493,7 +491,7 @@ export function createLandingState(scene: Scene): WorldExperience {
   const lineageRenderers = new Map<string, LineageRenderState>();
   const freshwater = createFreshwaterRenderer(life);
   const streams = createStreamRenderer(life);
-  const coastalAnimals = addCoastalSwimmers(life);
+  const fish = createFishRenderer(life);
   const aerialAnimals = addAerialAnimals(life);
   scene.add(life);
   let revealed = false;
@@ -504,6 +502,8 @@ export function createLandingState(scene: Scene): WorldExperience {
   const lastLodViewPosition = new Vector3(Number.POSITIVE_INFINITY, 0, 0);
   let terrainDirty = false;
   let terrainStateDirty = false;
+  const terrainEditHistory = new TerrainEditHistory();
+  let sculptCheckpointed = false;
   const terrainPositions = terrain.geometry.attributes.position;
   const initialHeights = new Float32Array(terrainPositions.count);
   for (let i = 0; i < terrainPositions.count; i++) initialHeights[i] = terrainPositions.getY(i);
@@ -813,46 +813,57 @@ export function createLandingState(scene: Scene): WorldExperience {
     });
   }
 
-  function sculpt(point: Vector3, direction: 1 | -1): void {
+  function syncTerrainGeometryFromHistory(): void {
     const positions = terrain.geometry.attributes.position;
     const colors = terrain.geometry.attributes.color;
-    const radius = 18;
-    const affectedRadius = radius + 2 * TERRAIN_STEP;
     const color = new Color();
-    const minX = Math.max(0, Math.floor((point.x - affectedRadius + TERRAIN_HALF) / TERRAIN_STEP));
-    const maxX = Math.min(TERRAIN_SEGMENTS, Math.ceil((point.x + affectedRadius + TERRAIN_HALF) / TERRAIN_STEP));
-    const minZ = Math.max(0, Math.floor((point.z - affectedRadius + TERRAIN_HALF) / TERRAIN_STEP));
-    const maxZ = Math.min(TERRAIN_SEGMENTS, Math.ceil((point.z + affectedRadius + TERRAIN_HALF) / TERRAIN_STEP));
-    for (let gz = minZ; gz <= maxZ; gz++) {
-      for (let gx = minX; gx <= maxX; gx++) {
-        const i = gz * TERRAIN_SIDE + gx;
-        const x = positions.getX(i);
-        const z = positions.getZ(i);
-        const distance = Math.hypot(x - point.x, z - point.z);
-        if (distance >= affectedRadius) continue;
-        if (distance < radius) {
-          worldHistory.terrain.elevations[i] = Math.max(
-            -55,
-            worldHistory.terrain.elevations[i]! + direction * 1.25 * Math.pow(1 - distance / radius, 2),
-          );
-          worldHistory.terrain.disturbance[i] = 1;
-          worldHistory.terrain.vegetationProtection[i] = 0;
-        }
-        const y = heightAt(x, z);
-        positions.setY(i, y);
-        color.copy(formedTerrainColor(y, x, z));
-        colors.setXYZ(i, color.r, color.g, color.b);
-      }
+    for (let i = 0; i < positions.count; i++) {
+      const y = worldHistory.terrain.elevations[i]!;
+      positions.setY(i, y);
+      color.copy(formedTerrainColor(y, positions.getX(i), positions.getZ(i)));
+      colors.setXYZ(i, color.r, color.g, color.b);
     }
     terrainStateDirty = true;
     terrainDirty = true;
+  }
+
+  function sculpt(point: Vector3, direction: 1 | -1, settings: Readonly<TerrainBrushSettings>): void {
+    if (!sculptCheckpointed) {
+      terrainEditHistory.checkpoint(captureTerrainEditSnapshot(worldHistory.terrain));
+      sculptCheckpointed = true;
+    }
+    if (!applyHeightBrush(worldHistory.terrain, point.x, point.z, direction, settings)) return;
+    syncTerrainGeometryFromHistory();
+  }
+
+  function checkpointSculpt(): void {
+    if (sculptCheckpointed) return;
+    terrainEditHistory.checkpoint(captureTerrainEditSnapshot(worldHistory.terrain));
+    sculptCheckpointed = true;
   }
 
   return {
     terrain,
     terrainHeightTexture,
     oceanMaskTexture,
+    beginSculpt() {
+      sculptCheckpointed = false;
+    },
     sculpt,
+    level(point, settings) {
+      checkpointSculpt();
+      if (!applyLevelBrush(worldHistory.terrain, point.x, point.z, settings)) return;
+      syncTerrainGeometryFromHistory();
+    },
+    cliff(start, end, settings) {
+      if (Math.hypot(end.x - start.x, end.z - start.z) < 1) return;
+      checkpointSculpt();
+      if (!applyCliffStroke(worldHistory.terrain, start.x, start.z, end.x, end.z, {
+        radius: settings.radius,
+        height: settings.strength,
+      })) return;
+      syncTerrainGeometryFromHistory();
+    },
     placeHotSpot(point: Vector3, output: VolcanicOutput) {
       const margin = 72;
       worldHistory = {
@@ -874,6 +885,28 @@ export function createLandingState(scene: Scene): WorldExperience {
     finishSculpt() {
       flushTerrainChanges();
       syncTerrainDetails();
+      sculptCheckpointed = false;
+    },
+    undoSculpt() {
+      const snapshot = terrainEditHistory.undo(captureTerrainEditSnapshot(worldHistory.terrain));
+      if (!snapshot) return false;
+      restoreTerrainEditSnapshot(worldHistory.terrain, snapshot);
+      syncTerrainGeometryFromHistory();
+      flushTerrainChanges();
+      syncTerrainDetails();
+      return true;
+    },
+    redoSculpt() {
+      const snapshot = terrainEditHistory.redo(captureTerrainEditSnapshot(worldHistory.terrain));
+      if (!snapshot) return false;
+      restoreTerrainEditSnapshot(worldHistory.terrain, snapshot);
+      syncTerrainGeometryFromHistory();
+      flushTerrainChanges();
+      syncTerrainDetails();
+      return true;
+    },
+    sculptHistory() {
+      return { canUndo: terrainEditHistory.canUndo, canRedo: terrainEditHistory.canRedo };
     },
     introduceDistantDrifter(currentAge: number) {
       if (worldHistory.lineages.lineages.some((lineage) => lineage.status !== "extinct")) return false;
@@ -896,9 +929,39 @@ export function createLandingState(scene: Scene): WorldExperience {
       placeShowcaseHerd("contrast-nimble-showcase", CONTRAST_NIMBLE_TRAITS, 6, 16, 11);
       placeShowcaseHerd("contrast-bulky-showcase", CONTRAST_BULKY_TRAITS, 30, 0, 11);
     },
+    showcaseFish() {
+      const traits = {
+        bodySize: 0.68,
+        streamlining: 0.44,
+        depthPreference: 0.58,
+        thermalTolerance: 0.74,
+        maneuverability: 0.82,
+        depthControl: 0.7,
+        propulsionPlan: "tail" as const,
+      };
+      const samples = Array.from({ length: 8 }, (_, index) => ({
+        x: 104 + Math.cos(index * 2.399) * (1.8 + index * 0.52),
+        y: -5.2 + (index % 3) * 0.32,
+        z: 116 + Math.sin(index * 2.399) * (1.8 + index * 0.52),
+        heading: index * 2.399,
+        scale: 1,
+      }));
+      fish.setPopulation({
+        id: "coastal-forager:showcase",
+        status: "active",
+        visible: true,
+        site: { x: 104, y: -5.2, z: 116, band: "midwater", habitat: {} as never },
+        traits,
+        abundance: 0.8,
+        energy: 0.72,
+      }, samples);
+    },
     advance(years: number, totalYears: number, climate: ClimateForces) {
       revealed = true;
       activeClimate = { ...climate };
+      // A jump transforms more terrain-history fields than a sculpt snapshot
+      // owns, so pre-jump undo entries must never be applied to a landing.
+      terrainEditHistory.clear();
       validateWorldHistory(worldHistory);
       worldHistory = {
         ...worldHistory,
@@ -1000,17 +1063,7 @@ export function createLandingState(scene: Scene): WorldExperience {
         if (!marker.visible || !previous) return;
         marker.position.set(previous.x, heightAt(previous.x, previous.z) + 0.18, previous.z);
       });
-      coastalAnimals.forEach((animal, index) => {
-        const resolved = outcome.coastalAnimals[index];
-        animal.visible = resolved !== undefined;
-        if (!resolved) return;
-        animal.userData.baseX = resolved.x;
-        animal.userData.baseZ = resolved.z;
-        animal.userData.baseY = resolved.y;
-        animal.position.set(resolved.x, resolved.y, resolved.z);
-        animal.rotation.y = resolved.heading;
-        animal.scale.setScalar(resolved.scale);
-      });
+      fish.setPopulation(outcome.marinePopulations.find((population) => population.visible), outcome.coastalAnimals);
       aerialAnimals.forEach((bird, index) => {
         bird.visible = outcome.aerial.visible;
         bird.userData.phase = (index / aerialAnimals.length) * Math.PI * 2;
@@ -1168,17 +1221,7 @@ export function createLandingState(scene: Scene): WorldExperience {
           renderer.herd.morphTexture.needsUpdate = true;
         }
       });
-      coastalAnimals.forEach((animal, index) => {
-        if (!animal.visible) return;
-        const phase = elapsed * (0.22 + (index % 3) * 0.035) + index * 1.7;
-        const baseX = animal.userData.baseX as number;
-        const baseZ = animal.userData.baseZ as number;
-        const baseY = animal.userData.baseY as number;
-        animal.position.x = baseX + Math.cos(phase) * 3.2;
-        animal.position.z = baseZ + Math.sin(phase) * 2.1;
-        animal.position.y = baseY + Math.sin(phase * 2) * 0.18;
-        animal.rotation.y = -phase;
-      });
+      fish.update(elapsed);
       if (currentOutcome?.aerial.visible) {
         aerialAnimals.forEach((bird, index) => {
           const phase = (bird.userData.phase as number) + elapsed * (0.13 + (index % 4) * 0.012);

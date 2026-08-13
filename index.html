@@ -234,6 +234,26 @@
         cursor: default;
         opacity: .66;
       }
+      .brush-controls {
+        align-items: center;
+        margin: 8px auto;
+        font-size: 11px;
+        text-shadow: 0 2px 12px #000;
+      }
+      .brush-controls[hidden] { display: none; }
+      .brush-controls label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 10px;
+        border: 1px solid rgba(255,255,255,.16);
+        border-radius: 999px;
+        background: rgba(8,20,20,.58);
+        backdrop-filter: blur(12px);
+      }
+      .brush-controls input { width: 92px; accent-color: #b7c89f; }
+      .brush-controls output { min-width: 34px; color: rgba(247,243,232,.75); }
+      .brush-controls button { padding: 8px 12px; }
       #jump {
         margin-left: 8px;
         padding-inline: 24px;
@@ -497,6 +517,8 @@
         <button class="active" data-tool="look">Look</button>
         <button data-tool="raise">Raise land</button>
         <button data-tool="carve">Carve</button>
+        <button data-tool="level">Level</button>
+        <button data-tool="cliff">Cliff</button>
         <button data-tool="hotspot">Place hot spot</button>
         <select id="jump-years" aria-label="Jump duration">
           <option value="1">1 year</option>
@@ -511,6 +533,12 @@
           <option value="1000000">1 million years</option>
         </select>
         <button id="jump">Jump 1,000 years</button>
+      </div>
+      <div class="actions brush-controls" id="brush-controls" hidden>
+        <label>Size <input id="brush-size" type="range" min="6" max="60" step="1" value="18"><output id="brush-size-value">18 m</output></label>
+        <label>Strength <input id="brush-strength" type="range" min="0.25" max="4" step="0.25" value="1.25"><output id="brush-strength-value">1.25</output></label>
+        <button id="undo-sculpt" disabled aria-label="Undo terrain stroke">Undo</button>
+        <button id="redo-sculpt" disabled aria-label="Redo terrain stroke">Redo</button>
       </div>
     </div>
     <div id="epoch-card">
