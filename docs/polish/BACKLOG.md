@@ -168,7 +168,18 @@ shows almost nothing. Three compounding causes in `fish-renderer.ts`:
   keep body length inside it.
 
 ### LW-2 · Plate/encrusting corals read as flat cutouts
-**Impact 3 · Cost 2 · Risk 1 · Score 1.50 · Status: OPEN**
+**Impact 3 · Cost 2 · Risk 1 · Score 1.50 · Status: FIXED (WU-003, ready for owner verdict)**
+
+Fixed across `reef-succession.ts`, `coral-geometry-assets.ts`,
+`coral-material.ts` and `coral-renderer.ts`: colonies retain their ecological
+site identity and pack into mixed communities, but the renderer adds no per-site
+foundation meshes. The existing terrain-history carbonate field is rendered as
+a continuous pale pavement, while neighbouring encrusting colonies overlap into
+living cover. This follows the owner's [Coral reef](https://en.wikipedia.org/wiki/Coral_reef)
+reference: many colony forms occupy one continuous structure, not repeated coral
+boulders. Four earlier interpretations were rejected and remain recorded as
+candidate history. Fresh owner verdict still required; the family remains
+`candidate`.
 
 In the `reef` shot the branching and massive corals read well, but the thin
 pink/purple encrusting plates float above the sand as flat billboards — paper

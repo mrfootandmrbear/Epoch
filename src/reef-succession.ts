@@ -96,6 +96,8 @@ export function createReefHistory(): ReefHistory {
 }
 
 export interface CoralColony {
+  /** Reef site whose accumulated framework physically supports this colony. */
+  readonly siteId: string;
   readonly x: number;
   readonly y: number;
   readonly z: number;
@@ -138,7 +140,7 @@ const SURF_DEPTH = 0.85;
 const PHOTIC_DEPTH = 32;
 /** Depth of the brightest, most productive band. */
 const OPTIMUM_DEPTH = 7;
-const MAX_SITES = 2600;
+const MAX_REEF_SITES = 2600;
 /**
  * A healthy reef holds 30-60% living cover. Spread thinly over a shelf this
  * wide, a few thousand colonies reads as scattered stones on bare sand rather
@@ -307,7 +309,11 @@ function warmColonyForm(
     case "crustose-algae":
       return {
         radius: (0.45 + variation * 0.5) * (0.7 + age * 0.5),
-        height: 0.035 + variation * 0.04,
+        // Still low relative to its roughly metre-wide spread, but thick
+        // enough for its fused rim and domed carbonate accretion to survive the
+        // gameplay camera. The former 3.5–7.5cm range collapsed the whole
+        // closed mesh into a flat coloured cutout.
+        height: 0.16 + variation * 0.14,
         // The pink-violet band that gives a pioneer reef its colour.
         hue: 0.9 + tint * 0.08,
         saturation: 0.52 + tint * 0.26,
@@ -410,7 +416,7 @@ export function resolveReef(
 
   const reach = snapshot.extent * 0.5;
   let coverTotal = 0;
-  for (let i = 0; i < MAX_SITES * 4 && sites.length < MAX_SITES; i++) {
+  for (let i = 0; i < MAX_REEF_SITES * 4 && sites.length < MAX_REEF_SITES; i++) {
     const angle = hash(i, 1301) * Math.PI * 2;
     const radius = Math.sqrt(hash(i, 1307)) * reach;
     const x = Math.cos(angle) * radius;
@@ -507,13 +513,11 @@ export function resolveReef(
       const guild = pickGuild(weights, hash(seed, 1423));
       if (!guild) continue;
 
-      // Colonies scatter over a couple of metres of substrate rather than
-      // stacking on the site centre, so a site reads as a patch of reef and
-      // not a bouquet. Kept tight on purpose: reef grows in thickets with bare
-      // substrate between them, and scattering colonies evenly across the
-      // shelf would read as gravel however many of them there were.
+      // Colonies pack into one community on the continuous carbonate shelf.
+      // Mixed growth forms should read as interlocking reef cover, not props
+      // scattered evenly across sand.
       const spreadAngle = hash(seed, 1427) * Math.PI * 2;
-      const spreadRadius = Math.sqrt(hash(seed, 1429)) * 2.3;
+      const spreadRadius = Math.sqrt(hash(seed, 1429)) * 1.15;
       const x = site.x + Math.cos(spreadAngle) * spreadRadius;
       const z = site.z + Math.sin(spreadAngle) * spreadRadius;
       const y = snapshotHeightAt(snapshot, x, z);
@@ -540,6 +544,7 @@ export function resolveReef(
         guild, localAge, hash(seed, 1447), hash(seed, 1451), site, hash(seed, 1487),
       );
       colonies.push({
+        siteId: site.id,
         x, y, z,
         guild,
         radius: form.radius,

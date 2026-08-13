@@ -124,6 +124,17 @@ describe("guild weights", () => {
   });
 });
 
+describe("colony form", () => {
+  it("keeps encrusting colonies low but thick enough to retain a fused rim", () => {
+    const crusts = reefFor().colonies.filter((colony) => colony.guild === "crustose-algae");
+    expect(crusts.length).toBeGreaterThan(0);
+    for (const crust of crusts) {
+      expect(crust.height).toBeGreaterThanOrEqual(0.16);
+      expect(crust.height).toBeLessThan(crust.radius * 0.7);
+    }
+  });
+});
+
 describe("reef succession", () => {
   it("is deterministic for an identical world", () => {
     const first = reefFor();
