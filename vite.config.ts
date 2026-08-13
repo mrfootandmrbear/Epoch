@@ -1,7 +1,8 @@
 import { defineConfig } from "vite";
 import { resolve } from "node:path";
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
+  base: command === "build" ? "/Epoch/" : "/",
   build: {
     // Epoch targets modern WebGPU browsers; top-level asset initialization
     // keeps generated geometry out of the main JavaScript bundle.
@@ -16,4 +17,4 @@ export default defineConfig({
   server: {
     port: 5173,
   },
-});
+}));
