@@ -29,7 +29,7 @@ import {
   vec3,
 } from "three/tsl";
 import { FFTOcean, sampleBilinearFloat } from "./fft-ocean";
-import type { AtmosphereState } from "./atmosphere";
+import type { ResolvedAtmosphere, AtmosphereState } from "./atmosphere";
 
 interface ChopLayer {
   angleDeg: number;
@@ -58,7 +58,7 @@ export interface FFTWaterOptions {
 }
 
 export type FFTWaterMesh = Mesh & {
-  updateAtmosphere(state: AtmosphereState): void;
+  updateAtmosphere(state: ResolvedAtmosphere): void;
 };
 
 export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): FFTWaterMesh {
@@ -146,8 +146,9 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
   const waveNormal = normalize(vec3(vWave.y.negate(), 1.0, vWave.z.negate()));
   material.normalNode = transformNormalToView(waveNormal);
 
-  const deepColor = color(new Color(0x041c26));
-  const shallowColor = color(new Color(0x008ca7));
+  const deepColor = uniform(new Color(0x041c26));
+  const shallowColor = uniform(new Color(0x008ca7));
+  const aerialDensity = uniform(1);
   const zenithColor = uniform(new Color(0x4f8fb5));
   const horizonColor = uniform(options.atmosphere.fogColor.clone().offsetHSL(0, 0.01, 0.025));
   const foamColor = color(new Color(0xf3fbff));
@@ -276,7 +277,7 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
       // the way out and terminates in a hard line; with it the water loses
       // contrast into the sky and the far edge of any finite plane stops
       // being a visible boundary.
-      aerial: smoothstep(140, 3200, viewDist),
+      aerial: smoothstep(float(140).div(aerialDensity), float(3200).div(aerialDensity), viewDist),
     };
   };
 
@@ -354,12 +355,14 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
   farWater.frustumCulled = false;
   mesh.add(farWater);
 
-  const updateAtmosphere = (state: AtmosphereState) => {
+  const updateAtmosphere = (state: ResolvedAtmosphere) => {
     sunColorNode.value.copy(state.sunColor);
     horizonColor.value.copy(state.fogColor).offsetHSL(0, 0.01, 0.025);
     zenithColor.value.set(0x4f8fb5).lerp(state.ambientColor, 0.28).offsetHSL(0, 0.04, -0.08);
+    deepColor.value.set(0x041c26).multiply(state.mood.waterTint);
+    shallowColor.value.set(0x008ca7).multiply(state.mood.waterTint);
+    aerialDensity.value = state.mood.hazeDensityScale;
   };
-  updateAtmosphere(options.atmosphere);
 
   return Object.assign(mesh, { updateAtmosphere });
 }

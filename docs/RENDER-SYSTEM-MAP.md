@@ -1,6 +1,7 @@
 # Render system map
 
 > **Status:** Durable technical reference for the landing-state renderer.
+> **Updated:** 2026-08-13 after climate-atmosphere milestone implementation.
 > **Written:** 2026-08-13, from a full code trace + a real-WebGPU capture pass in
 > the browser pane (still frames at `time=42`; motion/fps not judged — see the
 > pane caveat in `docs/polish/BACKLOG.md`).
@@ -67,14 +68,15 @@ lit by **three shared scene lights** created in `src/main.ts:201-217`:
 and the submerged (reef/seabed) materials do **not** use these lights; they carry
 their own analytic sun (`sunDir`/`sunColorNode` uniforms) fed the same state via
 `oceanMesh.updateAtmosphere()` and `landingState.setAtmosphere()`
-(`src/main.ts:249-253`). So there are **two parallel lighting authorities** —
-scene lights (land) and analytic uniforms (water) — kept in step by hand.
+(`src/main.ts:249-253`). The scene lights (land) and analytic uniforms (water)
+remain separate sinks, but both now receive one `ResolvedAtmosphere` from the
+single `updateAtmosphere()` sync point.
 
 The scene `fogNode` (`src/main.ts:141`) is exponential height fog, masked to
 above-waterline only (`aboveWaterFog`) so it never double-fogs the submerged
 volume. Fog density/ceiling come from `resolveHeightFog(committedClimate)`
-(`src/atmosphere.ts:22`) — **the one place climate currently reaches the air**,
-and only as a bounded lower-atmosphere optical depth.
+(`src/atmosphere.ts:22`); its optical depth is composed with the same bounded
+climate mood that supplies atmospheric colour and light.
 
 ## 2. State → pixel dependency map
 
@@ -94,7 +96,7 @@ and only as a bounded lower-atmosphere optical depth.
 | Freshwater basins | `FreshwaterField.basins` | derived | `freshwater-renderer.ts` (flat surface) | triangulated surface | per jump | — | drainage, rainfall, sea level |
 | Streams / cascades | `resolveStreamSegments` (`stream-network.ts`) | derived from terrain | `stream-renderer.ts` (ribbons) + `cascade-renderer.ts` (fall reaches + plunge pools) | draped `MeshStandardNodeMaterial` ribbons | per jump; flow clock per frame | — | discharge, slope, sea level |
 | Distant drifter | founder lineage `founder` | event, not landing | `distant-drifter-renderer.ts` (raft) | small group at world edge | on arrival | — | player choice |
-| Atmosphere / sky | `AtmosphereState` (`atmosphere.ts`) | no | `atmosphere-renderer.ts` world-space sky node | `scene.backgroundNode`; scene lights; fog node | per frame | infinite | **time only, not climate** (see §5) |
+| Atmosphere / sky | `ResolvedAtmosphere` (`atmosphere.ts`) | no | time profile × bounded `ClimateMood`; `atmosphere-renderer.ts` world-space sky node | `scene.backgroundNode`; scene lights; fog node | per frame | infinite | committed climate + time |
 | Post-processing | `COLOR_TREATMENTS[profile]` (`post-processing.ts`) | no | grade → bloom → opt GTAO | 1 `RenderPipeline` | per frame | full res; GTAO opt full-res | atmosphere profile (day/dawn/storm) |
 
 ## 3. Texture / buffer / geometry / material ownership
@@ -140,10 +142,10 @@ and only as a bounded lower-atmosphere optical depth.
 
 ## 5. Cross-layer dependencies & hidden coupling
 
-- **Two lighting authorities held in sync by hand** (§1). A change to
-  `sampleAtmosphere` output must be mirrored into both the scene lights *and*
-  `updateAtmosphere` on the ocean and `setAtmosphere` on the reef, or the water
-  and the land drift apart. This is the single most fragile render coupling.
+- **Two lighting sinks, one resolved state** (§1). `updateAtmosphere()` computes
+  one `ResolvedAtmosphere` and fans it out to scene lights, ocean uniforms, reef
+  sun uniforms, fog, sky, and grading. New atmosphere fields must still be
+  routed at this sync point so no sink silently misses them.
 - **Sea level is triplicated** and must agree: `climate.SEA_LEVEL[regime]` →
   terrain material (`setSeaLevel`), ocean mesh `position.y`, reef water uniform,
   fog `fogSeaLevel`, and the ocean-mask flood-fill in `syncShoreSurface`.
@@ -204,10 +206,10 @@ stale — noted in §9.)
   m/s — **no storm tier** (`climate.ts:33`) — and swell is damped to
   `swellAmplitudeScale: 0.22` (`render-scale.ts:10`). The `storm` atmosphere
   profile only recolours the sky; the sea underneath stays a mirror (LW-7).
-- **Climate does not reach the air.** Sky colour, sun colour/intensity, ambient,
-  aerial-perspective colour, and grading are functions of **time of day only**,
-  never of the 9 rainfall×temperature foundations. Cold-arid and warm-wet
-  landings share an identical sky, light, and water mood (see the milestone).
+- **Climate now reaches the air through one bounded mood.** `climateMood()` and
+  `resolveAtmosphere()` modulate the shared key/fill, sky/fog, ocean base colour
+  and distance fade, and post grade. Mild-temperate remains the exact baseline;
+  the other foundations derive their mood from committed climate forces.
 - **Per-profile grading is a near-noop** (`COLOR_TREATMENTS`): dawn ≈ +4.5% warm
   tint, storm ≈ +6% cool / −10% saturation. Below perceptual threshold at
   whole-island scale (LW-6).

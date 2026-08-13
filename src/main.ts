@@ -39,7 +39,7 @@ import {
   revealTreatmentOptions,
   type RevealTreatmentName,
 } from "./reveal";
-import { resolveHeightFog, sampleAtmosphere, type AtmosphereProfile } from "./atmosphere";
+import { climateMood, resolveAtmosphere, resolveHeightFog, sampleAtmosphere, type AtmosphereProfile } from "./atmosphere";
 import { createAtmosphereBackground } from "./atmosphere-renderer";
 import { createEpochRenderPipeline, readPostProcessingOptions } from "./post-processing";
 import {
@@ -177,6 +177,7 @@ const captureMode = isGoldenShotName(captureShot);
 const liveHerdShowcase = captureParams.get("showcase") === "herd";
 const liveHerdContrast = captureParams.get("showcase") === "herd-contrast";
 const captureTime = Number(captureParams.get("time") ?? 42);
+const captureSky = captureParams.get("sky");
 const captureFixtureName = captureParams.get("fixture");
 const captureFixture = isEnvironmentFixtureName(captureFixtureName)
   ? ENVIRONMENT_FIXTURES[captureFixtureName]
@@ -226,14 +227,14 @@ function clampedSmoothstep(min: number, max: number, value: number): number {
 }
 
 function updateAtmosphere(elapsed: number): void {
-  const profile: AtmosphereProfile = captureShot === "dawn"
+  const profile: AtmosphereProfile = captureSky === "dawn" || captureShot === "dawn"
     ? "dawn"
     : captureShot === "storm"
       ? "storm"
       : captureMode
         ? "day"
         : "cycle";
-  const state = sampleAtmosphere(elapsed, profile);
+  const state = resolveAtmosphere(elapsed, profile, committedClimate);
   sunDirection.copy(state.sunDirection);
   atmosphereBackground.update(state);
   sunLight.color.copy(state.sunColor);
@@ -258,7 +259,7 @@ function updateAtmosphere(elapsed: number): void {
   hemisphereLight.intensity = state.ambientIntensity * 0.95;
   heightFogColor.value.copy(state.fogColor);
   renderer.toneMappingExposure = state.exposure;
-  renderPipeline?.setProfile(profile);
+  renderPipeline?.setProfile(profile, state.mood);
 }
 
 const broadShadowCenter = new Vector3(0, 10, 0);
@@ -341,7 +342,7 @@ let committedClimate: ClimateForces = { ...DEFAULT_CLIMATE };
 
 function applyCommittedHeightFog(): void {
   const heightFog = resolveHeightFog(committedClimate);
-  heightFogDensity.value = heightFog.density;
+  heightFogDensity.value = heightFog.density * climateMood(committedClimate).hazeDensityScale;
   heightFogCeiling.value = heightFog.ceiling;
   fogSeaLevel.value = SEA_LEVEL[committedClimate.seaLevel];
 }

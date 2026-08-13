@@ -10,8 +10,9 @@
 > **Recommended by:** whole-world render-architecture investigation, 2026-08-13.
 > Evidence is real-WebGPU still frames (browser pane, `time=42`) + full code
 > trace. See `docs/RENDER-SYSTEM-MAP.md` for the architecture this builds on.
-> **This is a milestone spec, not an implementation.** Do not build until
-> reviewed.
+> **Status:** Implemented 2026-08-13; automated verification complete, visual
+> evidence and owner verdict still required. This document remains the design
+> and acceptance spec for that verdict.
 
 ---
 
@@ -84,8 +85,9 @@ so fixing them is the highest-leverage way to make the whole compose.
   (density/ceiling), a bounded lower-atmosphere modifier. Colour is not climate-driven.
 - `src/post-processing.ts:37` — `COLOR_TREATMENTS` grading deltas are sub-threshold
   (dawn +4.5% warm; storm −10% sat).
-- `src/fft-water.ts:149-152`, `atmosphere-renderer.ts:61-63` — water base colour
-  and sky horizon read `fogColor`/`ambientColor` (time-driven), never climate.
+- Before implementation, `src/fft-water.ts` and `atmosphere-renderer.ts` read
+  time-driven `fogColor`/`ambientColor` only. They now consume the shared
+  resolved atmosphere and climate mood; this row records the original evidence.
 
 ## 4. Desired visual result
 

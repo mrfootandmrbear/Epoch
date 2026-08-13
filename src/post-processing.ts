@@ -21,7 +21,7 @@ import {
 } from "three/tsl";
 import { bloom } from "three/addons/tsl/display/BloomNode.js";
 import { ao } from "three/addons/tsl/display/GTAONode.js";
-import type { AtmosphereProfile } from "./atmosphere";
+import type { AtmosphereProfile, ClimateMood } from "./atmosphere";
 
 export interface PostProcessingOptions {
   enabled: boolean;
@@ -63,9 +63,22 @@ export function colorTreatmentFor(profile: AtmosphereProfile): ColorTreatment {
   return COLOR_TREATMENTS[profile === "cycle" ? "day" : profile];
 }
 
+export function composeColorTreatment(profile: AtmosphereProfile, mood: ClimateMood): ColorTreatment {
+  const base = colorTreatmentFor(profile);
+  return {
+    tint: [
+      base.tint[0] * mood.gradeTint[0],
+      base.tint[1] * mood.gradeTint[1],
+      base.tint[2] * mood.gradeTint[2],
+    ],
+    saturation: base.saturation * mood.gradeSaturation,
+    contrast: base.contrast * mood.gradeContrast,
+  };
+}
+
 export interface EpochRenderPipeline {
   render(): void;
-  setProfile(profile: AtmosphereProfile): void;
+  setProfile(profile: AtmosphereProfile, mood?: ClimateMood): void;
 }
 
 export function createEpochRenderPipeline(
@@ -118,8 +131,8 @@ export function createEpochRenderPipeline(
 
   const pipeline = new RenderPipeline(renderer, treatedColor);
 
-  function setProfile(profile: AtmosphereProfile): void {
-    const treatment = colorTreatmentFor(profile);
+  function setProfile(profile: AtmosphereProfile, mood?: ClimateMood): void {
+    const treatment = mood ? composeColorTreatment(profile, mood) : colorTreatmentFor(profile);
     tint.value.setRGB(...treatment.tint);
     saturationAmount.value = treatment.saturation;
     contrastAmount.value = treatment.contrast;

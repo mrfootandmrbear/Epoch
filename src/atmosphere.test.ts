@@ -1,7 +1,35 @@
 import { describe, expect, it } from "vitest";
-import { CYCLE_SECONDS, resolveHeightFog, sampleAtmosphere } from "./atmosphere";
+import { CYCLE_SECONDS, climateMood, resolveAtmosphere, resolveHeightFog, sampleAtmosphere } from "./atmosphere";
+import { DEFAULT_CLIMATE } from "./climate";
 
 describe("atmosphere", () => {
+  it("preserves the accepted mild-temperate atmosphere exactly", () => {
+    const base = sampleAtmosphere(42, "day");
+    const resolved = resolveAtmosphere(42, "day", DEFAULT_CLIMATE);
+    expect(resolved.sunColor.getHex()).toBe(base.sunColor.getHex());
+    expect(resolved.ambientColor.getHex()).toBe(base.ambientColor.getHex());
+    expect(resolved.fogColor.getHex()).toBe(base.fogColor.getHex());
+    expect(resolved.sunIntensity).toBe(base.sunIntensity);
+    expect(resolved.ambientIntensity).toBe(base.ambientIntensity);
+  });
+
+  it("derives bounded, directional climate moods", () => {
+    const identity = climateMood(DEFAULT_CLIMATE);
+    expect(identity.keyTint.getHex()).toBe(0xffffff);
+    expect(identity.ambientTint.getHex()).toBe(0xffffff);
+    expect(identity.waterTint.getHex()).toBe(0xffffff);
+    expect(identity.keyIntensityScale).toBe(1);
+    expect(identity.hazeDensityScale).toBe(1);
+    const coldWet = climateMood({ ...DEFAULT_CLIMATE, temperature: "cold", rainfall: "wet", wind: "calm" });
+    const warmArid = climateMood({ ...DEFAULT_CLIMATE, temperature: "warm", rainfall: "arid" });
+    expect(coldWet.keyTint.b).toBeGreaterThan(coldWet.keyTint.r);
+    expect(warmArid.keyTint.r).toBeGreaterThan(warmArid.keyTint.b);
+    expect(coldWet.hazeDensityScale).toBeGreaterThan(warmArid.hazeDensityScale);
+    for (const mood of [identity, coldWet, warmArid]) {
+      expect(mood.hazeDensityScale).toBeGreaterThanOrEqual(0.72);
+      expect(mood.hazeDensityScale).toBeLessThanOrEqual(1.3);
+    }
+  });
   it("makes dawn warmer and dimmer than day", () => {
     const dawn = sampleAtmosphere(0, "dawn");
     const day = sampleAtmosphere(0, "day");

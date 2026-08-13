@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   COLOR_TREATMENTS,
   colorTreatmentFor,
+  composeColorTreatment,
   readPostProcessingOptions,
 } from "./post-processing";
+import { climateMood } from "./atmosphere";
+import { DEFAULT_CLIMATE } from "./climate";
 
 describe("post-processing configuration", () => {
   it("enables restrained post effects but leaves GTAO opt-in", () => {
@@ -28,5 +31,6 @@ describe("post-processing configuration", () => {
     expect(COLOR_TREATMENTS.storm.contrast).toBeLessThan(COLOR_TREATMENTS.day.contrast);
     expect(COLOR_TREATMENTS.storm.saturation).toBeLessThan(COLOR_TREATMENTS.day.saturation);
     expect(colorTreatmentFor("cycle")).toBe(COLOR_TREATMENTS.day);
+    expect(composeColorTreatment("day", climateMood(DEFAULT_CLIMATE))).toEqual(COLOR_TREATMENTS.day);
   });
 });
