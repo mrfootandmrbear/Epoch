@@ -574,8 +574,27 @@
       <details class="shell-section">
         <summary>Arrival</summary>
       <div class="actions force-actions" aria-label="Dispersal opportunities">
+        <select id="drifter-food" aria-label="Founder food source">
+          <option value="ground-plants" selected>Ground plants</option>
+          <option value="woody-plants">Woody plants</option>
+          <option value="animal-prey">Animal prey</option>
+          <option value="mixed">Mixed foods</option>
+        </select>
+        <select id="drifter-size" aria-label="Founder size">
+          <option value="small">Small</option>
+          <option value="medium" selected>Medium</option>
+          <option value="large">Large</option>
+        </select>
+        <select id="drifter-climate" aria-label="Founder origin climate">
+          <option value="cold-open">Cold open</option>
+          <option value="cold-wet">Cold wet</option>
+          <option value="temperate-seasonal" selected>Temperate seasonal</option>
+          <option value="hot-dry">Hot dry</option>
+          <option value="hot-wet">Hot wet</option>
+        </select>
         <button id="distant-drifter">Distant Drifter</button>
       </div>
+      <p class="preset-copy" id="drifter-preview">A medium ground-plant feeder from a temperate seasonal climate. Exact anatomy will be generated when the raft is launched.</p>
       </details>
       <details class="shell-section" open>
         <summary>Form &amp; jump</summary>

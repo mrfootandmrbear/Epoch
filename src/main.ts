@@ -57,6 +57,14 @@ import { RENDER_SCALE } from "./render-scale";
 import type { VolcanicOutput } from "./volcanism";
 import { ENVIRONMENT_FIXTURES, isEnvironmentFixtureName } from "./environment-fixtures";
 import { STARTING_WORLD_PRESETS, startingWorldPreset } from "./starting-world-presets";
+import {
+  DEFAULT_FOUNDER_CHOICES,
+  founderProfileLabel,
+  type FounderChoices,
+  type FounderFoodSource,
+  type FounderOriginClimate,
+  type FounderSizeBand,
+} from "./founder-profile";
 
 const statusEl = document.getElementById("status")!;
 const lineagePanelEl = document.getElementById("lineage-panel")!;
@@ -70,6 +78,10 @@ const formTitleEl = document.getElementById("form-title")!;
 const jumpYearsEl = document.getElementById("jump-years") as HTMLSelectElement;
 const jumpButtonEl = document.getElementById("jump") as HTMLButtonElement;
 const distantDrifterEl = document.getElementById("distant-drifter") as HTMLButtonElement;
+const drifterFoodEl = document.getElementById("drifter-food") as HTMLSelectElement;
+const drifterSizeEl = document.getElementById("drifter-size") as HTMLSelectElement;
+const drifterClimateEl = document.getElementById("drifter-climate") as HTMLSelectElement;
+const drifterPreviewEl = document.getElementById("drifter-preview")!;
 const worldAgeEl = document.getElementById("world-age")!;
 const landingSummaryEl = document.getElementById("landing-summary")!;
 const epochStoryEl = document.getElementById("epoch-story")!;
@@ -573,12 +585,33 @@ jumpYearsEl.addEventListener("change", () => {
   jumpButtonEl.textContent = `Jump ${formatYears(Number(jumpYearsEl.value))}`;
 });
 
+function readFounderChoices(): FounderChoices {
+  return {
+    foodSource: drifterFoodEl.value as FounderFoodSource,
+    size: drifterSizeEl.value as FounderSizeBand,
+    originClimate: drifterClimateEl.value as FounderOriginClimate,
+  };
+}
+
+function updateDrifterPreview(): void {
+  drifterPreviewEl.textContent = `${founderProfileLabel({ ...readFounderChoices(), generationSeed: 0 })}. Exact anatomy will be generated when the raft is launched.`;
+}
+
+for (const select of [drifterFoodEl, drifterSizeEl, drifterClimateEl]) {
+  select.addEventListener("change", updateDrifterPreview);
+}
+
 distantDrifterEl.addEventListener("click", () => {
-  if (!landingState.introduceDistantDrifter(totalYears)) return;
+  const choices = readFounderChoices();
+  if (!landingState.introduceDistantDrifter(totalYears, choices)) return;
   distantDrifterEl.textContent = "Drifter approaching";
   distantDrifterEl.classList.add("active");
   distantDrifterEl.disabled = true;
-  formHintEl.textContent = "A vegetation raft carries a tiny founder cohort. Arrival is not establishment; local food will decide whether it survives.";
+  drifterFoodEl.disabled = true;
+  drifterSizeEl.disabled = true;
+  drifterClimateEl.disabled = true;
+  drifterPreviewEl.textContent = `${founderProfileLabel({ ...choices, generationSeed: 0 })}. The generated founders are now fixed.`;
+  formHintEl.textContent = "A vegetation raft carries a tiny founder cohort. Arrival is not establishment; food supply, body cost, and climate fit will decide whether it survives.";
 });
 
 for (const select of [rainfallEl, temperatureEl, windEl, seaLevelEl]) {
@@ -625,6 +658,9 @@ jumpButtonEl.addEventListener("click", () => {
       distantDrifterEl.textContent = "Distant Drifter";
       distantDrifterEl.classList.remove("active");
       distantDrifterEl.disabled = false;
+      drifterFoodEl.disabled = false;
+      drifterSizeEl.disabled = false;
+      drifterClimateEl.disabled = false;
     }
     epochCardEl.classList.add("visible");
   }, () => {
@@ -711,7 +747,7 @@ async function start() {
   }
   if (captureMode) {
     const captureYears = Number(captureParams.get("years") ?? captureFixture?.years ?? 10_000);
-    if (captureParams.get("founders") === "drifter") landingState.introduceDistantDrifter(0);
+    if (captureParams.get("founders") === "drifter") landingState.introduceDistantDrifter(0, DEFAULT_FOUNDER_CHOICES);
     committedClimate = captureClimate;
     applyCommittedHeightFog();
     landingState.advance(captureYears, captureYears, captureClimate);

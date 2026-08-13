@@ -4,6 +4,15 @@ import {
   type PopulationIdentity,
   type PopulationTraits,
 } from "./population-traits";
+import {
+  createFounderProfile,
+  DEFAULT_FOUNDER_CHOICES,
+  founderTraits,
+  founderFoodAffinities,
+  type FoodAffinities,
+  type FounderChoices,
+  type FounderProfile,
+} from "./founder-profile";
 
 export type LineageStatus = "not-established" | "active" | "extinct";
 
@@ -20,6 +29,10 @@ export interface LineageState {
   readonly energy?: number;
   /** Ability to turn the island's current forage into usable energy. */
   readonly feedingAdaptation?: number;
+  /** Immutable choices and generation seed for a Distant Drifter founder. */
+  readonly founder?: Readonly<FounderProfile>;
+  /** Heritable feeding capacities; the founder choice only determines the dominant starting affinity. */
+  readonly foodAffinities?: Readonly<FoodAffinities>;
 }
 
 export interface LineageHistory {
@@ -81,7 +94,13 @@ export function createLineageHistory(): LineageHistory {
 }
 
 /** A rafting event carries one vulnerable cohort, never a ready population. */
-export function createDrifterFounderHistory(originAge: number, ordinal = 0): LineageHistory {
+export function createDrifterFounderHistory(
+  originAge: number,
+  ordinal = 0,
+  choices: Readonly<FounderChoices> = DEFAULT_FOUNDER_CHOICES,
+  generationSeed?: number,
+): LineageHistory {
+  const founder = createFounderProfile(choices, originAge, ordinal, generationSeed);
   return {
     lineages: [{
       id: `sheltered-grazer:${ordinal}`,
@@ -92,6 +111,9 @@ export function createDrifterFounderHistory(originAge: number, ordinal = 0): Lin
       abundance: 0.018,
       energy: 0.38,
       feedingAdaptation: 0.28,
+      founder,
+      foodAffinities: founderFoodAffinities(founder),
+      traits: founderTraits(founder),
     }],
   };
 }

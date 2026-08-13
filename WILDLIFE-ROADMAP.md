@@ -42,8 +42,9 @@ Domains exchange shared signals such as forage, coastal productivity, nutrients,
 | Shared snapshot | **Built** | One sampled terrain/climate/forage state supplies land, freshwater, coast, and air scoring. | Add explicit marine nutrient, wave-stress, and benthic substrate fields only when their first consumer is implemented. |
 | Water-volume habitat | **Built** as a bounded proof | Surface, midwater, and benthic nodes connect horizontally through open water and vertically within columns; body size controls shallow clearance. A separate benthic field records coral-facing depth, light, slope, and substrate stability. | Add current direction, oxygen, and persistent nutrients when the first consumer needs each field. |
 | Terrestrial lineages | **Built** | Drifters introduce one tiny founder cohort; food-use adaptation, local forage, energy, and reproduction gate establishment. Established lineages persist identity, site, migration, abundance, extinction, bounded deep-time speciation, and means for body mass, leg length, foot width, insulation, coat warmth, coat lightness, and horn length. No per-axis variance is stored. | Replace primitive embodiment with one real fauna family and verify that trait extremes remain readable at gameplay distance. |
+| Distant Drifter founder design | **Experimenting** | The arrival panel now chooses food source, size band, and origin climate. Launch commits a stable generated phenotype and inherited food-affinity profile; establishment shares food availability, size-linked maintenance, and origin-climate fit. Small latent plant and marine affinities preserve rare future trophic transitions without inventing terrestrial prey. | Add the real raft image/diorama, evolve food affinities through variance and selection, and add predation only from a real population-level pressure source. See `docs/DISTANT-DRIFTER-DESIGN.md`. |
 | Per-population trait variance | **Planned** | Terrestrial lineages store means only. | Simulate bounded variance per axis with explicit responses to selection, drift, bottlenecks, and gene flow. |
-| Lineage DNA | **Planned** | Identity and ancestry persist; marine state reserves an origin domain and optional terrestrial ancestor seam. | Define one compact hereditary record shared by the sim, renderer sampling, and history UI. |
+| Lineage DNA | **Planned** | Identity and ancestry persist; marine state reserves an origin domain and optional terrestrial ancestor seam. Distant Drifter now defines the land-first boundary between immutable founder provenance, hereditary distributions, current population condition, and lineage history. | Implement only fields consumed by founder fitness, rendering, or reporting; do not bind the earlier speculative 80–120-float GPU layout. |
 | Path-dependent selection | **Planned** | Selection primarily reads current conditions and inherited means. | Make different lineage histories produce different bounded outcomes under the same present conditions. |
 | Play-speed land behavior | **Built** | Terrain-aware paths, herd cohesion/separation, and walkability are renderer-side embodiments of resolved populations. Cohesion, separation, stride speed, and turn rate now read the population's trait means, so two lineages move differently; route requests run under a per-frame budget so a herd cannot stall a frame by re-pathing at once. Behaviour reads the means and never writes back. | Bias destination choice toward current forage without making local movement authoritative over epoch history. |
 | Freshwater | **Built** as habitat; **planned** as ecology | Drainage-fed basins are derived from the shared snapshot. | Define one ecological consumer before adding nutrient transport or freshwater wildlife. |
@@ -95,7 +96,7 @@ That origin/ancestor seam is the existing precedent for a future general lineage
 
 ### Proposed lineage-DNA state
 
-Before implementation, fix a compact layout covering trait means, per-axis variances, bounded trajectories, ancestral snapshots, environmental imprint, lineage depth, and branching references. Counts and history depth remain open; do not bind a GPU buffer or replace the shipped speciation trigger until the layout and the relationship between variance-driven and existing bounded speciation are decided.
+The Distant Drifter design narrows this proposal. Hereditary state should contain population-level trait means and variances plus diet and climate capabilities that fitness actually consumes. Player choices, origin climate, origin age, and the stable generation seed belong to an immutable founder profile. Energy, abundance, and realized stress belong to current condition. Trajectories, ancestral snapshots, environmental exposure, lineage depth, and branching references belong to lineage history rather than “DNA.” Do not bind a GPU buffer or replace the shipped speciation trigger until the simulation contract and the relationship between variance-driven and existing bounded speciation are proven.
 
 ## Completed experiment: reef succession
 
@@ -152,12 +153,13 @@ The first asset family should still select one ecologically legible framework-bu
 4. **Coral visual proof — built:** the first reef-builder family and paired integration are owner-accepted.
 5. **Marine habitat exchange — built:** reef productivity and retained structure raise marine productivity and nursery capacity without renderer state participating.
 6. **Marine visual proof — candidate:** `epoch-coastal-forager` advances the fixed trait contract through an instanced in-engine showcase; owner visual judgment remains required before acceptance.
-7. **Aerial persistence:** reuse the settled population concepts with nesting, lift, metabolic cost, and marine prey availability.
-8. **Cross-domain branching:** test rare land-to-water and land/coastal-to-air ancestry only through viable intermediate populations. Hippo-like semi-aquatic grazers and whale-like fully aquatic descendants should be divergent outcomes of shared ancestry, not archetype swaps.
-9. **History visualization:** present land, fish, bird, and reef histories with domain-appropriate relationships; reef succession should not be mislabeled as animal speciation.
-10. **Terrestrial trait variance:** add and validate bounded variance without making rendered individuals simulation authority.
-11. **Lineage DNA:** fix and implement the hereditary record after variance semantics are stable.
-12. **Path-dependent selection:** make lineage history affect outcomes only after the DNA contract can represent and test that history.
+7. **Distant Drifter founder proof — active:** player-selected food source, size, and origin climate generate a stable distinctive founder; food, climate, size cost, and later real predation determine establishment through one fitness budget.
+8. **Terrestrial trait variance:** add and validate selection, drift, and the founder bottleneck without making rendered individuals simulation authority.
+9. **Land-first hereditary record:** implement the smallest founder/hereditary/history contracts required by the Drifter proof.
+10. **Aerial persistence:** reuse the settled population concepts with nesting, lift, metabolic cost, and marine prey availability.
+11. **Cross-domain branching:** test rare land-to-water and land/coastal-to-air ancestry only through viable intermediate populations. Hippo-like semi-aquatic grazers and whale-like fully aquatic descendants should be divergent outcomes of shared ancestry, not archetype swaps.
+12. **History visualization:** present land, fish, bird, and reef histories with domain-appropriate relationships; reef succession should not be mislabeled as animal speciation.
+13. **Path-dependent selection:** make lineage history affect outcomes only after the hereditary contract can represent and test that history.
 
 ## Deferred until earned
 

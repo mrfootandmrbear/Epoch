@@ -21,6 +21,7 @@ import {
 } from "three/webgpu";
 import { resolveLanding, type LandingOutcome } from "./outcome-resolver";
 import { createDrifterFounderHistory, populationTraitDistance, type LineageChange } from "./lineage-history";
+import type { FounderChoices } from "./founder-profile";
 import { lineageSeed, type PopulationIdentity } from "./population-archetypes";
 import type { PopulationTraits } from "./population-traits";
 import { POPULATION_TRAIT_BOUNDS } from "./population-traits";
@@ -444,7 +445,7 @@ export interface WorldExperience {
   redoSculpt: () => boolean;
   sculptHistory: () => Readonly<{ canUndo: boolean; canRedo: boolean }>;
   resetStartingWorld: (preset: StartingWorldPreset) => void;
-  introduceDistantDrifter: (currentAge: number) => boolean;
+  introduceDistantDrifter: (currentAge: number, choices: Readonly<FounderChoices>) => boolean;
   showcaseGrazerHerd: () => void;
   showcaseHerdContrast: () => void;
   showcaseFish: () => void;
@@ -936,9 +937,9 @@ export function createLandingState(scene: Scene): WorldExperience {
       syncTerrainDetails();
       freshwater.setField(resolveFreshwaterField(currentSnapshot(0), SEA_LEVEL[preset.climate.seaLevel], preset.climate.rainfall));
     },
-    introduceDistantDrifter(currentAge: number) {
+    introduceDistantDrifter(currentAge: number, choices: Readonly<FounderChoices>) {
       if (worldHistory.lineages.lineages.some((lineage) => lineage.status !== "extinct")) return false;
-      const founders = createDrifterFounderHistory(currentAge, worldHistory.lineages.lineages.length);
+      const founders = createDrifterFounderHistory(currentAge, worldHistory.lineages.lineages.length, choices);
       worldHistory = {
         ...worldHistory,
         lineages: {
