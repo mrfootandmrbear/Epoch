@@ -49,6 +49,7 @@ export const CORAL_GUILDS: readonly CoralGuild[] = [
 export type ReefPhase = "barren" | "pioneer" | "colonizer" | "established" | "ancient";
 
 export interface ReefSite {
+  readonly id: string;
   readonly x: number;
   readonly z: number;
   /** Seabed elevation in metres, so colonies seat on the real floor. */
@@ -64,6 +65,32 @@ export interface ReefSite {
   readonly phase: ReefPhase;
   /** 0..1 fraction of the substrate under living cover. */
   readonly cover: number;
+  /** Carbonate structure retained even when living tissue dies. */
+  readonly framework: number;
+  /** Recently dead structure still available as habitat and settlement surface. */
+  readonly deadFramework: number;
+  readonly stress: number;
+  readonly connectivity: number;
+}
+
+export interface ReefSiteState {
+  readonly id: string;
+  readonly x: number;
+  readonly z: number;
+  readonly livingCover: number;
+  readonly framework: number;
+  readonly deadFramework: number;
+  readonly pioneerCover: number;
+  readonly stress: number;
+  readonly composition: Readonly<Record<CoralGuild, number>>;
+}
+
+export interface ReefHistory {
+  readonly sites: readonly ReefSiteState[];
+}
+
+export function createReefHistory(): ReefHistory {
+  return { sites: [] };
 }
 
 export interface CoralColony {
@@ -98,6 +125,9 @@ export interface ReefOutcome {
   /** 0..1 mean living cover across all reef-capable sites. */
   readonly meanCover: number;
   readonly phaseCounts: Readonly<Record<ReefPhase, number>>;
+  readonly history: ReefHistory;
+  /** Coarse ecological effects consumed by marine populations, never meshes. */
+  readonly habitat: Readonly<{ shelter: number; productivity: number }>;
 }
 
 /** Shallower than this the surf breaks colonies faster than they grow. */
@@ -113,7 +143,7 @@ const MAX_SITES = 2600;
  * than as reef, so the budget is set by what cover has to look like at close
  * range. Instancing means the cost of this is instance count, not draw count.
  */
-const MAX_COLONIES = 9000;
+export const MAX_REEF_COLONIES = 9000;
 
 function clamp01(value: number): number {
   return Math.min(1, Math.max(0, value));
@@ -340,6 +370,10 @@ function warmColonyForm(
 export interface ReefOptions {
   /** Colony budget, for tests and lower render tiers. */
   readonly maxColonies?: number;
+  readonly previousHistory?: ReefHistory;
+  readonly jumpYears?: number;
+  /** 0..1 bounded storm or burial disturbance for causal-history tests. */
+  readonly disturbance?: number;
 }
 
 /**
@@ -361,7 +395,11 @@ export function resolveReef(
   // Reef building is a warm-water process. A cold epoch does not merely slow
   // it, it takes the framework builders off the table entirely.
   const thermal = clamp01((warmth - 0.62) / 0.5);
-  const maxColonies = options.maxColonies ?? MAX_COLONIES;
+  const maxColonies = options.maxColonies ?? MAX_REEF_COLONIES;
+  const legacyLanding = options.previousHistory === undefined;
+  const previous = new Map((options.previousHistory?.sites ?? []).map((site) => [site.id, site]));
+  const duration = clamp01(Math.log10(Math.max(1, options.jumpYears ?? snapshot.totalYears)) / 6);
+  const disturbance = clamp01(options.disturbance ?? 0);
   const sites: ReefSite[] = [];
   const colonies: CoralColony[] = [];
   const phaseCounts: Record<ReefPhase, number> = {
@@ -395,21 +433,58 @@ export function resolveReef(
     );
     if (suitability < 0.06) continue;
 
-    const maturity = clamp01(age * (0.42 + suitability * 0.75));
-    const phase = reefPhaseFor(maturity);
-    const cover = phase === "barren" ? 0 : clamp01(
-      // Established reef sits in the 30-60% cover band that a healthy reef
-      // actually holds; ancient sites push past it on framework alone.
-      (phase === "pioneer" ? 0.1 : 0.18 + maturity * 0.55) * (0.4 + suitability * 0.75),
+    // Candidate index is deterministic and unique even when two samples land
+    // in the same half-metre cell; quantized coordinates are not.
+    const id = `sample:${i}`;
+    const inherited = previous.get(id);
+    const edgeRecruitment = clamp01((radius - reach * 0.58) / (reach * 0.28));
+    let neighbourSignal = 0;
+    if (!inherited && previous.size > 0) {
+      for (const candidate of previous.values()) {
+        const distance = Math.hypot(candidate.x - x, candidate.z - z);
+        if (distance < 28) neighbourSignal = Math.max(neighbourSignal, candidate.livingCover * (1 - distance / 28));
+      }
+    }
+    // The island receives a bounded larval rain from the surrounding ocean;
+    // inherited mature sites then strengthen local recruitment.
+    const oceanRecruitment = previous.size === 0 ? 0.3 : 0.08;
+    const connectivity = clamp01(oceanRecruitment + edgeRecruitment * 0.45 + neighbourSignal * 1.4);
+    const heatStress = clamp01((warmth - 1.05) / 0.22) * clamp01(1 - depth / 16);
+    const acuteStress = clamp01(heatStress + disturbance);
+    const priorLiving = inherited?.livingCover ?? 0;
+    const priorFramework = inherited?.framework ?? 0;
+    const survivors = priorLiving * (1 - acuteStress * (0.45 + duration * 0.45));
+    const recruitment = connectivity * suitability * duration * (0.18 + (inherited?.pioneerCover ?? 0) * 0.45);
+    const pioneerCover = clamp01((inherited?.pioneerCover ?? 0) * (1 - duration * 0.18) + recruitment * 0.72);
+    const directMaturity = clamp01(age * (0.42 + suitability * 0.75));
+    const directPhase = reefPhaseFor(directMaturity);
+    const directCover = directPhase === "barren" ? 0 : clamp01(
+      (directPhase === "pioneer" ? 0.1 : 0.18 + directMaturity * 0.55) * (0.4 + suitability * 0.75),
     );
+    const livingCover = legacyLanding
+      ? directCover
+      : clamp01(survivors + recruitment + pioneerCover * suitability * duration * 0.42
+        + (inherited ? 0 : directCover * duration * duration * connectivity));
+    const mortality = Math.max(0, priorLiving - survivors);
+    const framework = clamp01(priorFramework * (1 - duration * 0.018) + livingCover * duration * 0.17 + mortality * 0.5);
+    const deadFramework = clamp01((inherited?.deadFramework ?? 0) * (1 - duration * 0.08) + mortality + disturbance * priorFramework * 0.32);
+    const maturity = legacyLanding
+      ? directMaturity
+      : clamp01(Math.max(age * 0.18, pioneerCover * 0.36 + livingCover * 0.64 + framework * 0.72));
+    const phase = reefPhaseFor(maturity);
+    const cover = livingCover;
     const site: ReefSite = {
-      x, z, y, depth,
+      id, x, z, y, depth,
       substrateAge: age,
       flow: flowSample.speed,
       shelter: flowSample.shelter,
       light,
       phase,
       cover,
+      framework,
+      deadFramework,
+      stress: acuteStress,
+      connectivity,
     };
     sites.push(site);
     phaseCounts[phase]++;
@@ -456,7 +531,7 @@ export function resolveReef(
       // shallow slack reef pales while the same reef stays coloured deeper.
       const heatStress = clamp01((warmth - 1.05) / 0.22);
       const health = clamp01(
-        1 - heatStress * clamp01(1 - depth / 14) * (0.75 - flowSample.speed * 0.45)
+        1 - (heatStress + site.stress * 0.7) * clamp01(1 - depth / 14) * (0.75 - flowSample.speed * 0.45)
         - hash(seed, 1439) * 0.12,
       );
       const form = colonyForm(
@@ -484,10 +559,31 @@ export function resolveReef(
     }
   }
 
+  const history: ReefHistory = {
+    sites: sites.map((site) => {
+      const weights = guildWeights(site);
+      const total = CORAL_GUILDS.reduce((sum, guild) => sum + weights[guild], 0) || 1;
+      return {
+        id: site.id, x: site.x, z: site.z,
+        livingCover: site.cover,
+        framework: site.framework,
+        deadFramework: site.deadFramework,
+        pioneerCover: site.phase === "pioneer" ? site.cover : Math.min(site.cover, 0.18),
+        stress: site.stress,
+        composition: Object.fromEntries(CORAL_GUILDS.map((guild) => [guild, weights[guild] / total])) as Record<CoralGuild, number>,
+      };
+    }),
+  };
+  const meanFramework = sites.reduce((sum, site) => sum + site.framework + site.deadFramework * 0.7, 0) / Math.max(1, sites.length);
   return {
     sites,
     colonies,
     meanCover: sites.length === 0 ? 0 : coverTotal / sites.length,
     phaseCounts,
+    history,
+    habitat: {
+      shelter: clamp01(meanFramework * 1.6),
+      productivity: clamp01((sites.length === 0 ? 0 : coverTotal / sites.length) * 1.35 + meanFramework * 0.35),
+    },
   };
 }

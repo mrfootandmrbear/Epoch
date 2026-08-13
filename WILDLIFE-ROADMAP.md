@@ -49,7 +49,7 @@ Domains exchange shared signals such as forage, coastal productivity, nutrients,
 | Freshwater | **Built** as habitat; **planned** as ecology | Drainage-fed basins are derived from the shared snapshot. | Define one ecological consumer before adding nutrient transport or freshwater wildlife. |
 | Marine animals | **Built** for one lineage | A coastal-forager persists in connected 3D water bands with body-size clearance, depth choice, streamlining, maneuverability, depth control, thermal tolerance, energy, abundance, migration, and extinction. | Validate open-water and structurally complex trait extremes before authoring the fish brief. |
 | Aerial animals | **Planned** | Nesting, lift, and nearby coastal food place one ephemeral flock. | Generalize the population contract after the marine experiment; add ancestry only after an aerial trait/energy model works. |
-| Reef succession | **Planned** | No reef-site history or coral renderer exists. Seagrass proves submerged instancing, not reef ecology. | Prove colonization, persistent framework, disturbance, and recovery with one bounded coral growth family. |
+| Reef succession | **Built** as a bounded proof | Persistent reef sites carry pioneer and living cover, accumulated framework, dead framework, stress, and connectivity across jumps. Deterministic tests cover recruitment, disturbance, survivors, retained dead structure, and conditional recovery; landing colonies remain renderer samples. | Add explicit in-game disturbance controls and domain-aware reef history reporting before broadening the food web. |
 | Cross-domain food web | **Experimenting** | Forage drives land dynamics. Marine primary productivity, nursery capacity, fish abundance, prey availability, and shoreline subsidy form an explicit energy exchange; nesting aerial outcomes already read marine abundance. | Make runoff/nutrients persistent, then add one land or aerial consumer of prey/subsidy without feeding grazers implausibly. |
 | Textual lineage/colony reporting | **Built** for land and first fish; **planned** for reefs | Land ancestry and fish condition/adaptation are reported textually. | Add domain-aware reef succession after the reef-site contract exists. |
 | Field-notebook lineage card | **Planned** | No ancestry tree, trait sparklines, or biome glyph exists. | Consume the lineage DNA contract as a richer successor to the textual report; delivery surface remains open. |
@@ -64,12 +64,12 @@ Insulation additionally reaches the fragment stage on an instanced attribute mir
 |---|---|---:|---|---|
 | `epoch-seagrass-meadow` | plant | **candidate** | Visible sheltered coastal productivity and nursery cover; slow per-tuft current sway is under renewed review. | Owner verdict on revised in-engine motion. |
 | `epoch-canopy-tree` | plant | **candidate** | Visible woody cover, soil protection, forage structure, and mangrove habitat. | Owner visual verdict on the recorded showcase and previews. |
-| `example-marsh-grazer` | animal | **accepted**; embodiment depth **experimenting** | Owner accepted the first fauna draft after revised topology/runtime export, four static views, island showcase, and paired live locomotion evidence. One instanced draw replaces each lineage's primitive groups; the foreground diagnostic held the 30 fps cap and matched the baseline's 15 total frame draws. Herd scale has since risen to 96 per lineage with coat, LOD, and trait-driven movement layered on; the mesh, topology, and single-draw arrangement are unchanged and the diagnostic still reports 15 draws. | Maintain the accepted evidence; future refinements must not silently replace it. The added embodiment work is tracked as **experimenting** in RENDERER-ROADMAP rungs 4–7 and needs its own owner verdicts — including a foreground fps reading at 96, which automated capture cannot supply. |
+| `example-marsh-grazer` | animal | **accepted**; embodiment depth **experimenting** | Owner accepted the first fauna draft after revised topology/runtime export, four static views, island showcase, and paired live locomotion evidence. One instanced draw replaces each lineage's primitive groups. Herd scale has since risen to 96 per lineage with coat, LOD, and trait-driven movement layered on; a visible foreground WebGPU review run reported 60 fps and the same 15 draws. | Maintain the accepted evidence; future refinements must not silently replace it. The added embodiment work is tracked as **experimenting** in RENDERER-ROADMAP rungs 4–7 and still needs owner verdicts on density, coat read, LOD transitions, and movement. |
 | First marine lineage family | fish | **planned** | Visual proof of the first persistent non-land lineage. | Create a brief only when the marine experiment fixes its trait contract. |
-| First reef-builder family | coral | **planned** | Visual proof of reef succession, habitat-driven morphology, bleaching, and dead framework. | Create a brief only when reef-site state and growth pressures are specified. |
+| `epoch-reef-builder-family` | coral | **candidate** | Six habitat-driven growth grammars have deterministic cached near/far exports, fixed previews, an in-engine showcase, and a recorded 60 fps / 15 draw foreground diagnostic. | Owner visual verdict on the candidate showcase. |
 | First aerial lineage family | bird | **deferred** | Replaces the primitive flock after aerial persistence is proven. | Wait for the marine population abstraction to settle. |
 
-The marsh grazer is the first accepted fauna family. Primitive swimmers and birds remain integration adapters, not accepted wildlife; no coral asset is yet a visual candidate.
+The marsh grazer is the first accepted fauna family. Primitive swimmers and birds remain integration adapters. The reef-builder is a visual candidate awaiting owner judgment.
 
 ## Completed experiment: persistent marine lineage
 
@@ -147,11 +147,11 @@ The first asset family should still select one ecologically legible framework-bu
 ## Planned sequence
 
 1. **Marine population contract — built:** the first coastal-forager lineage is persistent and tested.
-2. **Marine visual proof — next:** advance one fish family from brief through candidate; require owner visual judgment before acceptance.
-3. **Reef-site contract:** add persistent substrate suitability, recruitment, living cover, composition, framework, stress, competition, and connectivity.
-4. **Reef succession proof:** show bare connected substrate progressing through pioneers toward a young reef, then test one disturbance and its conditional recovery across later jumps.
-5. **Coral visual proof:** advance one reef-builder family through colony and gameplay-distance previews, seabed seating, living/bleached/dead states, candidate integration, and owner verdict.
-6. **Marine food exchange:** let vegetation/runoff and coral/seagrass habitat affect productivity; let fish consumption feed back at epoch scale.
+2. **Reef-site contract — built:** persistent recruitment, living cover, framework, stress, dead structure, and connectivity live in world history.
+3. **Reef succession proof — built:** deterministic repeated jumps cover pioneer recruitment, disturbance, survivors, dead framework, and recovery.
+4. **Coral visual proof — candidate:** cached geometry and evidence are complete; owner verdict remains.
+5. **Marine habitat exchange — built:** reef productivity and retained structure raise marine productivity and nursery capacity without renderer state participating.
+6. **Marine visual proof — next:** advance one fish family from brief through candidate; require owner visual judgment before acceptance.
 7. **Aerial persistence:** reuse the settled population concepts with nesting, lift, metabolic cost, and marine prey availability.
 8. **Cross-domain branching:** test rare land-to-water and land/coastal-to-air ancestry only through viable intermediate populations. Hippo-like semi-aquatic grazers and whale-like fully aquatic descendants should be divergent outcomes of shared ancestry, not archetype swaps.
 9. **History visualization:** present land, fish, bird, and reef histories with domain-appropriate relationships; reef succession should not be mislabeled as animal speciation.

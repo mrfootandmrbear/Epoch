@@ -16,11 +16,20 @@ import {
   CORAL_TINT_ATTRIBUTE,
   type CoralMaterial,
 } from "./coral-material";
-import { CORAL_GUILDS, type CoralColony, type CoralGuild } from "./reef-succession";
+import {
+  CORAL_GUILDS,
+  MAX_REEF_COLONIES,
+  type CoralColony,
+  type CoralGuild,
+} from "./reef-succession";
 import { createReefWaterUniforms, type ReefWaterUniforms } from "./reef-water";
 import { RENDER_SCALE } from "./render-scale";
 
-const MAX_PER_GUILD = 2600;
+// The resolver caps the entire reef at this count. Any one guild can
+// legitimately dominate a landing, so each LOD batch must be able to accept
+// that worst case; a lower private cap silently changed composition as the
+// camera repartitioned colonies between near and far.
+const MAX_PER_GUILD = MAX_REEF_COLONIES;
 const NEAR_DISTANCE = RENDER_SCALE.lod.coralNear;
 const LOD_REPARTITION_DISTANCE = RENDER_SCALE.lod.coralRepartition;
 const UP = new Vector3(0, 1, 0);

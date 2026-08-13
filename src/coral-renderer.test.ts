@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { Color, Group, InstancedMesh, Matrix4, Quaternion, Vector3 } from "three/webgpu";
 import { createCoralRenderer } from "./coral-renderer";
 import { CORAL_SWAY_ATTRIBUTE, CORAL_DETAIL_ATTRIBUTE, CORAL_TINT_ATTRIBUTE } from "./coral-material";
-import type { CoralColony, CoralGuild } from "./reef-succession";
+import { MAX_REEF_COLONIES, type CoralColony, type CoralGuild } from "./reef-succession";
 
 function colony(overrides: Partial<CoralColony> = {}): CoralColony {
   return {
@@ -177,15 +177,17 @@ describe("coral renderer", () => {
     for (const element of matrix.elements) expect(Number.isFinite(element)).toBe(true);
   });
 
-  it("drops colonies past the per-form instance budget instead of overrunning", () => {
+  it("retains a resolver-sized reef even when one guild dominates one LOD band", () => {
     const { scene, renderer } = setup();
-    const crowd = Array.from({ length: 1400 }, (_, i) => colony({ x: i * 0.1 }));
+    const crowd = Array.from(
+      { length: MAX_REEF_COLONIES },
+      (_, i) => colony({ x: (i % 90) * 0.1, z: Math.floor(i / 90) * 0.1 }),
+    );
     renderer.setReef(crowd);
     renderer.update(0, new Vector3(0, 0, 0));
 
-    for (const mesh of meshes(scene)) {
-      expect(mesh.count).toBeLessThanOrEqual(mesh.instanceMatrix.count);
-    }
+    expect(totalInstances(scene)).toBe(MAX_REEF_COLONIES);
+    expect(meshFor(scene, "massive-porites", "near").count).toBe(MAX_REEF_COLONIES);
   });
 
   it("shares one set of water uniforms and updates them from the scene", () => {

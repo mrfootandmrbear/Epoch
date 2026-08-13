@@ -129,6 +129,11 @@ export interface MarineEnergyExchange {
   readonly shorelineSubsidy: number;
 }
 
+export interface ReefEcosystemSignal {
+  readonly shelter: number;
+  readonly productivity: number;
+}
+
 export interface LandingOutcome {
   trees: TreeOutcome[];
   seagrass: SeagrassOutcome[];
@@ -567,6 +572,7 @@ export function resolveLanding(
   previousHistory: LineageHistory = createLineageHistory(),
   jumpYears = snapshot.totalYears,
   previousMarineHistory: MarineLineageHistory = createMarineLineageHistory(),
+  reef: ReefEcosystemSignal = { shelter: 0, productivity: 0 },
 ): LandingResolution {
   const heightAt = (x: number, z: number) => snapshotHeightAt(snapshot, x, z);
   const forageAt = (x: number, z: number) => snapshotForageAt(snapshot, x, z);
@@ -764,10 +770,13 @@ export function resolveLanding(
   const primaryProductivity = clamp01(
     coastalEnergy / Math.max(1, coastalSamples) * 0.78 + inheritedMarineNutrients * 0.22,
   );
-  const nurseryCapacity = clamp01(primaryProductivity * 0.55 + saltwaterSeagrass.length / 900 * 0.45);
+  const reefProductivity = clamp01(reef.productivity);
+  const reefShelter = clamp01(reef.shelter);
+  const primaryProductivityWithReef = clamp01(primaryProductivity * 0.82 + reefProductivity * 0.18);
+  const nurseryCapacity = clamp01(primaryProductivityWithReef * 0.42 + saltwaterSeagrass.length / 900 * 0.33 + reefShelter * 0.25);
   const preyAvailability = clamp01(primaryProductivity * 0.42 + nurseryCapacity * 0.28 + marineAbundance * 0.3);
   const marineEnergy: MarineEnergyExchange = {
-    primaryProductivity,
+    primaryProductivity: primaryProductivityWithReef,
     nurseryCapacity,
     preyAvailability,
     // This is available to future shoreline scavengers, nesting colonies,

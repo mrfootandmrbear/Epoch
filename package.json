@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "asset:check": "node .agents/skills/generate-ecosystem-asset/scripts/validate-asset.mjs",
+    "asset:coral:generate": "node assets/ecosystem/epoch-reef-builder-family/source/generate-coral-geometry.mjs",
     "asset:seagrass:generate": "node assets/ecosystem/epoch-seagrass-meadow/source/generate-seagrass.mjs",
     "asset:tree:generate": "node assets/ecosystem/epoch-canopy-tree/source/generate-ez-tree.mjs",
     "dev": "vite",

@@ -37,7 +37,7 @@ import { createCoralRenderer } from "./coral-renderer";
 import { reefHazeColor } from "./coral-material";
 import { createMarineSnow } from "./marine-snow";
 import { buildCurrentField, type CurrentField } from "./ocean-currents";
-import { resolveReef } from "./reef-succession";
+import { resolveReef, type ReefOutcome } from "./reef-succession";
 import { createReefWaterUniforms, type ReefWaterUniforms } from "./reef-water";
 import { createFreshwaterRenderer } from "./freshwater-renderer";
 import { createTerrainMaterial, type TerrainMaterial } from "./terrain-material";
@@ -639,12 +639,17 @@ export function createLandingState(scene: Scene): WorldExperience {
    * drifts on that identical field, which is why the particulate thickens in
    * the same lee where the massive corals are.
    */
-  function refreshReef(snapshot: WorldSnapshot): void {
+  function refreshReef(snapshot: WorldSnapshot, jumpYears = snapshot.totalYears): ReefOutcome {
     const seaLevel = SEA_LEVEL[activeClimate.seaLevel];
     currentField = buildCurrentField(snapshot, activeClimate);
-    reef.setReef(resolveReef(snapshot, currentField, activeClimate).colonies);
+    const outcome = resolveReef(snapshot, currentField, activeClimate, {
+      previousHistory: worldHistory.reef,
+      jumpYears,
+    });
+    reef.setReef(outcome.colonies);
     reef.setSeaLevel(seaLevel);
     marineSnow.setField(currentField, heightAt, seaLevel);
+    return outcome;
   }
 
   function refreshFreshwater(totalYears = 0): void {
@@ -922,8 +927,8 @@ export function createLandingState(scene: Scene): WorldExperience {
       syncShoreSurface();
       life.visible = true;
       const snapshot = currentSnapshot(totalYears);
-      refreshReef(snapshot);
-      const resolution = resolveLanding(snapshot, worldHistory.lineages, years, worldHistory.marineLineages);
+      const reefOutcome = refreshReef(snapshot, years);
+      const resolution = resolveLanding(snapshot, worldHistory.lineages, years, worldHistory.marineLineages, reefOutcome.habitat);
       const { outcome } = resolution;
       currentOutcome = outcome;
       freshwater.setField(outcome.freshwaterField);
@@ -933,6 +938,7 @@ export function createLandingState(scene: Scene): WorldExperience {
         terrain: withGrazingPressure(protectedTerrain, outcome.populations, years),
         lineages: resolution.nextHistory,
         marineLineages: resolution.nextMarineHistory,
+        reef: reefOutcome.history,
       };
       syncTerrainMaterialState();
       syncTerrainDetails();

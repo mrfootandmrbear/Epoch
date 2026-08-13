@@ -94,9 +94,10 @@ describe("reef phases", () => {
 
 describe("guild weights", () => {
   const site = (overrides: Partial<ReefSite>): ReefSite => ({
-    x: 0, z: 0, y: -6, depth: 6,
+    id: "0:0", x: 0, z: 0, y: -6, depth: 6,
     substrateAge: 0.9, flow: 0.5, shelter: 0.4, light: 0.6,
-    phase: "established", cover: 0.5,
+    phase: "established", cover: 0.5, framework: 0.4, deadFramework: 0,
+    stress: 0, connectivity: 1,
     ...overrides,
   });
 
@@ -221,5 +222,31 @@ describe("reef succession", () => {
     const current = buildCurrentField(snapshot, CLIMATE);
     const capped = resolveReef(snapshot, current, CLIMATE, { maxColonies: 40 });
     expect(capped.colonies.length).toBeLessThanOrEqual(40);
+  });
+
+  it("persists framework and recruits connected pioneers before mature coral", () => {
+    const snapshot = reefSnapshot({ totalYears: 1000 });
+    const current = buildCurrentField(snapshot, CLIMATE);
+    const first = resolveReef(snapshot, current, CLIMATE, { previousHistory: { sites: [] }, jumpYears: 25 });
+    const second = resolveReef(snapshot, current, CLIMATE, { previousHistory: first.history, jumpYears: 1000 });
+    expect(first.history.sites.some((site) => site.pioneerCover > 0)).toBe(true);
+    expect(second.meanCover).toBeGreaterThan(first.meanCover);
+    expect(second.history.sites.reduce((sum, site) => sum + site.framework, 0))
+      .toBeGreaterThan(first.history.sites.reduce((sum, site) => sum + site.framework, 0));
+  });
+
+  it("retains dead framework after disturbance and can recover from survivors", () => {
+    const snapshot = reefSnapshot({ totalYears: 100000 });
+    const current = buildCurrentField(snapshot, CLIMATE);
+    const established = resolveReef(snapshot, current, CLIMATE);
+    const damaged = resolveReef(snapshot, current, CLIMATE, {
+      previousHistory: established.history, jumpYears: 100, disturbance: 0.9,
+    });
+    const recovered = resolveReef(snapshot, current, CLIMATE, {
+      previousHistory: damaged.history, jumpYears: 1000, disturbance: 0,
+    });
+    expect(damaged.history.sites.some((site) => site.deadFramework > 0)).toBe(true);
+    expect(damaged.meanCover).toBeLessThan(established.meanCover);
+    expect(recovered.meanCover).toBeGreaterThan(damaged.meanCover);
   });
 });

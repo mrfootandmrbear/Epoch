@@ -4,6 +4,11 @@
 **Date:** 2026-08-13
 **Look at it:** `npm run dev`, then open `/?shot=reef&years=100000&time=42`
 
+The revised evidence camera looks down through the colony field instead of
+holding the ocean surface on the middle of the frame. The prior bright double
+seam is no longer part of the acceptance view. A fixed review capture is stored
+at `artifacts/coral/revised-reef-review.png`.
+
 The `reef` golden shot puts the camera under the surface among the colonies.
 That is deliberate and it is the shot to judge this on. Absorption, subsurface
 scatter, caustics and the water column are all functions of the path light
@@ -110,20 +115,10 @@ a shelf this wide reads as gravel. Cost is instance count, not draw count.
   fan orientation across the flow, the per-instance flow vector in the
   instance's own frame, and that stony corals get zero sway. The shader-side
   oscillation itself was read, not filmed — capture mode freezes the clock.
-- **No frame-rate measurement.** The render loop runs on `requestAnimationFrame`,
-  which the browser suspends for unfocused tabs, so every reading available in
-  this environment was stale. 9000 instances across 12 draws needs a check on a
-  real foreground tab before it is trusted.
-- **Reef sites are resampled each landing, not carried in world history.** The
-  roadmap asks for reef state to live in world history so a site records what
-  earlier epochs built. Succession here is derived from substrate age each time
-  rather than accumulated, so it cannot yet show recovery-from-survivors or a
-  reef that failed to recover.
-- **No bleaching event, disturbance, or dead framework.** Health responds to
-  heat stress per landing, but there is no storm damage, no rubble, no pale
-  skeleton persisting as substrate.
-- **Fish do not interact with the reef.** The shelter and productivity the reef
-  creates are not fed to the marine lineages.
+- **The candidate still needs an owner verdict.** The deterministic build-time
+  exporter, cached near/far geometry, required package previews, and in-engine
+  showcase are complete. A foreground WebGPU review run reported 60 fps and 15
+  draws, but those facts do not decide whether the reef looks accepted.
 - **The seabed is volcanic brown, not carbonate sand.** Left alone deliberately:
   `terrainColor` is shared with the shoreline look that was already accepted,
   and changing it would move more than the reef.
