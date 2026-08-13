@@ -1,7 +1,7 @@
 # Wildlife roadmap
 
 > **Status:** Canonical capability and experiment tracker.
-> **Updated:** 2026-08-12.
+> **Updated:** 2026-08-13.
 > **Scope:** Wildlife, food-web connections, evolutionary lineages, and the ecosystem asset families that make those systems visible.
 
 Landing-state rendering quality is tracked separately in [RENDERER-ROADMAP.md](RENDERER-ROADMAP.md); asset acceptance still requires an in-renderer owner verdict.
@@ -45,7 +45,7 @@ Domains exchange shared signals such as forage, coastal productivity, nutrients,
 | Per-population trait variance | **Planned** | Terrestrial lineages store means only. | Simulate bounded variance per axis with explicit responses to selection, drift, bottlenecks, and gene flow. |
 | Lineage DNA | **Planned** | Identity and ancestry persist; marine state reserves an origin domain and optional terrestrial ancestor seam. | Define one compact hereditary record shared by the sim, renderer sampling, and history UI. |
 | Path-dependent selection | **Planned** | Selection primarily reads current conditions and inherited means. | Make different lineage histories produce different bounded outcomes under the same present conditions. |
-| Play-speed land behavior | **Built** | Terrain-aware paths, herd cohesion/separation, and walkability are renderer-side embodiments of resolved populations. | Bias destination choice toward current forage without making local movement authoritative over epoch history. |
+| Play-speed land behavior | **Built** | Terrain-aware paths, herd cohesion/separation, and walkability are renderer-side embodiments of resolved populations. Cohesion, separation, stride speed, and turn rate now read the population's trait means, so two lineages move differently; route requests run under a per-frame budget so a herd cannot stall a frame by re-pathing at once. Behaviour reads the means and never writes back. | Bias destination choice toward current forage without making local movement authoritative over epoch history. |
 | Freshwater | **Built** as habitat; **planned** as ecology | Drainage-fed basins are derived from the shared snapshot. | Define one ecological consumer before adding nutrient transport or freshwater wildlife. |
 | Marine animals | **Built** for one lineage | A coastal-forager persists in connected 3D water bands with body-size clearance, depth choice, streamlining, maneuverability, depth control, thermal tolerance, energy, abundance, migration, and extinction. | Validate open-water and structurally complex trait extremes before authoring the fish brief. |
 | Aerial animals | **Planned** | Nesting, lift, and nearby coastal food place one ephemeral flock. | Generalize the population contract after the marine experiment; add ancestry only after an aerial trait/energy model works. |
@@ -56,13 +56,15 @@ Domains exchange shared signals such as forage, coastal productivity, nutrients,
 
 **Trait expression for terrestrial lineages — built for the first accepted family:** Five morph channels (body mass, leg length, foot width, insulation, horn length) plus two per-instance coat-color scalars map the seven lineage fields. Three.js r185 reads per-instance weights from an `InstancedMesh` `DataTexture`, with morph vertex data stored separately in a `DataArrayTexture`. Pose-morph locomotion and one instanced draw per lineage are integrated and owner-accepted for `example-marsh-grazer`; other fauna must clear their own asset and visual gates.
 
+Insulation additionally reaches the fragment stage on an instanced attribute mirrored from its morph weight, driving a coat surface treatment that a morph texture cannot reach; and each site samples its herd's two coat scalars from a seeded distribution rather than a single narrow band. Both are renderer-side sampling around the stored means, which are preserved. **The sim still stores no within-population variance**, and none of this is a step toward per-individual state — see the per-population trait variance row, which remains planned and is where real variance belongs.
+
 ## Asset ledger
 
 | Asset family | Category | Stage | System relationship | Exact next gate |
 |---|---|---:|---|---|
 | `epoch-seagrass-meadow` | plant | **candidate** | Visible sheltered coastal productivity and nursery cover; slow per-tuft current sway is under renewed review. | Owner verdict on revised in-engine motion. |
 | `epoch-canopy-tree` | plant | **candidate** | Visible woody cover, soil protection, forage structure, and mangrove habitat. | Owner visual verdict on the recorded showcase and previews. |
-| `example-marsh-grazer` | animal | **accepted** | Owner accepted the first fauna draft after revised topology/runtime export, four static views, island showcase, and paired live locomotion evidence. One instanced draw replaces each lineage's primitive groups; the foreground diagnostic held the 30 fps cap and matched the baseline's 15 total frame draws. | Maintain the accepted evidence; future refinements must not silently replace it. |
+| `example-marsh-grazer` | animal | **accepted**; embodiment depth **experimenting** | Owner accepted the first fauna draft after revised topology/runtime export, four static views, island showcase, and paired live locomotion evidence. One instanced draw replaces each lineage's primitive groups; the foreground diagnostic held the 30 fps cap and matched the baseline's 15 total frame draws. Herd scale has since risen to 96 per lineage with coat, LOD, and trait-driven movement layered on; the mesh, topology, and single-draw arrangement are unchanged and the diagnostic still reports 15 draws. | Maintain the accepted evidence; future refinements must not silently replace it. The added embodiment work is tracked as **experimenting** in RENDERER-ROADMAP rungs 4–7 and needs its own owner verdicts — including a foreground fps reading at 96, which automated capture cannot supply. |
 | First marine lineage family | fish | **planned** | Visual proof of the first persistent non-land lineage. | Create a brief only when the marine experiment fixes its trait contract. |
 | First reef-builder family | coral | **planned** | Visual proof of reef succession, habitat-driven morphology, bleaching, and dead framework. | Create a brief only when reef-site state and growth pressures are specified. |
 | First aerial lineage family | bird | **deferred** | Replaces the primitive flock after aerial persistence is proven. | Wait for the marine population abstraction to settle. |

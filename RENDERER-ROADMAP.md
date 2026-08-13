@@ -1,7 +1,7 @@
 # Renderer roadmap
 
 > **Status:** Canonical landing-state rendering tracker.
-> **Updated:** 2026-08-12.
+> **Updated:** 2026-08-13.
 > **Scope:** The visual proof required by `THESIS.md` §5–6: deep-time legibility, atmosphere, terrain, water, lighting, shadows, grading, and landing-state scale.
 
 `THESIS.md` defines the bar; this page records what has actually cleared it. A renderer capability is not **Built** until automated checks pass and an owner visual verdict is recorded against the fixed capture set.
@@ -37,11 +37,11 @@ Volcanic comparison uses the same camera and time with `&volcano=active` or anot
 | Post-processing | **Built** as a bounded layer | TSL grading and restrained bloom; optional full-resolution GTAO evaluation path. | Revisit only alongside accepted materials and lighting. |
 | Creature mesh and motion | **Built** for first fauna family | Owner accepted `example-marsh-grazer` after topology-stable export, island showcase, and paired live terrain-aware locomotion evidence. | Preserve the evidence; each later fauna family must pass independently. |
 | Per-instance trait expression | **Built** for terrestrial grazer | The accepted marsh-grazer uses stable render seeds to sample modest individual differences around population means across five shape and two coat-color axes; the sim still owns means and stores no variance. | Preserve the cosmetic-versus-simulated distinction; later fauna must pass independently. |
-| Instanced herd rendering | **Built** for terrestrial grazer | One `InstancedMesh` renders each lineage. The accepted foreground WebGPU diagnostic held the 30 fps cap and reported 15 total frame draws with or without the showcase herd; this remains frame regression evidence rather than GPU timestamps. | Reopen only if herd scale grows or profiling exposes a bottleneck. |
-| Coat color as phenotype | **Built** for terrestrial grazer | Per-instance coat warmth and lightness tint the marsh-grazer's accepted neutral albedo. | Later fauna and richer coat structure must pass independently. |
-| Insulation surface treatment | **Planned** | Insulation changes primitive body bulk only. | Insulation reads as coat structure at near and mid distance. |
-| Creature trait LOD | **Planned** | Vegetation has LOD; creatures do not. | Trait-expression cost and detail degrade gracefully with camera distance. |
-| Trait-driven herd behavior | **Planned** | Cohesion and separation are wired but trait-independent. | Populations remain distinguishable from spacing, speed, and posture at mid distance. |
+| Instanced herd rendering | **Built** for terrestrial grazer; herd scale **experimenting** | One `InstancedMesh` still renders each lineage. Herd size is now 96 instances per lineage, low in the declared 50–200 band. The foreground WebGPU diagnostic reports 15 total frame draws with three 96-animal herds on screen, unchanged from the seven-animal baseline — instance count does not add draws. | Owner foreground fps reading at 96. The automated browser harness suspends `requestAnimationFrame`, so the frame-rate half of the original evidence has **not** been re-measured; only the draw count has. |
+| Coat color as phenotype | **Built** for terrestrial grazer; within-herd range **experimenting** | Per-instance coat warmth and lightness tint the marsh-grazer's accepted neutral albedo. Each site now samples its herd from a seeded uniform, bimodal, or graded distribution over those two scalars, and the colour mapping they feed was widened to match. Population means are preserved by construction and under test. | Owner verdict that the widened tonal range still reads as the accepted animal, not a new one. |
+| Insulation surface treatment | **Experimenting** | A TSL node material layers object-space coat noise over the accepted mesh: banded fibre and guard frequencies that fade with distance, roughness from a tight faintly specular hide to a scattering coat, and trough self-shadowing. Insulation reaches the fragment stage on an instanced attribute mirrored from the shape morph. Chosen over shell layers because shells add a draw per shell per lineage. | Owner verdict on `?shot=coat-detail&herd=contrast&time=42`. |
+| Creature trait LOD | **Experimenting** | Walk-cycle pose sampling repartitions by camera distance: every frame inside 130 m, every third frame to 300 m, frozen beyond, staggered by instance and with the herd's morph texture re-uploaded only when some animal re-posed. Silhouette, coat, and colour are untouched at every distance. Geometry is deliberately not swapped between bands — that would cost the single instanced draw per lineage. | Owner verdict that no pose stutter is visible at the band edges. |
+| Trait-driven herd behavior | **Experimenting** | Body mass and leg length set stride speed and turn rate; heading is rate-limited and animals travel along their facing, so turn radius is visible. Body size sets neighbour spacing, insulation sets cluster tightness, and cohesion radius is held looser than separation so the two forces cannot cancel in place. | Owner verdict on `?showcase=herd-contrast` in motion. Emergent tests cover the numbers; only a person can judge the read. |
 
 ## Creature embodiment ladder
 
@@ -56,6 +56,19 @@ Each rung requires an in-renderer owner verdict; API availability or an offline 
 7. **Behavioral differentiation accepted:** two populations can be distinguished at mid distance from movement alone.
 
 The visual fixture is one herd captured from overview, mid, and near cameras, with GPU timing and draw count recorded alongside the images.
+
+**Rungs 4–7 are implemented and awaiting owner verdicts.** None may be called accepted until those are recorded. The fixture cameras are:
+
+| Rung | Capture URL | Required reading |
+|---:|---|---|
+| 4 — within-herd variation | `?shot=coat-detail&herd=contrast&time=42` | Individuals distinguishable without labels, from colour and coat alone. |
+| 5 — herd scale | `?shot=whole-island&herd=contrast&time=42` | 96 instances per lineage still legible as a herd; draw count unchanged at 15. |
+| 6 — surface treatment and LOD | `?shot=coat-detail&herd=contrast&time=42` near, `?shot=whole-island&herd=contrast&time=42` overview | Insulation reads as coat structure near; silhouette and colour survive the overview. |
+| 7 — behavioural differentiation | `?showcase=herd-contrast` (live, in motion) | Two opposite-mean populations told apart from movement alone at mid distance. |
+
+`?shot=herd-contrast&herd=contrast&time=42` is the mid-distance still of the same pair. The contrast herds are a diagnostic, not a landing outcome: they exist only under these query parameters.
+
+One caveat on rung 5's evidence: the draw count is measured, the frame rate is not. `requestAnimationFrame` is suspended for hidden or automated browser tabs, so an fps reading is only meaningful in a normal foreground tab and remains an owner step.
 
 ## Planned sequence
 
