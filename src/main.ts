@@ -126,6 +126,7 @@ controls.zoomSpeed = 1.25;
 const captureParams = new URLSearchParams(window.location.search);
 const captureShot = captureParams.get("shot");
 const captureMode = isGoldenShotName(captureShot);
+const liveHerdShowcase = captureParams.get("showcase") === "herd";
 const captureTime = Number(captureParams.get("time") ?? 42);
 const postProcessingOptions = readPostProcessingOptions(captureParams);
 let lastInteraction = performance.now() / 1000;
@@ -471,14 +472,22 @@ async function start() {
 
   rendererReady = true;
   applyOceanForces(DEFAULT_CLIMATE);
+  if (liveHerdShowcase) {
+    landingState.advance(10_000, 10_000, DEFAULT_CLIMATE);
+    landingState.showcaseGrazerHerd();
+    presentation.applyShot("herd");
+  }
   if (captureMode) {
     const captureYears = Number(captureParams.get("years") ?? 10_000);
+    if (captureParams.get("founders") === "drifter") landingState.introduceDistantDrifter(0);
     landingState.advance(captureYears, captureYears, DEFAULT_CLIMATE);
+    if (captureParams.get("herd") === "candidate") landingState.showcaseGrazerHerd();
     landingState.update(captureTime, camera.position);
   }
 
   let frameCount = 0;
   let fpsWindowStart = performance.now();
+  let frameDraws = 0;
 
   renderer.setAnimationLoop(() => {
     const elapsed = captureMode ? captureTime : performance.now() / 1000;
@@ -491,7 +500,9 @@ async function start() {
     presentation.update(elapsed);
     if (!presentation.active) controls.update();
     updateShadowCoverage();
+    const callsBeforeRender = renderer.info.render.calls;
     renderPipeline!.render();
+    frameDraws = renderer.info.render.calls - callsBeforeRender;
     if (captureMode) document.documentElement.dataset.captureReady = "true";
 
     // requestAnimationFrame (which this runs on) is suspended by the browser
@@ -503,7 +514,7 @@ async function start() {
       const fps = Math.round((frameCount * 1000) / (now - fpsWindowStart));
       frameCount = 0;
       fpsWindowStart = now;
-      statusEl.textContent = `backend: ${(renderer.backend as { isWebGPUBackend?: boolean }).isWebGPUBackend ? "WebGPU" : "WebGL2"} · ${fps} fps`;
+      statusEl.textContent = `backend: ${(renderer.backend as { isWebGPUBackend?: boolean }).isWebGPUBackend ? "WebGPU" : "WebGL2"} · ${fps} fps · ${frameDraws} draws`;
     }
   });
 }

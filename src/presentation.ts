@@ -8,7 +8,7 @@ export const GOLDEN_SHOTS = {
   "wave-height": { position: [121, 4.8, 148], target: [28, 3.2, 24] },
   "seagrass-meadow": { position: [96, 20, 132], target: [48, -1.5, 62] },
   "forest-interior": { position: [-54, 9, 18], target: [-24, 10, -12] },
-  herd: { position: [58, 24, 58], target: [17, 7, 9] },
+  herd: { position: [40, 30, 38], target: [17, 18, 9] },
   dawn: { position: [142, 43, -126], target: [0, 15, 0] },
   storm: { position: [-150, 58, -132], target: [0, 12, 0] },
 } as const;

@@ -3,20 +3,22 @@
   "id": "example-marsh-grazer",
   "displayName": "Example Marsh Grazer",
   "category": "animal",
-  "stage": "brief",
+  "stage": "accepted",
   "role": "wetland grazing herbivore",
   "habitats": ["seasonally inundated marsh", "wet meadow"],
   "realWorldReferents": ["capybara for a low amphibious body", "marsh deer for long wet-ground limbs"],
-  "silhouette": "A low barrel body carried on visibly long legs, with a blunt grazing head and no ornamental anatomy.",
+  "silhouette": "A blunt grazing head and barrel torso carried on clearance legs, with short paired horns that remain subordinate to the habitat-shaped body.",
   "paletteFamily": "epoch-marsh-umber",
   "scaleMeters": { "min": 1.1, "max": 1.8 },
   "traits": {
     "continuous": [
-      {
-        "name": "limbLength",
-        "driver": "inundation depth and soft substrate",
-        "range": [0.85, 1.25]
-      }
+      { "name": "bodyMass", "driver": "forage availability and energetic reserve", "range": [0, 1] },
+      { "name": "legLength", "driver": "inundation depth and rough terrain", "range": [0, 1] },
+      { "name": "footWidth", "driver": "soft substrate and persistent inundation", "range": [0, 1] },
+      { "name": "insulation", "driver": "temperature and exposure", "range": [0, 1] },
+      { "name": "hornLength", "driver": "open-habitat competition and defense", "range": [0, 1] },
+      { "name": "coatWarmth", "driver": "habitat palette and exposure", "range": [0, 1] },
+      { "name": "coatLightness", "driver": "habitat palette and solar exposure", "range": [0, 1] }
     ],
     "discrete": [
       {
@@ -27,14 +29,29 @@
     ]
   },
   "source": {
-    "tool": "unselected",
-    "files": [],
-    "procedure": "Select Foxel and define the shared rig when this example advances to source."
+    "tool": "deterministic Node.js topology generator",
+    "files": [
+      "source/generate-marsh-grazer.mjs",
+      "source/marsh-grazer.geometry.json"
+    ],
+    "procedure": "Run node assets/ecosystem/example-marsh-grazer/source/generate-marsh-grazer.mjs. This source-stage spike uses a deterministic low-poly topology because Foxel remeshing cannot prove topology-stable per-instance morphs; it is not yet a production visual asset."
   },
-  "previews": [],
-  "exports": [],
-  "lods": [],
+  "previews": [
+    "previews/front.jpg",
+    "previews/side.jpg",
+    "previews/top.jpg",
+    "previews/game-distance.jpg",
+    "previews/landing-showcase.jpg",
+    "previews/landing-live-a.jpg",
+    "previews/landing-live-b.jpg"
+  ],
+  "exports": ["exports/marsh-grazer.runtime.json"],
+  "lods": [
+    { "name": "near", "file": "exports/marsh-grazer.runtime.json", "maxTriangles": 950 }
+  ],
   "animations": { "required": ["idle", "walk"] },
-  "showcase": "",
-  "acceptance": { "verdict": "" }
+  "showcase": "previews/landing-live-b.jpg",
+  "acceptance": {
+    "verdict": "Accepted by the owner on 2026-08-12 as the first fauna draft after reviewing the revised silhouette, island-context integration, and live terrain-aware locomotion evidence."
+  }
 }

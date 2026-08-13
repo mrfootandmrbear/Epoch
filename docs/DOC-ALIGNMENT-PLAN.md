@@ -1,6 +1,6 @@
 # Documentation Alignment Plan
 
-Status: proposal. Nothing here is a decision. This plan lists edits to make and questions to answer; it does not make the calls.
+Status: partially applied proposal. The documentation corrections and candidate architecture framing landed on 2026-08-12. Unresolved product and implementation choices below remain questions, not commitments.
 
 Written 2026-08-12. Inputs: the *Player Attachment Through Visible Evolution* design note, and `docs/SIM-RENDER-AUDIT.md`.
 
@@ -20,7 +20,7 @@ The Player Attachment note proposes a base grazer mesh authored with five morph 
 
 These cannot both be true. THESIS derives its position from a Foxel constraint — Foxel does not export blend shapes, therefore use skeleton proportions. The Player Attachment note assumes a mesh authored with blend shapes, which implies either a non-Foxel authoring path for the grazer, or a Foxel export post-processed to add morph targets.
 
-**This is Open Decision 1 below — now RESOLVED.** Morph targets win: per-instance blend weights via `morphTexture` (DataArrayTexture), Foxel not required. THESIS.md:84 has been updated to reflect this. See OD-1 in the Open Decisions section.
+**This is Open Decision 1 below — now a CANDIDATE ARCHITECTURE.** Three.js r185 supplies per-instance morph weights on `InstancedMesh`, so morph targets lead and Foxel is not required. Library support does not validate Epoch's complete motion, draw-count, performance, or visual-quality path; THESIS and the roadmaps now require an in-engine Apple Silicon spike before resolution.
 
 ## Second-order finding: the audit overclaims on grazer traits
 
@@ -28,7 +28,7 @@ These cannot both be true. THESIS derives its position from a Foxel constraint �
 
 > "**Land lineage traits → grazer** — All 7 traits mapped to mesh (bodyMass, legLength, footWidth, insulation, coatWarmth, coatLightness, hornLength). Abundance drives herd count."
 
-This is true at population granularity and misleading at individual granularity. `applyGrazerTraits` (`src/landing-state.ts:232`) is called once per animal in a herd loop (`src/landing-state.ts:743`) but receives the same `lineage.traits` object every time. Every animal in a herd is identical. The seven traits are mapped to *the mesh*; they are not mapped to *individuals*.
+This finding described the primitive adapter and is now superseded. The candidate landing renderer keeps lineage means authoritative but uses stable render seeds to sample modest individual expression around them. No simulated variance exists yet, so these differences must remain documented as cosmetic embodiment rather than hereditary state.
 
 That distinction is the entire subject of the Player Attachment note, so the audit should not read as though the problem is solved. See the SIM-RENDER-AUDIT edits below.
 
@@ -70,9 +70,9 @@ That row now has to carry seven distinct capabilities with different dependencie
 
 1. **Replace the single row with these rows**, using the doc's existing Candidate / Experimenting / Built / Planned vocabulary and its existing three-column shape (status / today / target):
 
-   - **Creature mesh and rig** — *Planned*. Today: primitive semantic trait adapter only. Target: an accepted fauna asset carrying every expression channel the seven traits need.
-   - **Per-instance trait expression** — *Planned*. Today: one trait set per herd; every individual in a herd is identical (`src/landing-state.ts:743`). Target: individuals within one herd visibly differ along all seven axes.
-   - **GPU herd instantiation** — *Planned*. Today: per-animal CPU mesh mutation. Target: compute-driven instance buffer feeding a single instanced draw per herd. Note the existing in-repo precedent (`src/fft-ocean.ts`).
+   - **Creature mesh and rig** — now *Candidate asset*. The topology-stable marsh-grazer carries the seven expression channels and is integrated, but not accepted.
+   - **Per-instance trait expression** — now *Experimenting*. Stable cosmetic samples vary within a herd; simulation variance remains planned.
+   - **GPU herd instantiation** — now *Candidate architecture*. One `InstancedMesh` draw replaces each lineage's primitive groups; measured timing remains open.
    - **Coat colour as phenotype** — *Candidate*. Today: per-population HSL applied to body material (`src/landing-state.ts:240–244`). Target: per-instance colour from coat warmth and coat lightness against a neutral base albedo.
    - **Insulation shading** — *Planned*. Today: insulation alters body scale only. Target: insulation reads as fur, not only as bulk.
    - **Distance-based trait LOD** — *Planned*. Today: LOD exists for vegetation only. Target: trait expression cost scales with camera distance.
@@ -83,7 +83,7 @@ That row now has to carry seven distinct capabilities with different dependencie
 2. **Add a new section `## Creature embodiment ladder`**, placed after the capability ledger. The seven rows above have a dependency order that a flat ledger cannot express. Define rungs, each with a stated success test in the style this doc already uses:
 
    1. **Trait vocabulary fixed** — the seven axes are named in a planning doc with committed ranges and units. Test: a reader can state what a trait value of 0.8 means without reading code.
-   2. **Expression channels accepted** — the mesh carries whatever channels the traits need (morph targets, skeleton proportions, or a hybrid — pending Open Decision 1). Test: all seven traits produce a visible difference at their extremes on a single static mesh.
+   2. **Expression channels accepted** — the mesh carries the five candidate shape morphs and two coat-color channels, or the spike records why a hybrid is required. Test: all seven traits produce a visible difference at their extremes on a single static mesh.
    3. **Within-herd variation visible** — individuals in one herd differ. Test: a still capture of one herd shows distinguishable individuals without labels.
    4. **Herd scale** — instantiation runs at target herd size without frame-rate regression. Test: the target herd count renders within the existing frame budget. (Target count is Open Decision 9.)
    5. **Fur and pattern** — insulation reads as coat texture; optional pattern overlay. Test: a mixed-insulation herd shows sleek and shaggy individuals in one capture.
@@ -118,17 +118,17 @@ This is the sim-authority doc and the natural home for the trait vocabulary and 
 
 7. **Line 84, marine — claim the seam.** Note that the recorded origin domain and terrestrial ancestor seam is the precedent the lineage DNA generalises. This is a framing edit; it costs one clause and it prevents the lineage DNA reading as unprecedented.
 
-8. **Asset ledger (line 64) — add an expression criterion.** The ladder is brief → source → preview → candidate → accepted, and line 64 states no fauna asset is currently a visual candidate. Nothing in that ladder requires an asset to be able to *express the traits*. Add that criterion: an accepted grazer must carry the expression channels for all seven axes plus a neutral base albedo suitable for per-instance tinting. Without this, an asset could be accepted and still be unable to show evolution.
+8. **Applied and cleared by the first fauna family.** The ladder is brief → source → preview → candidate → accepted. The accepted marsh-grazer carries expression channels for all seven axes plus a neutral base albedo suitable for per-instance tinting; later fauna must meet the same criterion independently.
 
 9. **`## Planned sequence` — add variance, lineage DNA, and path-dependent selection**, in that dependency order (variance is a prerequisite for both others). Preserve existing items and numbering discipline.
 
 ### docs/SIM-RENDER-AUDIT.md
 
-1. **Amend line 11.** Qualify the "all 7 traits mapped" claim with the per-population caveat: one trait set per herd, all individuals in a herd identical. Cite `src/landing-state.ts:743`.
+1. **Applied, then superseded by candidate integration.** The audit now distinguishes authoritative means, cosmetic renderer sampling, and absent simulated variance.
 
-2. **Add a new bullet under `## Sim Output Without Render (gaps)`:** within-population trait variation — no variance field exists in the sim, and the renderer applies one trait set per herd. This is the gap the Player Attachment note addresses.
+2. **Applied.** The remaining gap is simulated within-population variance; renderer sampling no longer blocks visible differences.
 
-3. **Add to the grazer bullet: the acceptance caveat.** The audit currently applies "not accepted visual assets" to swimmer and bird meshes (line 34) but not to the grazer, which reads as though the grazer mesh is accepted. It is not — RENDERER-ROADMAP.md:38 calls it a "primitive semantic trait adapter" and WILDLIFE-ROADMAP.md:64 calls the primitive grazer an integration adapter. Add the cross-reference so the three docs agree.
+3. **Applied and cleared 2026-08-12.** The grazer advanced through candidate integration and passed motion, timing, and owner review. The audit and both roadmaps now record the bounded acceptance.
 
 4. **Add to `## Planned (not implemented on either side)`**, each with the existing `**PLANNED —**` prefix: lineage DNA; per-population variance; per-instance trait expression channels; per-instance GPU trait sampling; stable instance seeds; shell-based fur; distance-based trait LOD; field-notebook lineage card; trait-driven behavioural differentiation.
 
@@ -136,21 +136,21 @@ This is the sim-authority doc and the natural home for the trait vocabulary and 
 
 ### README.md
 
-No edits yet. Line 29 ("one primitive-rig adapter... preserving the seam for a future Foxel/glTF rig") is directly downstream of Open Decision 1 and should change only once that resolves. Line 35's lineage panel description stays accurate until the lineage card ships.
+Line 29 now describes the accepted topology-stable fauna seam and per-instance morph path without committing to Foxel. Line 35's lineage panel description stays accurate until the lineage card ships.
 
 ### New documents
 
 None proposed by this plan. Every proposal here has a natural home in an existing doc. Resist adding a creature-specific roadmap — the split between sim authority (WILDLIFE) and visual fidelity (RENDERER) already accommodates this work, and a third roadmap would duplicate both ledgers.
 
-Separately, `docs/INLAND-WATER-DESIGN.md` captures open design notes for rivers, waterfalls, and the brackish/mangrove river-mouth zone (sim flow accumulation, channel/waterfall/plunge-pool render pieces, ocean-seam questions) — not yet reconciled with WILDLIFE-ROADMAP.md or RENDERER-ROADMAP.md.
+Separately, `docs/INLAND-WATER-DESIGN.md` captures open design notes for rivers, waterfalls, and the brackish/mangrove river-mouth zone. It now frames that work as an extension of the shipped runoff, stream-segment, ribbon, and freshwater-basin contracts; detailed ecology and renderer scheduling remain open.
 
 ## Open decisions
 
 These are questions. None should be written into a roadmap as a commitment until answered.
 
-1. **Creature asset pipeline — RESOLVED.** Morph targets confirmed. Five morph channels (body mass, leg length, foot width, insulation, horn length) plus two per-instance coat color floats (coat warmth, coat lightness), driven from a `morphTexture` (DataArrayTexture) under `WebGPURenderer`. `InstancedMesh` + `SkinnedMesh` are mutually exclusive in the Three.js WebGPU path; foot width and horn length have no natural joint-transform expression. Foxel is an early candidate authoring pipeline, not a requirement — any topology-stable export with a consistent vertex count can drive morph targets. Ladder rungs 2–5 and the RENDERER ledger rows are now unblocked.
+1. **Creature trait-expression architecture — CANDIDATE.** Five morph channels (body mass, leg length, foot width, insulation, horn length) plus two per-instance coat-color values lead. In Three.js r185, `InstancedMesh.morphTexture` is a `DataTexture` containing per-instance weights; morph vertex data is stored separately in a `DataArrayTexture`. Foxel is optional, but any source must be topology-stable. Resolve only after an Epoch spike records trait extremes, grounded animation, draw behavior, GPU timing, and an owner visual verdict on Apple Silicon.
 
-2. **Per-instance morph weights: TSL or raw WGSL.** The Player Attachment note observes that TSL's `morphReference()` and `instanceIndex` nodes may be composable for per-instance morph weights, but that TSL's morph support may assume weights are uniform across instances, requiring a raw WGSL override. The note itself says both paths are worth prototyping. Unresolved. Only relevant if Decision 1 admits morph targets.
+2. **Motion composition and renderer customization.** Three.js r185's node morph path already reads `InstancedMesh.morphTexture` by `instanceIndex`, so raw WGSL is not the default prerequisite previously feared. The spike must still determine whether built-in material/node behavior is sufficient for simultaneous shape morphs, pose animation, per-instance coat values, and any later fur treatment, or whether a bounded customization is justified.
 
 3. **Short-jump seed carry-forward.** Should some instance seeds persist across short jumps (1–10 years) with mortality applied, creating the impression that specific animals survived? The note is explicit that this is render-layer fiction — the sim tracks no individuals. Two sub-questions: what jump length is the threshold, and does this serve or violate THESIS §3's plausible-not-precise rule? Arguably it serves it exactly, but that is a call for the owner, not an assumption.
 
@@ -174,9 +174,9 @@ These are questions. None should be written into a roadmap as a commitment until
 
 ## Suggested execution order
 
-**Now, no decisions required.** Trait enumeration in WILDLIFE-ROADMAP.md:44. The SIM-RENDER-AUDIT corrections — these fix a live inaccuracy and should not wait. THESIS §8 open-question additions. The marine ancestor-seam framing clause. The aerial gate clause.
+**Applied 2026-08-12.** Trait enumeration, SIM-RENDER-AUDIT corrections, candidate architecture framing, the marine ancestor-seam clause, the aerial gate, the renderer embodiment ladder, and the README authoring-tool correction.
 
-**After Decisions 1, 5, and 9.** The RENDERER capability ledger split and the creature embodiment ladder. The WILDLIFE lineage DNA state section. Asset ledger expression criterion.
+**After Decisions 5, 6, 7, and 9.** Fix lineage-DNA domain scope and field sizes, settle its relationship to shipped speciation, and set the target herd size. The roadmaps now expose these gates without inventing their answers.
 
 **After prototyping.** Decision 2 (TSL vs WGSL) resolves only by trying both, per the note's own recommendation. README.md line 29. Planned-sequence placement in both roadmaps.
 

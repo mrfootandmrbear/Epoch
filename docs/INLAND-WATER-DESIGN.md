@@ -1,20 +1,20 @@
 # Inland Water — Open Design Notes
 
 ## Status
-Open — not yet implemented. These notes capture design decisions and render considerations before implementation begins.
+Open extension — not yet implemented as a complete inland-water system. Epoch already computes runoff, resolves downhill stream segments, renders bounded stream ribbons, and derives freshwater basins. These notes define the next contract: persistent/readable channels, steep-drop transitions, plunge pools, and the river-to-brackish-to-ocean seam.
 
 ## Visual Requirements
 Inland water is a first-class visual feature. Waterfalls are part of the core visual concept. Rivers, plunge pools, and the brackish transition zone at river mouths must be visible — not just sim abstractions.
 
 ## Sim Responsibilities
 
-- **Flow accumulation**: run on the island heightfield after each volcanism/erosion step. Tags cells with accumulated rainfall/runoff.
-- **Channel extraction**: identify stable channel paths — ordered sequences of cells from high-elevation source to coast. These paths are what the render layer consumes to build river meshes.
+- **Runoff and flow accumulation extension**: build on the existing terrain-history runoff field after volcanism and erosion rather than introducing a parallel hydrology authority. Determine whether the current discharge signal is sufficient or needs persistent accumulated flow.
+- **Stable channel extraction**: extend the existing downhill stream-segment resolver into ordered, stable paths from source to coast. These paths are what the render layer consumes to build connected river meshes.
 - **Waterfall detection**: cells where flow accumulation exceeds a threshold AND terrain slope exceeds a threshold (cliff faces, caldera rims, lava shelf edges). Volcanic island terrain produces these naturally.
 - **Water body tagging**: cells classified as river, wetland, plunge pool, brackish, or arid — used for biome assignment, creature habitat logic, and vegetation placement.
 - **Brackish zone tagging**: cells in the river-mouth mixing zone get their own biome tag, distinct from river and ocean. This zone supports mangrove habitat.
 
-This sim work fits naturally after volcanism.ts; flow accumulation runs on the same heightfield volcanism maintains.
+This sim work extends the current terrain-history and stream-resolution path. Volcanism remains one input to the authoritative heightfield; inland water must not become a second terrain or hydrology simulation.
 
 ## Render Responsibilities
 
@@ -89,7 +89,7 @@ For Epoch's reveal moments (a river that wasn't there before, one flowing faster
 2. **Channel path format**: how the sim exports stable paths to the render layer (typed array of cell indices? world-space spline control points?)
 3. **Ocean seam at river mouth**: how the plunge pool / river channel transitions to the FFT ocean at the coastline — most critical at the brackish/mangrove zone where three water systems meet
 4. **Brackish shader**: does the brackish zone get its own blend between river flow-map and FFT ocean, or is it handled by a hard cutoff?
-5. **Update frequency**: flow accumulation is expensive to recompute every frame; likely runs on volcanism update cadence (not per-frame)
+5. **Update frequency and persistence**: resolve channels on jump/terrain-history cadence, not per frame; determine what identity must persist so small terrain changes do not make rivers flicker between unrelated paths
 6. **LOD**: at what camera distance do waterfalls switch to a simpler representation?
 7. **God rays / volumetric mist**: defer until core waterfall is working — high atmospheric value, high cost
 

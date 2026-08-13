@@ -2,13 +2,14 @@ import {
   BufferAttribute,
   Color,
   ConeGeometry,
-  CylinderGeometry,
   DataTexture,
   FloatType,
   Group,
+  InstancedMesh,
   LinearFilter,
   Mesh,
   MeshStandardMaterial,
+  Matrix4,
   PlaneGeometry,
   RedFormat,
   RGFormat,
@@ -16,12 +17,19 @@ import {
   RingGeometry,
   Scene,
   SphereGeometry,
+  Quaternion,
   Vector3,
 } from "three/webgpu";
 import { resolveLanding, type LandingOutcome } from "./outcome-resolver";
 import { createDrifterFounderHistory, populationTraitDistance, type LineageChange } from "./lineage-history";
 import { lineageSeed, type PopulationIdentity } from "./population-archetypes";
 import type { PopulationTraits } from "./population-traits";
+import { POPULATION_TRAIT_BOUNDS } from "./population-traits";
+import {
+  createCreatureExpressionSpike,
+  setCreatureExpressionAt,
+  type CreatureExpressionSample,
+} from "./creature-expression-spike";
 import { resolveTerrainHistory, withGrazingPressure, withVegetationProtection } from "./terrain-history";
 import { createVegetationRenderer } from "./vegetation-renderer";
 import { createSeagrassRenderer } from "./seagrass-renderer";
@@ -197,83 +205,24 @@ function makeWetShore(terrain: Mesh): Mesh {
   return result;
 }
 
-function makeGrazer(): Group {
-  const animal = new Group();
-  const material = new MeshStandardMaterial({ color: 0x9b7955, roughness: 0.82 });
-  const dark = new MeshStandardMaterial({ color: 0x241b18, roughness: 1 });
-  const body = new Mesh(new SphereGeometry(1, 12, 8), material);
-  body.name = "body";
-  const head = new Mesh(new SphereGeometry(0.55, 10, 7), material);
-  head.name = "head";
-  animal.add(body, head);
-  for (const z of [-0.55, 0.55]) {
-    for (const x of [-0.85, 0.75]) {
-      const leg = new Mesh(new CylinderGeometry(0.1, 0.13, 1.5, 5), dark);
-      leg.name = "leg";
-      leg.userData.baseX = x;
-      leg.userData.side = z;
-      animal.add(leg);
-    }
-  }
-  for (const z of [-0.32, 0.32]) {
-    const horn = new Mesh(new ConeGeometry(0.11, 1, 6), dark);
-    horn.name = "horn";
-    horn.userData.side = z;
-    horn.rotation.z = -0.55;
-    animal.add(horn);
-  }
-  animal.traverse((child) => {
-    if (child instanceof Mesh) child.castShadow = true;
-  });
-  return animal;
-}
-
-/** The sole seam between semantic population traits and today's primitive rig. */
-function applyGrazerTraits(animal: Group, traits: PopulationTraits): void {
-  const body = animal.getObjectByName("body") as Mesh;
-  const head = animal.getObjectByName("head") as Mesh;
-  const bodyLength = 1.36 + traits.bodyMass * 0.2;
-  const bodyHeight = 0.62 + traits.bodyMass * 0.19 + traits.insulation * 0.12;
-  const bodyWidth = 0.58 + traits.bodyMass * 0.13 + traits.insulation * 0.09;
-  const legHeight = 1.5 * traits.legLength;
-  const bodyY = legHeight + bodyHeight * 0.82;
-  const coat = new Color().setHSL(
-    0.075 - traits.coatWarmth * 0.035,
-    0.24 + traits.coatWarmth * 0.24,
-    0.25 + traits.coatLightness * 0.28,
-  );
-
-  (body.material as MeshStandardMaterial).color.copy(coat);
-  body.scale.set(bodyLength, bodyHeight, bodyWidth);
-  body.position.y = bodyY;
-  head.scale.set(0.92 + traits.bodyMass * 0.08, 0.76 + traits.insulation * 0.12, 0.78 + traits.footWidth * 0.04);
-  head.position.set(bodyLength + 0.5, bodyY + bodyHeight * 0.38, 0);
-
-  animal.children.forEach((child) => {
-    if (!(child instanceof Mesh)) return;
-    if (child.name === "leg") {
-      const baseX = child.userData.baseX as number;
-      const side = child.userData.side as number;
-      child.scale.set(traits.footWidth, traits.legLength, traits.footWidth);
-      child.position.set(baseX * bodyLength / 1.45, legHeight / 2, side * bodyWidth / 0.72);
-    } else if (child.name === "horn") {
-      const side = child.userData.side as number;
-      child.scale.set(0.85 + traits.hornLength * 0.12, traits.hornLength, 0.85 + traits.hornLength * 0.12);
-      child.position.set(bodyLength + 0.78, bodyY + bodyHeight * 0.9, side);
-    }
-  });
-}
-
 interface AnimalNavigationState {
   path: Vector3[];
   waypoint: number;
   journey: number;
 }
 
+interface AnimalInstanceState {
+  readonly position: Vector3;
+  rotationY: number;
+  visible: boolean;
+  walkPhase: number;
+}
+
 interface LineageRenderState {
   readonly id: string;
   readonly seed: number;
-  readonly animals: readonly Group[];
+  readonly herd: InstancedMesh;
+  readonly animals: readonly AnimalInstanceState[];
   readonly navigation: readonly AnimalNavigationState[];
   readonly previousSiteMarker: Mesh;
 }
@@ -284,15 +233,21 @@ function createLineageRenderState(
   identity: PopulationIdentity,
 ): LineageRenderState {
   const seed = lineageSeed(identity, id);
-  const animals = Array.from({ length: 7 }, (_, herdIndex) => {
-    const animal = makeGrazer();
-    animal.visible = false;
-    animal.scale.setScalar(0.9);
-    animal.userData.lineageId = id;
-    animal.userData.herdIndex = herdIndex;
-    scene.add(animal);
-    return animal;
-  });
+  const animals = Array.from({ length: 7 }, (_, index): AnimalInstanceState => ({
+    position: new Vector3(),
+    rotationY: 0,
+    visible: false,
+    walkPhase: hash(index, seed + 171),
+  }));
+  const emptySample: CreatureExpressionSample = {
+    shape: [0.5, 0.5, 0.5, 0.5, 0.5],
+    coatWarmth: 0.5,
+    coatLightness: 0.5,
+    walkPhase: 0,
+  };
+  const herd = createCreatureExpressionSpike(animals.map(() => emptySample));
+  herd.name = `grazer-herd:${id}`;
+  scene.add(herd);
   const markerColor = new Color().setHSL(hash(seed, 503), 0.3, 0.54);
   const previousSiteMarker = new Mesh(
     new RingGeometry(2.6, 3.4, 28),
@@ -310,10 +265,55 @@ function createLineageRenderState(
   return {
     id,
     seed,
+    herd,
     animals,
     navigation: animals.map(() => ({ path: [], waypoint: 0, journey: 0 })),
     previousSiteMarker,
   };
+}
+
+const herdMatrix = new Matrix4();
+const herdRotation = new Quaternion();
+const herdScale = new Vector3(0.9, 0.9, 0.9);
+
+function normalizedTrait(key: keyof PopulationTraits, value: number): number {
+  const bounds = POPULATION_TRAIT_BOUNDS[key];
+  return Math.max(0, Math.min(1, (value - bounds.min) / (bounds.max - bounds.min)));
+}
+
+function expressionSample(
+  traits: PopulationTraits,
+  index: number,
+  seed: number,
+  walkPhase: number,
+): CreatureExpressionSample {
+  const variation = (channel: number) => (hash(index * 13 + channel, seed + channel * 31) - 0.5) * 0.16;
+  const value = (key: keyof PopulationTraits, channel: number) => (
+    Math.max(0, Math.min(1, normalizedTrait(key, traits[key]) + variation(channel)))
+  );
+  return {
+    shape: [
+      value("bodyMass", 0),
+      value("legLength", 1),
+      value("footWidth", 2),
+      value("insulation", 3),
+      value("hornLength", 4),
+    ],
+    coatWarmth: value("coatWarmth", 5),
+    coatLightness: value("coatLightness", 6),
+    walkPhase,
+  };
+}
+
+function syncHerdMatrices(renderer: LineageRenderState): void {
+  renderer.animals.forEach((animal, index) => {
+    const scale = animal.visible ? herdScale : new Vector3(0, 0, 0);
+    herdRotation.setFromAxisAngle(new Vector3(0, 1, 0), animal.rotationY);
+    herdMatrix.compose(animal.position, herdRotation, scale);
+    renderer.herd.setMatrixAt(index, herdMatrix);
+  });
+  renderer.herd.instanceMatrix.needsUpdate = true;
+  renderer.herd.computeBoundingSphere();
 }
 
 function addCoastalSwimmers(scene: Group): Group[] {
@@ -366,6 +366,7 @@ export interface WorldExperience {
   setVolcanicOutput: (output: VolcanicOutput) => void;
   finishSculpt: () => void;
   introduceDistantDrifter: (currentAge: number) => boolean;
+  showcaseGrazerHerd: () => void;
   advance: (years: number, totalYears: number, climate: ClimateForces) => LineageReport;
   update: (elapsed: number, viewPosition?: Readonly<Vector3>) => void;
 }
@@ -597,6 +598,7 @@ export function createLandingState(scene: Scene): WorldExperience {
           renderer.navigation[index]!.waypoint = 0;
         }
       });
+      syncHerdMatrices(renderer);
     }
     refreshFreshwater();
     lineageRenderers.forEach(({ previousSiteMarker: marker }) => {
@@ -679,6 +681,41 @@ export function createLandingState(scene: Scene): WorldExperience {
       };
       return true;
     },
+    showcaseGrazerHerd() {
+      const renderer = rendererFor("candidate-grazer-showcase", "sheltered-grazer");
+      const traits: PopulationTraits = {
+        bodyMass: 1.08,
+        legLength: 1.05,
+        footWidth: 1.04,
+        insulation: 0.42,
+        coatLightness: 0.48,
+        coatWarmth: 0.58,
+        hornLength: 0.92,
+      };
+      renderer.animals.forEach((animal, index) => {
+        const column = index % 4;
+        const row = Math.floor(index / 4);
+        const x = 11 + column * 4.2 + row * 1.5;
+        const z = 5 + row * 5.2 + (column % 2) * 1.4;
+        animal.position.set(x, heightAt(x, z), z);
+        animal.rotationY = -0.55 + hash(index, renderer.seed + 204) * 0.45;
+        animal.visible = true;
+        setCreatureExpressionAt(
+          renderer.herd,
+          index,
+          expressionSample(traits, index, renderer.seed, animal.walkPhase),
+        );
+        const navigation = renderer.navigation[index]!;
+        const destinationX = x + 8 + (index % 2) * 2;
+        const destination = new Vector3(destinationX, heightAt(destinationX, z), z);
+        navigation.path = findTerrainPath(heightAt, animal.position, destination, activeClimate);
+        navigation.waypoint = 0;
+        navigation.journey = 0;
+      });
+      if (renderer.herd.morphTexture) renderer.herd.morphTexture.needsUpdate = true;
+      if (renderer.herd.instanceColor) renderer.herd.instanceColor.needsUpdate = true;
+      syncHerdMatrices(renderer);
+    },
     advance(years: number, totalYears: number, climate: ClimateForces) {
       revealed = true;
       activeClimate = { ...climate };
@@ -727,6 +764,7 @@ export function createLandingState(scene: Scene): WorldExperience {
       for (const renderer of lineageRenderers.values()) {
         if (!outcome.populations.some((lineage) => lineage.id === renderer.id)) {
           renderer.animals.forEach((animal) => { animal.visible = false; });
+          syncHerdMatrices(renderer);
           renderer.previousSiteMarker.visible = false;
         }
       }
@@ -735,24 +773,32 @@ export function createLandingState(scene: Scene): WorldExperience {
         const site = lineage.site;
         if (!site || !lineage.traits) {
           renderer.animals.forEach((animal) => { animal.visible = false; });
+          syncHerdMatrices(renderer);
           renderer.previousSiteMarker.visible = false;
           return;
         }
         const visibleAnimals = Math.max(1, Math.ceil((lineage.abundance ?? 0.34) * renderer.animals.length));
         renderer.animals.forEach((animal, herdIndex) => {
-          applyGrazerTraits(animal, lineage.traits!);
           const angle = hash(herdIndex, renderer.seed + 92) * Math.PI * 2;
           const radius = 4 + hash(herdIndex, renderer.seed + 103) * 13;
           const x = site.x + Math.cos(angle) * radius;
           const z = site.z + Math.sin(angle) * radius;
           animal.position.set(x, heightAt(x, z), z);
           animal.visible = lineage.visible && herdIndex < visibleAnimals;
-          animal.scale.setScalar(0.9);
+          animal.rotationY = angle + Math.PI;
+          setCreatureExpressionAt(
+            renderer.herd,
+            herdIndex,
+            expressionSample(lineage.traits!, herdIndex, renderer.seed, animal.walkPhase),
+          );
           const state = renderer.navigation[herdIndex]!;
           state.path = [];
           state.waypoint = 0;
           state.journey = 0;
         });
+        if (renderer.herd.morphTexture) renderer.herd.morphTexture.needsUpdate = true;
+        if (renderer.herd.instanceColor) renderer.herd.instanceColor.needsUpdate = true;
+        syncHerdMatrices(renderer);
         const marker = renderer.previousSiteMarker;
         const previous = lineage.previousSite;
         marker.visible = lineage.visible && previous !== undefined && lineage.site !== undefined
@@ -795,7 +841,8 @@ export function createLandingState(scene: Scene): WorldExperience {
       if (!revealed) return;
       const delta = Math.min(0.05, Math.max(0, elapsed - lastElapsed));
       lastElapsed = elapsed;
-      lineageRenderers.forEach((renderer) => renderer.animals.forEach((animal, index) => {
+      lineageRenderers.forEach((renderer) => {
+        renderer.animals.forEach((animal, index) => {
         if (!animal.visible) return;
         const state = renderer.navigation[index]!;
         if (state.waypoint >= state.path.length) {
@@ -862,9 +909,20 @@ export function createLandingState(scene: Scene): WorldExperience {
         animal.position.x = nextX;
         animal.position.z = nextZ;
         animal.position.y = heightAt(animal.position.x, animal.position.z);
-        animal.rotation.y = Math.atan2(-dz, dx);
+        animal.rotationY = Math.atan2(-dz, dx);
         animal.position.y += Math.sin(elapsed * 7 + index) * 0.035;
-      }));
+        animal.walkPhase = (animal.walkPhase + delta * (0.9 + speed * 0.08)) % 1;
+        const morphData = renderer.herd.morphTexture?.source.data.data;
+        if (morphData) {
+          const stride = 8;
+          const phase = animal.walkPhase;
+          morphData[index * stride + 6] = phase < 0.5 ? 1 - phase * 2 : 0;
+          morphData[index * stride + 7] = phase >= 0.5 ? phase * 2 - 1 : 0;
+        }
+        });
+        syncHerdMatrices(renderer);
+        if (renderer.herd.morphTexture) renderer.herd.morphTexture.needsUpdate = true;
+      });
       coastalAnimals.forEach((animal, index) => {
         if (!animal.visible) return;
         const phase = elapsed * (0.22 + (index % 3) * 0.035) + index * 1.7;

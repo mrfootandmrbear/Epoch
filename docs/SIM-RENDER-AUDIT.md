@@ -1,6 +1,6 @@
 # Epoch: Simulation–Rendering Gap Audit
 
-*Last updated: 2026-08-12. Goal: keep simulation and rendering in tandem.*
+*Snapshot updated: 2026-08-12. Goal: keep simulation and rendering in tandem. Proposed follow-up work is reconciled in `docs/DOC-ALIGNMENT-PLAN.md`; this audit does not itself confer implementation or visual acceptance.*
 
 ## Rendering Correctly
 - **Terrain elevation** — TerrainHistory.elevations synced into Three.js plane geometry. Drives all terrain geometry, shadows, walkability, ocean depth reads.
@@ -8,7 +8,7 @@
 - **Basalt + ash** — RG DataTexture (volcanicTexture). Blends basalt/ash color over base terrain.
 - **Tree placement + morphology** — vegetation-renderer.ts consumes all morphology fields: guild, height, crown dims, lean, foliage HSL. Near/far LOD wired.
 - **Seagrass** — seagrass-renderer.ts consumes height, spread, scale, rotation, HSL. Per-tuft sway, near/far LOD.
-- **Land lineage traits → grazer** — All 7 traits mapped to mesh (bodyMass, legLength, footWidth, insulation, coatWarmth, coatLightness, hornLength). Abundance drives herd count.
+- **Land lineage traits → grazer** — All seven population means feed the accepted marsh-grazer. Stable renderer seeds add modest individual samples around those means; abundance controls visible instance count, and one `InstancedMesh` renders each lineage. The sim still stores no within-population variance.
 - **Herd behavior** — Terrain pathfinding, cohesion/separation wired in update loop.
 - **Freshwater basins** — freshwater-renderer.ts triangulates flat-surface grid from FreshwaterField.surface.
 - **Stream ribbons** — stream-renderer.ts animates segments with discharge ≥ 0.12 and drop/length ≤ 0.22.
@@ -26,11 +26,12 @@
 - **Waterfall segments** — resolveStreamSegments identifies steep-drop reaches and reserves them for a "dedicated waterfall layer." That layer does not exist.
 - **Marine traits beyond bodySize** — streamlining, depthPreference, thermalTolerance, maneuverability, depthControl all simulated. Only bodySize drives swimmer scale. Mesh is trait-invariant.
 - **Marine band (benthic/midwater/surface)** — Tracked in 3-node water column graph. All swimmers render at same Y regardless of band.
-- **Land lineage energy** — In resolver + report. applyGrazerTraits does not read it. Starving population looks identical to thriving one.
+- **Land lineage energy** — In resolver + report. The accepted expression renderer does not read it. A starving population has fewer visible instances through abundance but no independent condition/posture cue.
 - **Marine lineage energy** — Same issue. Shown in report, no visual correlate.
 - **Terrestrial feedingAdaptation** — Computed in founder resolver, not in PopulationTraits, no visual.
 - **MarineEnergyExchange fields** (primaryProductivity, nurseryCapacity, preyAvailability, shorelineSubsidy) — Feed aerial score correctly. No independent visual layer. shorelineSubsidy computed, nothing consumes it.
 - **Aerial population persistence** — Stateless: no species identity, no persistence across jumps, no trait variation. 12 identical primitive birds regenerated each jump.
+- **Within-population trait variation** — The sim stores means but no variance per terrestrial trait axis. Current individual differences are stable renderer sampling, not inherited simulation state.
 - **Primitive swimmer + bird meshes** — Integration adapters per WILDLIFE-ROADMAP.md. Not accepted visual assets.
 
 ## Planned (not implemented on either side)
@@ -47,3 +48,8 @@
 - **PLANNED — Full cross-domain food web loop** — Runoff→coast→marine partially wired. Marine→aerial→land (guano) not persistent.
 - **PLANNED — Cross-domain ancestry (land → water)** — Schema reserved, no resolver logic fires it.
 - **PLANNED — Jump-transition visual treatment** — Explicitly deferred in THESIS.md §2.1 and §8.
+- **PLANNED — Per-population trait variance and lineage DNA** — No fixed hereditary record yet covers variance, trajectories, ancestral snapshots, environmental imprint, or branching history.
+- **PLANNED — Per-instance trait expression and GPU sampling** — A source-stage marsh-grazer probe verifies the Three.js data contract, but there is no accepted expression mesh, stable instance-seed contract, or in-engine morph/animation performance proof.
+- **PLANNED — Insulation surface treatment and trait LOD** — No fur/shell treatment or distance-scaled creature expression.
+- **PLANNED — Trait-driven behavior** — Herd movement is trait-independent.
+- **PLANNED — Field-notebook lineage card** — Existing lineage reporting is textual; the richer successor has no fixed data or delivery contract.

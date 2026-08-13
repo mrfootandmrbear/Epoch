@@ -1,7 +1,7 @@
 # Renderer roadmap
 
 > **Status:** Canonical landing-state rendering tracker.
-> **Updated:** 2026-08-11.
+> **Updated:** 2026-08-12.
 > **Scope:** The visual proof required by `THESIS.md` §5–6: deep-time legibility, atmosphere, terrain, water, lighting, shadows, grading, and landing-state scale.
 
 `THESIS.md` defines the bar; this page records what has actually cleared it. A renderer capability is not **Built** until automated checks pass and an owner visual verdict is recorded against the fixed capture set.
@@ -35,7 +35,27 @@ Volcanic comparison uses the same camera and time with `&volcano=active` or anot
 | Shadows | **Experimenting** | One broad 2048² island solar map keeps direct-light shadowing consistent across the authored terrain. | Verify island/shoreline/forest cameras and record the owner verdict; revisit true cascades only if close-range resolution requires them. |
 | Inland water and ice | **Experimenting** | Runoff remains explicit; deterministic downhill tracing now feeds a separate animated stream/creek ribbon renderer alongside freshwater basins. Terrain geometry remains authoritative and uncontaminated. | Validate channel placement and motion, then add waterfall transitions and climate-driven snowfield/glacier surfaces. |
 | Post-processing | **Built** as a bounded layer | TSL grading and restrained bloom; optional full-resolution GTAO evaluation path. | Revisit only alongside accepted materials and lighting. |
-| Creature embodiment | **Planned** | Primitive semantic trait adapter only. | Accepted rigged/animated fauna family with readable extremes at gameplay distance. |
+| Creature mesh and motion | **Built** for first fauna family | Owner accepted `example-marsh-grazer` after topology-stable export, island showcase, and paired live terrain-aware locomotion evidence. | Preserve the evidence; each later fauna family must pass independently. |
+| Per-instance trait expression | **Built** for terrestrial grazer | The accepted marsh-grazer uses stable render seeds to sample modest individual differences around population means across five shape and two coat-color axes; the sim still owns means and stores no variance. | Preserve the cosmetic-versus-simulated distinction; later fauna must pass independently. |
+| Instanced herd rendering | **Built** for terrestrial grazer | One `InstancedMesh` renders each lineage. The accepted foreground WebGPU diagnostic held the 30 fps cap and reported 15 total frame draws with or without the showcase herd; this remains frame regression evidence rather than GPU timestamps. | Reopen only if herd scale grows or profiling exposes a bottleneck. |
+| Coat color as phenotype | **Built** for terrestrial grazer | Per-instance coat warmth and lightness tint the marsh-grazer's accepted neutral albedo. | Later fauna and richer coat structure must pass independently. |
+| Insulation surface treatment | **Planned** | Insulation changes primitive body bulk only. | Insulation reads as coat structure at near and mid distance. |
+| Creature trait LOD | **Planned** | Vegetation has LOD; creatures do not. | Trait-expression cost and detail degrade gracefully with camera distance. |
+| Trait-driven herd behavior | **Planned** | Cohesion and separation are wired but trait-independent. | Populations remain distinguishable from spacing, speed, and posture at mid distance. |
+
+## Creature embodiment ladder
+
+Each rung requires an in-renderer owner verdict; API availability or an offline asset preview is not acceptance.
+
+1. **Trait vocabulary fixed:** document ranges and meanings for body mass, leg length, foot width, insulation, horn length, coat warmth, and coat lightness.
+2. **Expression spike accepted:** on Apple Silicon WebGPU, show all five shape channels and two color channels at their extremes on one topology-stable mesh. Record the actual Three.js resources correctly: `InstancedMesh.morphTexture` stores per-instance weights as a `DataTexture`; morph vertex data is stored separately in a `DataArrayTexture`.
+3. **Motion architecture accepted:** prove grounded locomotion combined with trait expression. Pose morphs are a candidate, not a commitment, until animation quality and channel interactions are captured.
+4. **Within-herd variation visible:** a still frame shows distinguishable individuals without labels while simulation authority remains at population level.
+5. **Herd scale accepted:** the chosen target instance count renders within the existing frame budget and verifies the intended draw-call count.
+6. **Surface treatment and LOD accepted:** insulation reads as coat structure nearby, while overview silhouettes and color remain legible at reduced cost.
+7. **Behavioral differentiation accepted:** two populations can be distinguished at mid distance from movement alone.
+
+The visual fixture is one herd captured from overview, mid, and near cameras, with GPU timing and draw count recorded alongside the images.
 
 ## Planned sequence
 
@@ -47,6 +67,7 @@ Volcanic comparison uses the same camera and time with `&volcano=active` or anot
 6. Replace island-wide shadow coverage with a close/far strategy.
 7. Validate accepted ecosystem assets in the landing renderer before expanding asset breadth.
 8. Extend freshwater into connected flowing surfaces: drainage-fed streams and creeks, waterfall transitions at steep drops, then persistent snowfield/glacier flow for suitable climates.
+9. Run the bounded creature expression spike, then advance the embodiment ladder in order; placement relative to the existing renderer work remains an owner scheduling decision.
 
 ## Maintenance rule
 

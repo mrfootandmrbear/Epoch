@@ -1,7 +1,7 @@
 # Wildlife roadmap
 
 > **Status:** Canonical capability and experiment tracker.
-> **Updated:** 2026-08-11.
+> **Updated:** 2026-08-12.
 > **Scope:** Wildlife, food-web connections, evolutionary lineages, and the ecosystem asset families that make those systems visible.
 
 Landing-state rendering quality is tracked separately in [RENDERER-ROADMAP.md](RENDERER-ROADMAP.md); asset acceptance still requires an in-renderer owner verdict.
@@ -41,16 +41,20 @@ Domains exchange shared signals such as forage, coastal productivity, nutrients,
 |---|---|---|---|
 | Shared snapshot | **Built** | One sampled terrain/climate/forage state supplies land, freshwater, coast, and air scoring. | Add explicit marine nutrient, wave-stress, and benthic substrate fields only when their first consumer is implemented. |
 | Water-volume habitat | **Built** as a bounded proof | Surface, midwater, and benthic nodes connect horizontally through open water and vertically within columns; body size controls shallow clearance. A separate benthic field records coral-facing depth, light, slope, and substrate stability. | Add current direction, oxygen, and persistent nutrients when the first consumer needs each field. |
-| Terrestrial lineages | **Built** | Drifters introduce one tiny founder cohort; food-use adaptation, local forage, energy, and reproduction gate establishment. Established lineages persist identity, site, seven-trait means, migration, abundance, extinction, and bounded deep-time speciation. | Replace primitive embodiment with one real fauna family and verify that trait extremes remain readable at gameplay distance. |
+| Terrestrial lineages | **Built** | Drifters introduce one tiny founder cohort; food-use adaptation, local forage, energy, and reproduction gate establishment. Established lineages persist identity, site, migration, abundance, extinction, bounded deep-time speciation, and means for body mass, leg length, foot width, insulation, coat warmth, coat lightness, and horn length. No per-axis variance is stored. | Replace primitive embodiment with one real fauna family and verify that trait extremes remain readable at gameplay distance. |
+| Per-population trait variance | **Planned** | Terrestrial lineages store means only. | Simulate bounded variance per axis with explicit responses to selection, drift, bottlenecks, and gene flow. |
+| Lineage DNA | **Planned** | Identity and ancestry persist; marine state reserves an origin domain and optional terrestrial ancestor seam. | Define one compact hereditary record shared by the sim, renderer sampling, and history UI. |
+| Path-dependent selection | **Planned** | Selection primarily reads current conditions and inherited means. | Make different lineage histories produce different bounded outcomes under the same present conditions. |
 | Play-speed land behavior | **Built** | Terrain-aware paths, herd cohesion/separation, and walkability are renderer-side embodiments of resolved populations. | Bias destination choice toward current forage without making local movement authoritative over epoch history. |
 | Freshwater | **Built** as habitat; **planned** as ecology | Drainage-fed basins are derived from the shared snapshot. | Define one ecological consumer before adding nutrient transport or freshwater wildlife. |
 | Marine animals | **Built** for one lineage | A coastal-forager persists in connected 3D water bands with body-size clearance, depth choice, streamlining, maneuverability, depth control, thermal tolerance, energy, abundance, migration, and extinction. | Validate open-water and structurally complex trait extremes before authoring the fish brief. |
 | Aerial animals | **Planned** | Nesting, lift, and nearby coastal food place one ephemeral flock. | Generalize the population contract after the marine experiment; add ancestry only after an aerial trait/energy model works. |
 | Reef succession | **Planned** | No reef-site history or coral renderer exists. Seagrass proves submerged instancing, not reef ecology. | Prove colonization, persistent framework, disturbance, and recovery with one bounded coral growth family. |
 | Cross-domain food web | **Experimenting** | Forage drives land dynamics. Marine primary productivity, nursery capacity, fish abundance, prey availability, and shoreline subsidy form an explicit energy exchange; nesting aerial outcomes already read marine abundance. | Make runoff/nutrients persistent, then add one land or aerial consumer of prey/subsidy without feeding grazers implausibly. |
-| Lineage/colony history UI | **Built** for land and first fish reporting; **planned** for reefs | Land ancestry and fish condition/adaptation are reported textually. | Add domain-aware reef succession after the reef-site contract exists; defer a richer branching view until then. |
+| Textual lineage/colony reporting | **Built** for land and first fish; **planned** for reefs | Land ancestry and fish condition/adaptation are reported textually. | Add domain-aware reef succession after the reef-site contract exists. |
+| Field-notebook lineage card | **Planned** | No ancestry tree, trait sparklines, or biome glyph exists. | Consume the lineage DNA contract as a richer successor to the textual report; delivery surface remains open. |
 
-**Trait expression for terrestrial lineages — OD-1 resolved:** Evolved traits express via five morph targets (body mass, leg length, foot width, insulation, horn length) plus two per-instance scalar floats (coat warmth, coat lightness) — the same seven fields already tracked as lineage trait means. Per-instance blend weights are driven from a `morphTexture` (DataArrayTexture) under `WebGPURenderer`; one draw call covers a herd. Walk cycle runs as pose morphs blended per instance. Any topology-stable mesh with a consistent vertex count can drive this pipeline; the authoring tool (Foxel or otherwise) is not a binding constraint.
+**Trait expression for terrestrial lineages — built for the first accepted family:** Five morph channels (body mass, leg length, foot width, insulation, horn length) plus two per-instance coat-color scalars map the seven lineage fields. Three.js r185 reads per-instance weights from an `InstancedMesh` `DataTexture`, with morph vertex data stored separately in a `DataArrayTexture`. Pose-morph locomotion and one instanced draw per lineage are integrated and owner-accepted for `example-marsh-grazer`; other fauna must clear their own asset and visual gates.
 
 ## Asset ledger
 
@@ -58,12 +62,12 @@ Domains exchange shared signals such as forage, coastal productivity, nutrients,
 |---|---|---:|---|---|
 | `epoch-seagrass-meadow` | plant | **candidate** | Visible sheltered coastal productivity and nursery cover; slow per-tuft current sway is under renewed review. | Owner verdict on revised in-engine motion. |
 | `epoch-canopy-tree` | plant | **candidate** | Visible woody cover, soil protection, forage structure, and mangrove habitat. | Owner visual verdict on the recorded showcase and previews. |
-| `example-marsh-grazer` | animal | **brief** | Illustrative trait/asset contract; not a production creature. | Select Foxel source workflow and define the shared rig, discrete foot variants, and reproducible procedure. |
+| `example-marsh-grazer` | animal | **accepted** | Owner accepted the first fauna draft after revised topology/runtime export, four static views, island showcase, and paired live locomotion evidence. One instanced draw replaces each lineage's primitive groups; the foreground diagnostic held the 30 fps cap and matched the baseline's 15 total frame draws. | Maintain the accepted evidence; future refinements must not silently replace it. |
 | First marine lineage family | fish | **planned** | Visual proof of the first persistent non-land lineage. | Create a brief only when the marine experiment fixes its trait contract. |
 | First reef-builder family | coral | **planned** | Visual proof of reef succession, habitat-driven morphology, bleaching, and dead framework. | Create a brief only when reef-site state and growth pressures are specified. |
 | First aerial lineage family | bird | **deferred** | Replaces the primitive flock after aerial persistence is proven. | Wait for the marine population abstraction to settle. |
 
-No fauna or coral asset is currently a visual candidate. Primitive grazers, swimmers, and birds are integration adapters, not accepted wildlife.
+The marsh grazer is the first accepted fauna family. Primitive swimmers and birds remain integration adapters, not accepted wildlife; no coral asset is yet a visual candidate.
 
 ## Completed experiment: persistent marine lineage
 
@@ -84,6 +88,12 @@ No fauna or coral asset is currently a visual candidate. Primitive grazers, swim
 **Result:** accepted as a separate marine domain adapter over shared migration/adaptation concepts. The first coastal-forager persists renderer-independent state, reacts predictably to sea-level and temperature change, becomes extinct without viable food habitat, validates in world history, replays deterministically, reports its condition after each jump, and drives the primitive swimmer adapter. Its semantic traits are body size, streamlining, depth preference, thermal tolerance, and the discrete tail-propulsion plan.
 
 The spatial follow-up replaced point-site movement with a coarse three-band water graph. Submerged relief can remove benthic or midwater passage without blocking surface passage; fish can route around closed columns; body size controls shallow-channel access. Maneuverability and depth control now complement streamlining, so reef-complexity and open-water pressures can reward different descendants. Marine state also records an origin domain and optional terrestrial ancestor seam, reserving credible grazer-to-amphibious-to-aquatic ancestry without triggering that transition before intermediate fitness is modeled.
+
+That origin/ancestor seam is the existing precedent for a future general lineage-DNA contract. The first implementation should remain land-first; aerial ancestry still waits for a working aerial trait and energy model, and marine generalization must preserve the completed domain adapter rather than replacing it implicitly.
+
+### Proposed lineage-DNA state
+
+Before implementation, fix a compact layout covering trait means, per-axis variances, bounded trajectories, ancestral snapshots, environmental imprint, lineage depth, and branching references. Counts and history depth remain open; do not bind a GPU buffer or replace the shipped speciation trigger until the layout and the relationship between variance-driven and existing bounded speciation are decided.
 
 ## Next experiment: reef succession
 
@@ -143,6 +153,9 @@ The first asset family should still select one ecologically legible framework-bu
 7. **Aerial persistence:** reuse the settled population concepts with nesting, lift, metabolic cost, and marine prey availability.
 8. **Cross-domain branching:** test rare land-to-water and land/coastal-to-air ancestry only through viable intermediate populations. Hippo-like semi-aquatic grazers and whale-like fully aquatic descendants should be divergent outcomes of shared ancestry, not archetype swaps.
 9. **History visualization:** present land, fish, bird, and reef histories with domain-appropriate relationships; reef succession should not be mislabeled as animal speciation.
+10. **Terrestrial trait variance:** add and validate bounded variance without making rendered individuals simulation authority.
+11. **Lineage DNA:** fix and implement the hereditary record after variance semantics are stable.
+12. **Path-dependent selection:** make lineage history affect outcomes only after the DNA contract can represent and test that history.
 
 ## Deferred until earned
 
