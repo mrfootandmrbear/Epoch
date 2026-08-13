@@ -81,12 +81,27 @@ export function createCreatureExpressionSpike(
   return result;
 }
 
+/**
+ * `setMorphAt` needs a `Mesh` to read influences from. Allocating one per call
+ * was free for a seven-animal herd and is not at herd scale, so each herd keeps
+ * a single reusable probe.
+ */
+const morphProbes = new WeakMap<InstancedMesh, Mesh>();
+
+function probeFor(herd: InstancedMesh): Mesh {
+  const existing = morphProbes.get(herd);
+  if (existing) return existing;
+  const created = new Mesh(herd.geometry, herd.material);
+  morphProbes.set(herd, created);
+  return created;
+}
+
 export function setCreatureExpressionAt(
   herd: InstancedMesh,
   index: number,
   sample: CreatureExpressionSample,
 ): void {
-  const probe = new Mesh(herd.geometry, herd.material);
+  const probe = probeFor(herd);
   probe.morphTargetInfluences!.fill(0);
   sample.shape.forEach((value, channel) => {
     probe.morphTargetInfluences![channel] = clamp01(value);
@@ -95,10 +110,11 @@ export function setCreatureExpressionAt(
   probe.morphTargetInfluences![5] = phase < 0.5 ? 1 - phase * 2 : 0;
   probe.morphTargetInfluences![6] = phase >= 0.5 ? phase * 2 - 1 : 0;
   herd.setMorphAt(index, probe);
-  const coat = new Color().setHSL(
+  herd.setColorAt(index, coatColor.setHSL(
     0.075 - clamp01(sample.coatWarmth) * 0.035,
     0.24 + clamp01(sample.coatWarmth) * 0.24,
     0.25 + clamp01(sample.coatLightness) * 0.28,
-  );
-  herd.setColorAt(index, coat);
+  ));
 }
+
+const coatColor = new Color();

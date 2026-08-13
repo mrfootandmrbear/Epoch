@@ -205,6 +205,23 @@ function makeWetShore(terrain: Mesh): Mesh {
   return result;
 }
 
+/**
+ * Interim target herd size. The declared range is 50–200 individuals per
+ * population (`docs/DOC-ALIGNMENT-PLAN.md`, open decision 9); 96 sits low in
+ * that band with headroom. Instance count does not change the draw count —
+ * one `InstancedMesh` still renders each lineage — so the cost that matters
+ * is CPU steering and morph upload, both bounded below.
+ */
+const HERD_INSTANCE_COUNT = 96;
+
+/**
+ * A* over the coarse nav grid is far too expensive to run for every animal on
+ * the frame a herd is placed or a jump resolves. Requests are spread across
+ * frames instead; an animal without a path simply grazes in place until its
+ * turn comes, which is invisible at herd scale.
+ */
+const PATHS_PER_FRAME = 3;
+
 interface AnimalNavigationState {
   path: Vector3[];
   waypoint: number;
@@ -233,7 +250,7 @@ function createLineageRenderState(
   identity: PopulationIdentity,
 ): LineageRenderState {
   const seed = lineageSeed(identity, id);
-  const animals = Array.from({ length: 7 }, (_, index): AnimalInstanceState => ({
+  const animals = Array.from({ length: HERD_INSTANCE_COUNT }, (_, index): AnimalInstanceState => ({
     position: new Vector3(),
     rotationY: 0,
     visible: false,
@@ -275,6 +292,8 @@ function createLineageRenderState(
 const herdMatrix = new Matrix4();
 const herdRotation = new Quaternion();
 const herdScale = new Vector3(0.9, 0.9, 0.9);
+const herdHidden = new Vector3(0, 0, 0);
+const HERD_UP = new Vector3(0, 1, 0);
 
 function normalizedTrait(key: keyof PopulationTraits, value: number): number {
   const bounds = POPULATION_TRAIT_BOUNDS[key];
@@ -306,12 +325,18 @@ function expressionSample(
 }
 
 function syncHerdMatrices(renderer: LineageRenderState): void {
+  // Hidden animals collapse to zero scale, but trailing hidden slots need not
+  // be submitted at all: abundance fills the herd from index zero upward, so
+  // trimming `count` keeps a sparse population off the vertex pipeline.
+  let drawn = 0;
   renderer.animals.forEach((animal, index) => {
-    const scale = animal.visible ? herdScale : new Vector3(0, 0, 0);
-    herdRotation.setFromAxisAngle(new Vector3(0, 1, 0), animal.rotationY);
+    const scale = animal.visible ? herdScale : herdHidden;
+    if (animal.visible) drawn = index + 1;
+    herdRotation.setFromAxisAngle(HERD_UP, animal.rotationY);
     herdMatrix.compose(animal.position, herdRotation, scale);
     renderer.herd.setMatrixAt(index, herdMatrix);
   });
+  renderer.herd.count = drawn;
   renderer.herd.instanceMatrix.needsUpdate = true;
   renderer.herd.computeBoundingSphere();
 }
@@ -692,23 +717,28 @@ export function createLandingState(scene: Scene): WorldExperience {
         coatWarmth: 0.58,
         hornLength: 0.92,
       };
+      // A phyllotaxis scatter spreads the herd evenly without the read of a
+      // grid, and stays deterministic so the fixed capture is reproducible.
+      const centerX = 17;
+      const centerZ = 9;
+      const spread = 26;
       renderer.animals.forEach((animal, index) => {
-        const column = index % 4;
-        const row = Math.floor(index / 4);
-        const x = 11 + column * 4.2 + row * 1.5;
-        const z = 5 + row * 5.2 + (column % 2) * 1.4;
+        const radial = Math.sqrt((index + 0.5) / renderer.animals.length) * spread;
+        const angle = index * 2.399963;
+        const x = centerX + Math.cos(angle) * radial + (hash(index, renderer.seed + 311) - 0.5) * 3.4;
+        const z = centerZ + Math.sin(angle) * radial + (hash(index, renderer.seed + 407) - 0.5) * 3.4;
         animal.position.set(x, heightAt(x, z), z);
         animal.rotationY = -0.55 + hash(index, renderer.seed + 204) * 0.45;
-        animal.visible = true;
+        animal.visible = isWalkable(heightAt, x, z, activeClimate);
         setCreatureExpressionAt(
           renderer.herd,
           index,
           expressionSample(traits, index, renderer.seed, animal.walkPhase),
         );
         const navigation = renderer.navigation[index]!;
-        const destinationX = x + 8 + (index % 2) * 2;
-        const destination = new Vector3(destinationX, heightAt(destinationX, z), z);
-        navigation.path = findTerrainPath(heightAt, animal.position, destination, activeClimate);
+        // Routes are requested lazily under the per-frame budget; pathing
+        // ninety-six animals in one call would stall the frame.
+        navigation.path = [];
         navigation.waypoint = 0;
         navigation.journey = 0;
       });
@@ -778,9 +808,14 @@ export function createLandingState(scene: Scene): WorldExperience {
           return;
         }
         const visibleAnimals = Math.max(1, Math.ceil((lineage.abundance ?? 0.34) * renderer.animals.length));
+        // The site footprint grows with the number actually present, so a
+        // sparse population still reads as a loose band and a full herd is not
+        // crammed into the radius that seven animals used to occupy.
+        const siteRadius = 5 + Math.sqrt(visibleAnimals) * 2.4;
         renderer.animals.forEach((animal, herdIndex) => {
-          const angle = hash(herdIndex, renderer.seed + 92) * Math.PI * 2;
-          const radius = 4 + hash(herdIndex, renderer.seed + 103) * 13;
+          const angle = herdIndex * 2.399963 + hash(herdIndex, renderer.seed + 92) * 0.6;
+          const radial = Math.sqrt((herdIndex + 0.5) / Math.max(1, visibleAnimals)) * siteRadius;
+          const radius = 4 + radial + hash(herdIndex, renderer.seed + 103) * 2.5;
           const x = site.x + Math.cos(angle) * radius;
           const z = site.z + Math.sin(angle) * radius;
           animal.position.set(x, heightAt(x, z), z);
@@ -842,10 +877,28 @@ export function createLandingState(scene: Scene): WorldExperience {
       const delta = Math.min(0.05, Math.max(0, elapsed - lastElapsed));
       lastElapsed = elapsed;
       lineageRenderers.forEach((renderer) => {
+        // The herd centroid is one property of the whole group, so it is
+        // resolved once per frame rather than rebuilt inside every animal.
+        let centerX = 0;
+        let centerZ = 0;
+        let visibleCount = 0;
+        for (const other of renderer.animals) {
+          if (!other.visible) continue;
+          centerX += other.position.x;
+          centerZ += other.position.z;
+          visibleCount++;
+        }
+        if (visibleCount > 0) {
+          centerX /= visibleCount;
+          centerZ /= visibleCount;
+        }
+        let pathBudget = PATHS_PER_FRAME;
         renderer.animals.forEach((animal, index) => {
         if (!animal.visible) return;
         const state = renderer.navigation[index]!;
         if (state.waypoint >= state.path.length) {
+          if (pathBudget <= 0) return;
+          pathBudget--;
           state.journey++;
           let destination: Vector3 | undefined;
           for (let attempt = 0; attempt < 10 && !destination; attempt++) {
@@ -876,16 +929,14 @@ export function createLandingState(scene: Scene): WorldExperience {
           state.waypoint++;
           return;
         }
-        const herdMates = renderer.animals.filter((other) => other.visible && other !== animal);
-        if (herdMates.length) {
-          const centerX = herdMates.reduce((sum, other) => sum + other.position.x, 0) / herdMates.length;
-          const centerZ = herdMates.reduce((sum, other) => sum + other.position.z, 0) / herdMates.length;
+        if (visibleCount > 1) {
           const centerDistance = Math.hypot(centerX - animal.position.x, centerZ - animal.position.z);
           if (centerDistance > 17) {
             dx += (centerX - animal.position.x) * 0.22;
             dz += (centerZ - animal.position.z) * 0.22;
           }
-          for (const other of herdMates) {
+          for (const other of renderer.animals) {
+            if (!other.visible || other === animal) continue;
             const awayX = animal.position.x - other.position.x;
             const awayZ = animal.position.z - other.position.z;
             const spacing = Math.hypot(awayX, awayZ);
