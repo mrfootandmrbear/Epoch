@@ -307,10 +307,22 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
     const intersectionBand = smoothstep(0.03, 0.2, waterDepth)
       .mul(float(1).sub(smoothstep(0.2, 0.95, waterDepth)))
       .mul(insideTerrain);
+    // LW-3: foam is aerated water, so gate it on wave energy rather than on
+    // depth alone. vWave.x is the crest height and length(vWave.yz) the local
+    // surface slope (steepness); together they mark rising, breaking water.
+    // Without this, every shallow patch foams — a solid ring at the true
+    // shoreline plus detached blobs over submerged flats that read as decals
+    // in open water. Weighting the band by wave energy scallops the ring and
+    // starves the flat patches that had nothing generating them.
+    const waveEnergy = clamp(
+      max(vWave.x.mul(0.85).add(0.2), length(vWave.yz).mul(1.3)),
+      0,
+      1,
+    );
     const shorePulse = sin(sceneTime.mul(1.35).add(positionWorld.x.mul(0.045)).add(positionWorld.z.mul(0.03)))
-      .mul(0.16).add(0.58);
-    const shoreBreakup = smoothstep(0.58, 0.88, turb.add(shorePulse));
-    const shoreFoam = intersectionBand.mul(shoreBreakup).mul(0.86)
+      .mul(0.16).add(0.5);
+    const shoreBreakup = smoothstep(0.55, 0.9, turb.mul(0.6).add(shorePulse).add(waveEnergy.mul(0.5)));
+    const shoreFoam = intersectionBand.mul(shoreBreakup).mul(waveEnergy.mul(0.55).add(0.45)).mul(0.86)
       .mul(float(1).sub(distFade.mul(0.55)));
 
     return mix(mix(albedo, foamColor, shoreFoam), distantWater, aerial);

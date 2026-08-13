@@ -117,3 +117,39 @@ micro-polish) still un-audited.
 
 **Next.** Slice A = LW-1 + LW-3 (+ LW-2) — cheap, low-risk legibility wins with
 the best return per session. LW-4 and LW-7 each earn a dedicated WU.
+
+---
+
+## WU-002 · Slice A — cheap legibility wins (2026-08-13)
+
+**Hypothesis.** LW-1 and LW-3 are both low-cost, low-risk, independently visible
+legibility fixes. Land them together for the best return per session; pick up
+LW-2 only if capacity holds.
+
+**Change.**
+- **LW-1 (fish invisible).** `fish-renderer.ts`: replaced the hue band
+  `0.51 - warmth*0.18` (which resolved the warm showcase fish to
+  `HSL(0.377,0.382,0.525)`, a green-cyan sitting on the teal water column) with
+  a habitat-temperature split — warm fish gold→coral (hue 0.09→0.01), cool fish
+  blue→violet (0.60→0.68), both off the water band, with saturation and
+  lightness lifted. Size base 0.22 → 0.27 (still inside the 0.35–1.4 m manifest
+  contract). `landing-state.ts` `showcaseFish` count 8 → 10 in a tighter cluster
+  so the population masses into a shoal at the ~11 m hero camera.
+- **LW-3 (foam artifacts).** `fft-water.ts`: `shoreFoam` was gated on shallow
+  depth alone, so every shallow patch foamed — a solid bright ring at the true
+  shoreline plus detached blobs over submerged flats. Added a `waveEnergy` term
+  (`vWave.x` crest height + `length(vWave.yz)` surface slope) and folded it into
+  the shore-foam weight and breakup threshold, so only rising/breaking water
+  foams. Scallops the ring; starves the flat detached patches.
+- **LW-2 not taken** — usage ran low; capacity did not hold. Still OPEN.
+
+**Evidence.** `npx tsc --noEmit` clean; 232/232 tests pass. WebGPU browser-pane
+still-frame at the `fish` hero shot confirms the fish now read as vivid orange
+forms clearly separated from the water (previously near-invisible). Foam not yet
+captured before/after; both fixes carry the frozen-frame + owner-verdict caveats.
+
+**Verdict.** Slice A partially delivered (LW-1 + LW-3). Ready for owner verdict;
+not self-certified. LW-2 rolls to a later WU.
+
+**Next.** LW-2 (flat encrusting corals) to close Slice A, then Slice B = LW-4
+(cascade/whitewater, its own WU with before/after evidence).

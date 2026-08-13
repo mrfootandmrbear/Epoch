@@ -142,7 +142,15 @@ physics/collision, UI/HUD, micro-polish. Still un-audited.
   the above land.
 
 ### LW-1 · Fish are camouflaged into near-invisibility
-**Impact 3 · Cost 1 · Risk 1 · Score 3.00 · Status: OPEN**
+**Impact 3 · Cost 1 · Risk 1 · Score 3.00 · Status: FIXED (WU-002, ready for owner verdict)**
+
+Fixed in `fish-renderer.ts`: coloration now reads habitat temperature —
+warm-water fish resolve to vivid gold/coral, cool-water to blue/violet, both off
+the teal water band. Showcase warmth 0.74 → gold-orange instead of the old
+`HSL(0.377,0.382,0.525)` green-cyan. Size base 0.22 → 0.27 (still inside the
+0.35–1.4 m contract) and `showcaseFish` count 8 → 10 with a tighter cluster so it
+massing reads as a shoal. WebGPU still-frame confirms the fish now separate
+strongly from the water; motion/fps unverified per pane caveat.
 
 The `fish` hero camera (`?shot=fish&fixture=mature-warm-reef&fish=candidate`)
 shows almost nothing. Three compounding causes in `fish-renderer.ts`:
@@ -172,7 +180,14 @@ fine, arbitrary is not; a flat plate does not read as a living form.
   normals in `coral-geometry-assets.ts` / `coral-renderer.ts`.
 
 ### LW-3 · Foam reads as artifacts
-**Impact 3 · Cost 2 · Risk 1 · Score 1.50 · Status: OPEN**
+**Impact 3 · Cost 2 · Risk 1 · Score 1.50 · Status: FIXED (WU-002, ready for owner verdict)**
+
+Fixed in `fft-water.ts`: `shoreFoam` is now gated on a `waveEnergy` term
+(`vWave.x` crest height + `length(vWave.yz)` surface slope) instead of on shallow
+depth alone. Only rising/breaking water foams, which scallops the previously
+uniform shoreline ring and starves the detached open-water blobs (they were
+shallow submerged flats foaming with no wave activity generating them). Owner
+verdict still needed on the frozen frame vs. motion.
 
 A heavy continuous bright-white band rings the entire shoreline, and detached
 white foam blobs sit in open water with nothing generating them (clearest in

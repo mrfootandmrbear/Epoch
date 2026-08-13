@@ -985,10 +985,12 @@ export function createLandingState(scene: Scene): WorldExperience {
         depthControl: 0.7,
         propulsionPlan: "tail" as const,
       };
-      const samples = Array.from({ length: 8 }, (_, index) => ({
-        x: 104 + Math.cos(index * 2.399) * (1.8 + index * 0.52),
+      // LW-1: a tighter cluster of 10 (the renderer cap) reads as a shoal at
+      // the ~11 m hero camera instead of a few scattered specks.
+      const samples = Array.from({ length: 10 }, (_, index) => ({
+        x: 104 + Math.cos(index * 2.399) * (1.5 + index * 0.34),
         y: -5.2 + (index % 3) * 0.32,
-        z: 116 + Math.sin(index * 2.399) * (1.8 + index * 0.52),
+        z: 116 + Math.sin(index * 2.399) * (1.5 + index * 0.34),
         heading: index * 2.399,
         scale: 1,
       }));

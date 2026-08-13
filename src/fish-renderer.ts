@@ -125,7 +125,7 @@ export function createFishRenderer(parent: Group): FishRenderer {
       // runtime family inside its 0.35–1.4 m manifest contract while allowing
       // body size to remain legible against coral branches.
       const condition = 0.9 + state.expression.energy * 0.1;
-      scale.setScalar((0.22 + state.expression.bodySize * 0.1) * condition * state.sampleScale);
+      scale.setScalar((0.27 + state.expression.bodySize * 0.1) * condition * state.sampleScale);
       matrix.compose(new Vector3(x, y, z), rotation, scale);
       mesh.setMatrixAt(index, matrix);
       setMorph(index, state.expression, Math.sin(phase * 4.8) * (0.36 + state.expression.streamlining * 0.26));
@@ -153,7 +153,16 @@ export function createFishRenderer(parent: Group): FishRenderer {
         state.expression = expression;
         const warmth = expression.thermalTolerance;
         const condition = expression.energy;
-        color.setHSL(0.51 - warmth * 0.18, 0.18 + condition * 0.28, 0.28 + condition * 0.34);
+        // LW-1: the old hue band (0.33–0.51) sat on top of the teal water
+        // column, so the shoal read as water. Coloration reads habitat
+        // temperature instead — warm-water reef fish are vivid gold-to-coral,
+        // cool-water fish deep blue-violet — and both branches sit off the
+        // water band so the population separates from its medium. The split at
+        // warmth 0.5 is a real tropical/temperate threshold, not a gradient.
+        const hue = warmth >= 0.5
+          ? 0.09 - (warmth - 0.5) * 0.16 // 0.09 gold → 0.01 coral-red
+          : 0.60 + (0.5 - warmth) * 0.16; // 0.60 blue → 0.68 violet
+        color.setHSL(hue, 0.6 + condition * 0.28, 0.44 + condition * 0.16);
         mesh.setColorAt(index, color);
       });
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
