@@ -26,6 +26,10 @@ export interface TerrainHistory {
   readonly volcanicLoad: Float32Array;
   /** Locally weathered substrate maturity; fresh lava resets it. */
   readonly substrateAge: Float32Array;
+  /** Years since the cell was last substantially resurfaced by lava. */
+  readonly surfaceAgeYears: Float32Array;
+  /** Persistent mineral and organic soil development available to plants. */
+  readonly soilDevelopment: Float32Array;
   /** Persistent mineral sediment available for transport and coastal burial. */
   readonly sediment: Float32Array;
   /** Persistent reef-produced carbonate framework and depositional substrate. */
@@ -73,6 +77,8 @@ export function createTerrainHistory(
     ash: new Float32Array(elevations.length),
     volcanicLoad: new Float32Array(elevations.length),
     substrateAge: new Float32Array(elevations.length).fill(0.58),
+    surfaceAgeYears: new Float32Array(elevations.length).fill(10_000),
+    soilDevelopment: new Float32Array(elevations.length).fill(0.5),
     sediment: new Float32Array(elevations.length).fill(0.08),
     carbonate: new Float32Array(elevations.length),
     marineNutrients: 0.2,
@@ -95,6 +101,8 @@ export function resolveTerrainHistory(
   const nextAsh = previous.ash.slice();
   const nextVolcanicLoad = previous.volcanicLoad.slice();
   const nextSubstrateAge = previous.substrateAge.slice();
+  const nextSurfaceAgeYears = previous.surfaceAgeYears.slice();
+  const nextSoilDevelopment = previous.soilDevelopment.slice();
   const nextSediment = previous.sediment.slice();
   const nextCarbonate = previous.carbonate.slice();
   const { weathering: duration, deepTime } = geomorphicDuration(jumpYears);
@@ -102,6 +110,7 @@ export function resolveTerrainHistory(
   const wind = WIND[climate.wind].exposure;
   const sea = SEA_LEVEL[climate.seaLevel];
   const rainSupply = climate.rainfall === "wet" ? 1 : climate.rainfall === "temperate" ? 0.62 : 0.18;
+  const weatheringHalfLife = climate.rainfall === "wet" ? 140 : climate.rainfall === "temperate" ? 650 : 4_000;
   let exportedNutrients = 0;
   let coastalCells = 0;
 
@@ -143,10 +152,6 @@ export function resolveTerrainHistory(
       const recovery = duration * (0.08 + protection * 0.42 + Math.max(0, RAINFALL[climate.rainfall].moisture) * 0.2);
       nextDisturbance[index] = clamp01(previous.disturbance[index]! * (1 - recovery) + activity);
       const moisture = RAINFALL[climate.rainfall].moisture;
-      const potential = clamp01(0.48 + moisture * 0.55 + protection * 0.42 - nextDisturbance[index]! * 0.38);
-      const regrowth = duration * (0.12 + Math.max(0, moisture) * 0.16);
-      nextForage[index] = clamp01(previous.forage[index]! + (potential - previous.forage[index]!) * regrowth);
-
       // Coarse D8-style drainage: local relief and rainfall accumulate water;
       // vegetation retains soil while exposed erosion exports its nutrients.
       const inheritedFlow = (
@@ -154,16 +159,37 @@ export function resolveTerrainHistory(
         + previous.runoff[index - side]! + previous.runoff[index + side]!
       ) * 0.125;
       nextRunoff[index] = clamp01(rainSupply * (0.16 + downhill * 0.08) + inheritedFlow * 0.58);
+      const inheritedAge = previous.surfaceAgeYears[index]!;
+      const surfaceAge = Math.min(50_000_000, inheritedAge + jumpYears);
+      nextSurfaceAgeYears[index] = surfaceAge;
+      const mineralWeathering = 1 - Math.exp(-jumpYears / weatheringHalfLife);
+      const surfaceMaturity = 1 - Math.exp(-surfaceAge / (weatheringHalfLife * 2.4));
+      const soilPotential = clamp01(
+        surfaceMaturity * (0.34 + rainSupply * 0.34)
+        + protection * 0.28
+        + previous.ash[index]! * 0.2
+        - clamp01(relief / 8) * 0.18
+        - nextRunoff[index]! * erosion * 0.06,
+      );
+      const soilResponse = 1 - Math.exp(-jumpYears / (weatheringHalfLife * 4));
+      nextSoilDevelopment[index] = clamp01(previous.soilDevelopment[index]!
+        + (soilPotential - previous.soilDevelopment[index]!) * soilResponse);
+      const fertility = clamp01(nextSoilDevelopment[index]! * 0.68 + previous.nutrients[index]! * 0.32);
+      const potential = clamp01((0.48 + moisture * 0.55 + protection * 0.42
+        - nextDisturbance[index]! * 0.38) * (0.08 + fertility * 0.92));
+      const regrowth = duration * (0.12 + Math.max(0, moisture) * 0.16);
+      nextForage[index] = clamp01(previous.forage[index]! + (potential - previous.forage[index]!) * regrowth);
+
       const litter = duration * protection * (0.035 + Math.max(0, moisture) * 0.035);
       const nutrientLoss = duration * erosion * nextRunoff[index]! * exposed * (0.025 + relief * 0.004);
       nextNutrients[index] = clamp01(previous.nutrients[index]! + litter - nutrientLoss);
-      const substrateWeathering = duration * (0.012 + rainSupply * 0.04);
+      const substrateWeathering = Math.max(duration * 0.006, mineralWeathering);
       const weatheredBasalt = previous.basalt[index]! * substrateWeathering;
       nextBasalt[index] = clamp01(previous.basalt[index]! - weatheredBasalt);
       nextAsh[index] = clamp01(previous.ash[index]! * (1 - duration * (0.12 + rainSupply * 0.2)));
       nextVolcanicLoad[index] = clamp01(previous.volcanicLoad[index]! * (1 - deepTime * 0.018));
-      nextSubstrateAge[index] = clamp01(previous.substrateAge[index]!
-        + duration * (0.018 + rainSupply * 0.025) * (1 - previous.basalt[index]!));
+      nextSubstrateAge[index] = clamp01(Math.max(previous.substrateAge[index]!, surfaceMaturity)
+        * (1 - nextBasalt[index]! * 0.72));
       const erodedMineral = clamp01(transport * 0.12 + nutrientLoss * 0.8);
       const coastalDeposition = elevation <= sea + 5
         ? nextRunoff[index]! * duration * (0.08 + Math.max(0, sea + 3 - elevation) * 0.018)
@@ -198,6 +224,8 @@ export function resolveTerrainHistory(
     ash: nextAsh,
     volcanicLoad: nextVolcanicLoad,
     substrateAge: nextSubstrateAge,
+    surfaceAgeYears: nextSurfaceAgeYears,
+    soilDevelopment: nextSoilDevelopment,
     sediment: nextSediment,
     carbonate: nextCarbonate,
     marineNutrients: clamp01(

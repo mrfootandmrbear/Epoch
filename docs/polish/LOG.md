@@ -319,3 +319,15 @@ candidate reads as teal creek water entering the pond rather than white
 scratches, and reports no warnings or errors. Ready for owner verdict.
 
 **Next.** Slice C = LW-6, lighting intent across dawn, day and storm.
+
+**LW-8 — herd individuality and overlap closeout.** The live
+`coat-detail&herd=contrast` recheck showed that per-animal gait phases and coat
+variation were already working, but exposed a stronger composition failure:
+each 96-animal contrast herd was forced into an 11 m radius, making the animals
+interpenetrate into a solid wall. Showcase layouts now enforce a deterministic
+body-spacing-aware minimum radius, with a focused 96-animal packing test, and
+the contrast sites are separated far enough that their expanded footprints do
+not overlap. The fixed WebGPU frame retains the nimble/bulky population read,
+shows distinct silhouettes and structured coats, and reports no warnings or
+errors. Targeted tests pass 29/29, TypeScript/Vite build is clean, and the
+accepted marsh-grazer package validates. Ready for owner verdict.

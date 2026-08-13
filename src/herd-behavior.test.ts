@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { approachHeading, deriveHerdBehavior, turnRadius } from "./herd-behavior";
+import { approachHeading, deriveHerdBehavior, herdLayoutRadius, turnRadius } from "./herd-behavior";
 import { POPULATION_TRAIT_BOUNDS, type PopulationTraits } from "./population-traits";
 
 const MIDDLE: PopulationTraits = {
@@ -160,6 +160,33 @@ describe("movement a viewer can read", () => {
     // Over ten seconds of open walking the gap is tens of metres, which is
     // plainly visible even when individual animals are small on screen.
     expect((fast.strideSpeed - slow.strideSpeed) * 10).toBeGreaterThan(15);
+  });
+});
+
+describe("herd layout", () => {
+  it("expands a full herd enough to begin outside its separation distance", () => {
+    const count = 96;
+    const spacing = deriveHerdBehavior(withTraits({
+      bodyMass: bodyMass.max,
+      insulation: insulation.max,
+    })).spacing;
+    const radius = herdLayoutRadius(count, spacing, 11);
+    const points = Array.from({ length: count }, (_, index) => {
+      const radial = Math.sqrt((index + 0.5) / count) * radius;
+      const angle = index * 2.399963;
+      return { x: Math.cos(angle) * radial, z: Math.sin(angle) * radial };
+    });
+    let nearest = Number.POSITIVE_INFINITY;
+    for (let i = 0; i < points.length; i++) {
+      for (let j = 0; j < i; j++) {
+        nearest = Math.min(nearest, Math.hypot(points[i]!.x - points[j]!.x, points[i]!.z - points[j]!.z));
+      }
+    }
+    expect(nearest).toBeGreaterThanOrEqual(spacing);
+  });
+
+  it("honours a deliberately wider composition", () => {
+    expect(herdLayoutRadius(12, 3, 40)).toBe(40);
   });
 });
 

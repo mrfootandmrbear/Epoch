@@ -286,7 +286,7 @@ streaks, swell + chop together) and the Water-Pro bar in THESIS §6.
   calm→storm, not a single shot. Biggest unit here; may split.
 
 ### LW-8 · Herd within-population uniformity + flat coats
-**Impact 2 · Cost 3 · Risk 2 · Score 0.33 · Status: OPEN (partly still-frame)**
+**Impact 2 · Cost 3 · Risk 2 · Score 0.33 · Status: IMPLEMENTED (ready for owner verdict)**
 
 **First, the strength this qualifies:** cross-population trait divergence reads
 clearly — `?shot=coat-detail&herd=contrast` shows the nimble population (tall,
@@ -305,3 +305,16 @@ The weaknesses are within a single population:
 
 - **Care:** confirm the pose complaint against a moving capture on the owner's
   machine before treating it as real; it may be mostly the frozen frame.
+
+**2026-08-13 implementation/recheck.** Live WebGPU review confirmed that gait
+phases are independently seeded and remain desynchronised in motion. Existing
+renderer-side coat sampling supplies stable uniform/bimodal/graded variation,
+and the near material supplies insulation-driven strand/clump structure without
+extra draws. The remaining visible defect was worse than the original note:
+the contrast fixture packed 96 animals into an 11 m radius, producing severe
+interpenetration. Showcase placement now derives a minimum phyllotaxis radius
+from population body spacing and count, while respecting deliberately wider
+compositions; the two contrast populations are seated at non-overlapping site
+centres. The revised live frame has readable individual silhouettes and no
+console warnings. Cross-population morphology and tight-vs-loose behavior are
+unchanged. Owner visual verdict is the remaining gate.

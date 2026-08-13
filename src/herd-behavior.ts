@@ -38,6 +38,17 @@ export function turnRadius(behavior: HerdBehavior): number {
   return behavior.strideSpeed / behavior.turnRate;
 }
 
+/**
+ * Radius for a deterministic phyllotaxis layout whose nearest neighbours do
+ * not begin inside the behavior's separation distance. The renderer may ask
+ * for a wider composition, but never a denser one: separation steering only
+ * works once animals move and cannot repair a stacked review frame.
+ */
+export function herdLayoutRadius(count: number, spacing: number, requestedRadius = 0): number {
+  if (count <= 1) return Math.max(0, requestedRadius);
+  return Math.max(requestedRadius, spacing * Math.sqrt(count) * 0.66);
+}
+
 export function deriveHerdBehavior(traits: Readonly<PopulationTraits>): HerdBehavior {
   const mass = normalized("bodyMass", traits.bodyMass);
   const leg = normalized("legLength", traits.legLength);

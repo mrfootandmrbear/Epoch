@@ -18,10 +18,10 @@ export const GOLDEN_SHOTS = {
   herd: { position: [40, 30, 38], target: [17, 18, 9] },
   // Mid distance, framing both contrast herds at once: the rung-7 judgement is
   // whether two populations read apart from movement alone at this range.
-  "herd-contrast": { position: [18, 60, 108], target: [18, 14, 8] },
+  "herd-contrast": { position: [15, 72, 126], target: [14, 12, 3] },
   // Near enough for coat structure to resolve, which is the rung-6 judgement.
   // The overview and mid rungs alone could never show it.
-  "coat-detail": { position: [28, 24, 24], target: [18, 19, 8] },
+  "coat-detail": { position: [64, 30, 30], target: [42, 12, -10] },
   dawn: { position: [142, 43, -126], target: [0, 15, 0] },
   storm: { position: [-150, 58, -132], target: [0, 12, 0] },
 } as const;
