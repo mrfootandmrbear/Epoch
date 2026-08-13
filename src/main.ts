@@ -163,6 +163,15 @@ scene.add(ambientLight);
 const hemisphereLight = new HemisphereLight(0xaed7ee, 0x5b4938, 0.28);
 scene.add(hemisphereLight);
 
+/** Direction the shadow-casting key light comes from — the sun by day, an antisolar moon at night. */
+const keyLightDirection = new Vector3().copy(sunDirection);
+const MOONLIGHT_INTENSITY = 0.13;
+
+function clampedSmoothstep(min: number, max: number, value: number): number {
+  const x = Math.min(1, Math.max(0, (value - min) / (max - min)));
+  return x * x * (3 - 2 * x);
+}
+
 function updateAtmosphere(elapsed: number): void {
   const profile: AtmosphereProfile = captureShot === "dawn"
     ? "dawn"
@@ -175,7 +184,15 @@ function updateAtmosphere(elapsed: number): void {
   sunDirection.copy(state.sunDirection);
   atmosphereBackground.update(state);
   sunLight.color.copy(state.sunColor);
-  sunLight.intensity = state.sunIntensity;
+  // Below the horizon the sun sits under the seabed, so pointing the key light
+  // along it lights nothing and re-renders the shadow map from beneath the
+  // island every night frame. Night is keyed from the antisolar direction
+  // instead. The swap happens well after sunset, where both contributions are
+  // near zero, so no lighting pops at the horizon crossing.
+  const moon = 1 - clampedSmoothstep(-0.25, -0.05, state.sunDirection.y);
+  keyLightDirection.copy(state.sunDirection);
+  if (moon > 0.5) keyLightDirection.negate();
+  sunLight.intensity = state.sunIntensity * (1 - moon) + MOONLIGHT_INTENSITY * moon;
   oceanMesh?.updateAtmosphere(state);
   ambientLight.color.copy(state.ambientColor);
   ambientLight.intensity = state.ambientIntensity;
@@ -190,7 +207,7 @@ function updateAtmosphere(elapsed: number): void {
 const broadShadowCenter = new Vector3(0, 10, 0);
 function updateShadowCoverage(): void {
   sunLight.target.position.copy(broadShadowCenter);
-  sunLight.position.copy(broadShadowCenter).addScaledVector(sunDirection, 420);
+  sunLight.position.copy(broadShadowCenter).addScaledVector(keyLightDirection, 420);
   sunLight.target.updateMatrixWorld();
 }
 
