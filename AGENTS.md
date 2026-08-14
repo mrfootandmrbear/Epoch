@@ -13,3 +13,7 @@ npm run asset:check -- assets/ecosystem/<asset-id>
 ```
 
 Do not call a package accepted without a recorded owner visual verdict.
+
+## WebGPU systems
+
+When inventing, evaluating, prototyping, or integrating a rendering or compute architecture that relies on WebGPU, Three.js `WebGPURenderer`, or TSL, use [design-webgpu-solutions](.agents/skills/design-webgpu-solutions/SKILL.md). This includes GPU simulation or generation, storage-buffer and texture dataflow, instancing, culling, LOD, indirect submission, temporal techniques, readback, and GPU performance investigations.

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Design WebGPU Solutions"
+  short_description: "Invent and validate GPU-native rendering systems"
+  default_prompt: "Use $design-webgpu-solutions to design and validate a GPU-native solution for this Epoch rendering problem."

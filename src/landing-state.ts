@@ -43,6 +43,7 @@ import { createFreshwaterRenderer } from "./freshwater-renderer";
 import { createTerrainMaterial, type TerrainMaterial } from "./terrain-material";
 import { packTerrainMaterialState } from "./terrain-material-state";
 import { createTerrainDetailRenderer } from "./terrain-detail-renderer";
+import { renderBathymetryOffset, renderBoundaryHeight } from "./render-bathymetry";
 import { createStreamRenderer } from "./stream-renderer";
 import { createCascadeRenderer } from "./cascade-renderer";
 import { resolveFreshwaterField } from "./freshwater-basins";
@@ -97,6 +98,7 @@ function makeTerrain(
   stateTexture: DataTexture,
   volcanicTexture: DataTexture,
   environmentTexture: DataTexture,
+  renderHeightTexture: DataTexture,
   water: ReefWaterUniforms,
 ): Mesh<PlaneGeometry, TerrainMaterial> {
   const geometry = new PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, TERRAIN_SEGMENTS, TERRAIN_SEGMENTS);
@@ -122,6 +124,7 @@ function makeTerrain(
       stateTexture,
       volcanicTexture,
       environmentTexture,
+      renderHeightTexture,
       terrainExtent: TERRAIN_SIZE,
       seaLevel: SEA_LEVEL[DEFAULT_CLIMATE.seaLevel],
       water,
@@ -166,12 +169,8 @@ function makeTerrainStateTexture(): DataTexture {
   return result;
 }
 
-function makeHeightTexture(terrain: Mesh): DataTexture {
-  const positions = terrain.geometry.attributes.position;
-  const data = new Float32Array(positions.count);
-  for (let i = 0; i < positions.count; i++) data[i] = positions.getY(i);
-  const side = Math.round(Math.sqrt(positions.count));
-  const result = new DataTexture(data, side, side, RedFormat, FloatType);
+function makeHeightTexture(): DataTexture {
+  const result = new DataTexture(new Float32Array(TERRAIN_SIDE * TERRAIN_SIDE), TERRAIN_SIDE, TERRAIN_SIDE, RedFormat, FloatType);
   result.minFilter = LinearFilter;
   result.magFilter = LinearFilter;
   result.needsUpdate = true;
@@ -475,12 +474,12 @@ export function createLandingState(scene: Scene): WorldExperience {
   // Created before the terrain because the seabed reads the same submerged
   // state the reef standing on it does.
   const reefWater = createReefWaterUniforms(SEA_LEVEL[DEFAULT_CLIMATE.seaLevel]);
-  const terrain = makeTerrain(terrainStateTexture, volcanicTexture, environmentTexture, reefWater);
+  const terrainHeightTexture = makeHeightTexture();
+  const terrain = makeTerrain(terrainStateTexture, volcanicTexture, environmentTexture, terrainHeightTexture, reefWater);
   scene.add(terrain);
   const hotSpotMarker = createVolcanicHotSpotMarker();
   scene.add(hotSpotMarker.group);
   const terrainDetails = createTerrainDetailRenderer(scene);
-  const terrainHeightTexture = makeHeightTexture(terrain);
   const oceanMaskTexture = makeOceanMaskTexture();
   const wetShore = makeWetShore(terrain);
   scene.add(wetShore);
@@ -673,7 +672,7 @@ export function createLandingState(scene: Scene): WorldExperience {
       previousHistory: seededHistory,
       jumpYears,
     });
-    reef.setReef(outcome.colonies);
+    reef.setReef(outcome.colonies.filter((colony) => renderFloorOffsetAt(colony.x, colony.z) < 2));
     reef.setSeaLevel(seaLevel);
     marineSnow.setField(currentField, heightAt, seaLevel);
     return outcome;
@@ -751,18 +750,43 @@ export function createLandingState(scene: Scene): WorldExperience {
     const wetColors = wetShore.geometry.attributes.color;
     const heightData = terrainHeightTexture.image.data as Float32Array;
     const sea = SEA_LEVEL[activeClimate.seaLevel];
+    const shoreDistance = new Float32Array(source.count);
+    shoreDistance.fill(Number.POSITIVE_INFINITY);
     for (let i = 0; i < source.count; i++) {
       const x = source.getX(i);
       const y = source.getY(i);
       const z = source.getZ(i);
-      // Sink the finite terrain texture into deep water before its edge so
-      // the depth fade never reveals the square simulation domain.
-      const edgeDistance = 190 - Math.max(Math.abs(x), Math.abs(z));
-      const edgeDrop = Math.max(0, Math.min(1, (42 - edgeDistance) / 42));
-      heightData[i] = y - edgeDrop * edgeDrop * 38;
+      heightData[i] = y;
+      if (y >= sea) shoreDistance[i] = 0;
       wetPositions.setXYZ(i, x, y + 0.045, z);
       const wetness = Math.max(0, Math.min(1, 1 - Math.abs(y - (sea + 0.75)) / 1.15));
       wetColors.setXYZW(i, 0.16, 0.12, 0.075, wetness * wetness);
+    }
+    // Two-pass chamfer distance to the current shoreline. Unlike a radial or
+    // square mask, this follows the actual sculpted island and changes with it.
+    const relax = (index: number, other: number, cost: number) => {
+      shoreDistance[index] = Math.min(shoreDistance[index]!, shoreDistance[other]! + cost);
+    };
+    for (let z = 0; z < TERRAIN_SIDE; z++) for (let x = 0; x < TERRAIN_SIDE; x++) {
+      const i = z * TERRAIN_SIDE + x;
+      if (x > 0) relax(i, i - 1, 1);
+      if (z > 0) relax(i, i - TERRAIN_SIDE, 1);
+      if (x > 0 && z > 0) relax(i, i - TERRAIN_SIDE - 1, Math.SQRT2);
+      if (x + 1 < TERRAIN_SIDE && z > 0) relax(i, i - TERRAIN_SIDE + 1, Math.SQRT2);
+    }
+    for (let z = TERRAIN_SIDE - 1; z >= 0; z--) for (let x = TERRAIN_SIDE - 1; x >= 0; x--) {
+      const i = z * TERRAIN_SIDE + x;
+      if (x + 1 < TERRAIN_SIDE) relax(i, i + 1, 1);
+      if (z + 1 < TERRAIN_SIDE) relax(i, i + TERRAIN_SIDE, 1);
+      if (x + 1 < TERRAIN_SIDE && z + 1 < TERRAIN_SIDE) relax(i, i + TERRAIN_SIDE + 1, Math.SQRT2);
+      if (x > 0 && z + 1 < TERRAIN_SIDE) relax(i, i + TERRAIN_SIDE - 1, Math.SQRT2);
+    }
+    for (let i = 0; i < source.count; i++) {
+      const x = source.getX(i);
+      const z = source.getZ(i);
+      const edgeDistance = TERRAIN_HALF - Math.max(Math.abs(x), Math.abs(z));
+      const coastalHeight = source.getY(i) - renderBathymetryOffset(shoreDistance[i]! * TERRAIN_STEP);
+      heightData[i] = renderBoundaryHeight(coastalHeight, edgeDistance);
     }
     // Flood from the boundary so enclosed depressions remain freshwater
     // instead of receiving the same displaced surface as the open ocean.
@@ -800,6 +824,13 @@ export function createLandingState(scene: Scene): WorldExperience {
 
   syncShoreSurface();
 
+  function renderFloorOffsetAt(x: number, z: number): number {
+    const gx = Math.max(0, Math.min(TERRAIN_SEGMENTS, Math.round((x + TERRAIN_HALF) / TERRAIN_STEP)));
+    const gz = Math.max(0, Math.min(TERRAIN_SEGMENTS, Math.round((z + TERRAIN_HALF) / TERRAIN_STEP)));
+    const index = gz * TERRAIN_SIDE + gx;
+    return terrain.geometry.attributes.position.getY(index) - (terrainHeightTexture.image.data as Float32Array)[index]!;
+  }
+
   function flushTerrainChanges(): void {
     if (!terrainDirty) return;
     terrainDirty = false;
@@ -819,8 +850,15 @@ export function createLandingState(scene: Scene): WorldExperience {
 
   function groundLife(): void {
     if (currentOutcome) {
-      vegetation.setTrees(currentOutcome.trees, heightAt, SEA_LEVEL[activeClimate.seaLevel]);
-      seagrass.setMeadow(currentOutcome.seagrass, heightAt);
+      vegetation.setTrees(
+        currentOutcome.trees.filter((tree) => renderFloorOffsetAt(tree.x, tree.z) < 2),
+        heightAt,
+        SEA_LEVEL[activeClimate.seaLevel],
+      );
+      seagrass.setMeadow(
+        currentOutcome.seagrass.filter((tuft) => renderFloorOffsetAt(tuft.x, tuft.z) < 2),
+        heightAt,
+      );
     }
     for (const renderer of lineageRenderers.values()) {
       const habitatVisible = currentOutcome?.populations.some(
@@ -1094,8 +1132,15 @@ export function createLandingState(scene: Scene): WorldExperience {
       syncTerrainMaterialState();
       syncTerrainDetails();
       validateWorldHistory(worldHistory);
-      vegetation.setTrees(outcome.trees, heightAt, SEA_LEVEL[activeClimate.seaLevel]);
-      seagrass.setMeadow(outcome.seagrass, heightAt);
+      vegetation.setTrees(
+        outcome.trees.filter((tree) => renderFloorOffsetAt(tree.x, tree.z) < 2),
+        heightAt,
+        SEA_LEVEL[activeClimate.seaLevel],
+      );
+      seagrass.setMeadow(
+        outcome.seagrass.filter((tuft) => renderFloorOffsetAt(tuft.x, tuft.z) < 2),
+        heightAt,
+      );
       // Sites are about to be reseated, so every animal's LOD band is stale.
       lastLodViewPosition.set(Number.POSITIVE_INFINITY, 0, 0);
       for (const renderer of lineageRenderers.values()) {

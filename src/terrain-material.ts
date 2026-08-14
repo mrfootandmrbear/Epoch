@@ -1,5 +1,6 @@
 import { Color, DataTexture, MeshStandardNodeMaterial } from "three/webgpu";
 import {
+  abs,
   cameraPosition,
   clamp,
   float,
@@ -29,6 +30,7 @@ export interface TerrainMaterialOptions {
   readonly stateTexture: DataTexture;
   readonly volcanicTexture: DataTexture;
   readonly environmentTexture: DataTexture;
+  readonly renderHeightTexture: DataTexture;
   readonly terrainExtent: number;
   readonly seaLevel: number;
   /**
@@ -55,6 +57,8 @@ export function createTerrainMaterial(options: TerrainMaterialOptions): TerrainM
   // stable history-texture coordinate. Keeping lookup independent of vertex
   // displacement lets reef relief rise without sliding through its own field.
   const terrainUv = positionLocal.xz.div(options.terrainExtent).add(0.5);
+  const edgeDistance = float(options.terrainExtent / 2).sub(max(abs(positionLocal.x), abs(positionLocal.z)));
+  const renderHeight = texture(options.renderHeightTexture, terrainUv).r;
   const state = texture(options.stateTexture, terrainUv);
   const volcanic = texture(options.volcanicTexture, terrainUv);
   const environment = texture(options.environmentTexture, terrainUv);
@@ -124,8 +128,9 @@ export function createTerrainMaterial(options: TerrainMaterialOptions): TerrainM
   // representing each reef site with a separate rock mesh: adjoining deposits
   // should visually merge into one reef pavement before colonies are drawn.
   const visibleCarbonate = smoothstep(0.001, 0.06, carbonateDeposit);
-  const reefDepthMask = smoothstep(0.9, 2.6, max(float(0), seaLevel.sub(positionLocal.y)))
-    .mul(float(1).sub(smoothstep(15, 25, max(float(0), seaLevel.sub(positionLocal.y)))));
+  const reefDepth = max(float(0), seaLevel.sub(renderHeight));
+  const reefDepthMask = smoothstep(0.9, 2.6, reefDepth)
+    .mul(float(1).sub(smoothstep(15, 25, reefDepth)));
   // Carbonate reef is built rock, not pale sand. Broad connected lobes lift
   // the existing terrain into pavement and low ledges; the colony renderer
   // contributes no matching prop rocks. Keeping the lift under a metre lets
@@ -135,7 +140,7 @@ export function createTerrainMaterial(options: TerrainMaterialOptions): TerrainM
     .mul(reefDepthMask)
     .mul(float(1).sub(basalt.mul(0.9)))
     .mul(float(0.06).add(reefMass.mul(0.3)));
-  material.positionNode = positionLocal.add(vec3(0, reefRelief, 0));
+  material.positionNode = vec3(positionLocal.x, renderHeight.add(reefRelief), positionLocal.z);
   const carbonateShelf = smoothstep(0.9, 2.6, waterDepth)
     .mul(float(1).sub(smoothstep(15, 25, waterDepth)))
     .mul(smoothstep(0.56, 0.88, normalWorld.y))
@@ -182,8 +187,11 @@ export function createTerrainMaterial(options: TerrainMaterialOptions): TerrainM
   // untouched.
   const path = opticalPath(options.water.seaLevel);
   const haze = waterHaze(path);
-  material.colorNode = litGround.mul(waterTransmission(path)).mul(float(1).sub(haze));
-  material.emissiveNode = options.water.hazeColor.mul(haze).mul(downwelling(seaLevel));
+  // Render-only boundary bathymetry must not glow as a cyan floor. Retire all
+  // reflected and in-scattered light over the same band that lowers the mesh.
+  const boundaryVisibility = smoothstep(1, 14, edgeDistance);
+  material.colorNode = litGround.mul(waterTransmission(path)).mul(float(1).sub(haze)).mul(boundaryVisibility);
+  material.emissiveNode = options.water.hazeColor.mul(haze).mul(downwelling(seaLevel)).mul(boundaryVisibility);
 
   const bumpHeight = macro.mul(0.32)
     .add(medium.mul(0.24).mul(mediumFade).mul(float(1).sub(rockExposure)))
