@@ -36,6 +36,96 @@ two coupled levels:
 Neither is background for the other. A jump succeeds when the player can infer
 how changed geography produced changed descendants.
 
+## Player arc: a moving lineage of islands
+
+The hotspot chain is Epoch's long-form gameplay arc. The player does not tend
+one permanent island or discard finished maps for unrelated new worlds. The
+same regional system continually makes young land while older player history
+remains present, changes role, and eventually passes below the sea.
+
+The canonical fresh-world opening begins with hotspot placement in an existing
+ocean. Once placed, the hotspot remains fixed in world/mantle space. A submarine
+eruption builds a shield toward the surface; the player can shape its emerging
+land, but that sculpting now establishes consequential geology rather than an
+arbitrary finished island. Plate motion then carries the shield away while new
+vents and shields form nearer the hotspot. An established-archipelago start may
+remain available as a faster fixture or later onboarding option, but it enters
+the same history rather than a separate game mode.
+
+```text
+place hotspot → submarine eruption → shape emerging shield → first colonists
+      ↑                                                        ↓
+new shield inherits life ← old island exports life ← habitats and lineages diverge
+      ↓
+old island erodes → fragments → subsides → reef/seamount legacy
+```
+
+This creates three nested loops:
+
+1. **Forming loop:** place or influence volcanic construction, sculpt land, set
+   regional forces, and inspect immediate response.
+2. **Epoch loop:** choose a jump, anticipate consequences, reveal the landing
+   state, understand its causal history, and respond.
+3. **Archipelago loop:** receive new volcanic land, watch it inherit life from
+   older islands, and watch the whole chain advance through birth, maturity,
+   fragmentation, drowning, and renewed emergence.
+
+An island's role changes across that arc:
+
+1. **Birth:** submarine eruptions create a new shield and the first emergent land.
+2. **Formation:** lava builds calderas, saddles, ridges, shelves, and coasts.
+3. **Colonization:** currents, winds, rafting, flight, and neighboring islands
+   determine which founders arrive.
+4. **Establishment:** soils, drainage, elevation-driven moisture, and pioneer
+   species open additional habitats.
+5. **Specialization:** habitat contrast and changing connectivity produce local
+   adaptation, drift, and visibly related descendants.
+6. **Departure:** plate motion carries the island away; volcanism wanes and
+   erosion becomes dominant.
+7. **Inheritance:** younger land appears near the hotspot and older islands
+   become sources, stepping stones, barriers, refuges, or ecological traps.
+8. **Decline and legacy:** the old island dries, fragments, subsides, and drowns,
+   while its reefs, shelves, seamounts, currents, and descendant lineages may
+   continue influencing the region.
+
+The archipelago, not an individual island, is therefore the persistent player
+world. The first island begins with almost nothing. Later islands emerge into a
+world already carrying birds, marine populations, seeds, insects, rafting
+reptiles, established currents, and accumulated evolutionary history. Repeated
+island birth is progression because each new island inherits a different world.
+
+## Agency, predictability, and renewal
+
+Hotspot placement is the opening commitment because its relationship to plate
+motion, currents, and deep water shapes the future chain. Player-authored
+volcanic form supplies equally long-lived consequences:
+
+- shield spacing affects mergers, channels, land bridges, and later isolation;
+- ridges and elevation affect rain shadows, garúa capture, and habitat zonation;
+- low saddles permit gene flow until erosion, subsidence, or sea level divides them;
+- calderas and drainage basins can become lakes, wetlands, or barriers;
+- submarine shelves affect beaches, reefs, upwelling, and habitat after drowning;
+- island position relative to currents affects arrival, dispersal, and inheritance.
+
+Geology should be predictable enough to support intention: islands travel in a
+consistent direction, construction wanes away from the hotspot, tall terrain
+captures moisture, inactive shields dissect and subside, and suitable shallow
+water may become reef. Biology and climate provide contingency within those
+rules: founders may fail, disturbances may remove food, lineages may cross a
+channel or remain isolated, and reconnection may rescue, mix, or doom them.
+Geology teaches the player how to plan; living history keeps the answer surprising.
+
+Every substantial jump must create or expose at least one meaningful new
+opportunity, not merely make the same world more weathered. Valid opportunities
+include emergent land, a newly divided or reconnected habitat, a colonization
+route, an ecological vacancy, a cave or wetland, a reef, a refuge, a stepping
+stone, or a descendant population with a newly viable niche. Doors may close
+and extinction remains valid, but the moving hotspot prevents the campaign from
+becoming a one-way decline into less playable space.
+
+The long-game change in perspective is intentional: early play asks what this
+island will become; mature play asks what this island will give to the next one.
+
 ## World contract
 
 - The hotspot is fixed in mantle/world space.
