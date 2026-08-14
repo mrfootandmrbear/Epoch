@@ -115,6 +115,11 @@ export function resolveHeightFog(climate: Readonly<ClimateForces>): HeightFogSta
 
 /** One full day and night of the observed sky. */
 export const CYCLE_SECONDS = 12 * 60;
+
+/** Re-anchor a live cycle so `now` samples at a chosen normalized phase. */
+export function cycleOriginForPhase(now: number, phase: number): number {
+  return now - phase * CYCLE_SECONDS;
+}
 /** Share of the cycle spent above the horizon. Night is real, but compressed. */
 const DAYLIGHT_SHARE = 0.72;
 // A fixed mid-latitude and season. These two angles are what give the sun an

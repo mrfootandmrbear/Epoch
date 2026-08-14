@@ -39,7 +39,7 @@ import {
   revealTreatmentOptions,
   type RevealTreatmentName,
 } from "./reveal";
-import { climateMood, resolveAtmosphere, resolveHeightFog, sampleAtmosphere, type AtmosphereProfile } from "./atmosphere";
+import { climateMood, cycleOriginForPhase, resolveAtmosphere, resolveHeightFog, sampleAtmosphere, type AtmosphereProfile } from "./atmosphere";
 import { createAtmosphereBackground } from "./atmosphere-renderer";
 import { createEpochRenderPipeline, readPostProcessingOptions } from "./post-processing";
 import {
@@ -191,6 +191,12 @@ const captureVolcanicPhase = isVolcanicLifecyclePhase(requestedVolcanicPhase)
   : null;
 const postProcessingOptions = readPostProcessingOptions(captureParams);
 let lastInteraction = performance.now() / 1000;
+// Deep-time jumps land in a readable morning instead of inheriting whichever
+// real-time solar phase happened to be active when the player clicked. Keep
+// this offset local to atmosphere rendering: water and living-world motion
+// should remain continuous across the reveal.
+const POST_JUMP_MORNING_PHASE = 0.12;
+let atmosphereCycleOrigin = 0;
 const presentation = createPresentationController(camera, controls, (active) => {
   document.body.classList.toggle("attract-mode", active);
 });
@@ -655,6 +661,7 @@ jumpButtonEl.addEventListener("click", () => {
   reveal.captureBefore(renderer.domElement);
   reveal.play(treatment, jumpYears, () => {
     committedClimate = nextClimate;
+    atmosphereCycleOrigin = cycleOriginForPhase(performance.now() / 1000, POST_JUMP_MORNING_PHASE);
     applyCommittedHeightFog();
     const previousAge = totalYears;
     totalYears += jumpYears;
@@ -793,7 +800,7 @@ async function start() {
       presentation.setActive(true, elapsed);
     }
     fftOcean?.update(elapsed);
-    updateAtmosphere(elapsed);
+    updateAtmosphere(captureMode ? elapsed : elapsed - atmosphereCycleOrigin);
     landingState.update(elapsed, camera.position);
     presentation.update(elapsed);
     if (!presentation.active) controls.update();

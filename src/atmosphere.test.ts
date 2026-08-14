@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CYCLE_SECONDS, climateMood, resolveAtmosphere, resolveHeightFog, sampleAtmosphere } from "./atmosphere";
+import { CYCLE_SECONDS, climateMood, cycleOriginForPhase, resolveAtmosphere, resolveHeightFog, sampleAtmosphere } from "./atmosphere";
 import { DEFAULT_CLIMATE } from "./climate";
 
 describe("atmosphere", () => {
@@ -55,6 +55,16 @@ describe("atmosphere", () => {
     const first = sampleAtmosphere(15);
     const repeated = sampleAtmosphere(15 + 720);
     expect(first.sunDirection.distanceTo(repeated.sunDirection)).toBeLessThan(1e-10);
+  });
+
+  it("can re-anchor a post-jump landing in daylight without resetting the live clock", () => {
+    const now = 58_321;
+    const morningPhase = 0.12;
+    const origin = cycleOriginForPhase(now, morningPhase);
+    const landed = sampleAtmosphere(now - origin);
+    expect(landed.sunDirection.y).toBeGreaterThan(0);
+    expect(landed.sunIntensity).toBeGreaterThan(0);
+    expect(cycleOriginForPhase(now + 37, morningPhase) - origin).toBe(37);
   });
 });
 
