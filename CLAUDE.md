@@ -57,6 +57,11 @@ Derived from `THESIS.md` §6. THESIS wins any conflict.
 - **Capture mode must stay deterministic:** fixed seed `0xe90c4`, frozen sim
   time, forced `day` atmosphere, fixed cameras, UI hidden. Evidence is
   worthless if this drifts.
+- **Use the WebGPU design skill for GPU architecture:** read
+  `.agents/skills/design-webgpu-solutions/SKILL.md` when inventing, evaluating,
+  prototyping, or integrating a WebGPU, `WebGPURenderer`, or TSL rendering or
+  compute system. Follow its evidence and bounded-spike workflow instead of
+  translating WebGL-era patterns by default.
 
 ## Performance target
 
