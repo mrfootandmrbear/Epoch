@@ -36,6 +36,32 @@ The installed public Three.js/TSL surface is sufficient for the investigation:
 These are capabilities, not an art style. The missing layer is a rule set for
 how every renderer uses them.
 
+## Direction
+
+Epoch will pursue a **hybrid stylized-naturalist** grammar. Visual cohesion comes
+primarily from semantic color, bounded material response, shared lighting,
+atmospheric integration, contact, and consistent distance behavior. Faceting is
+a material- and landform-specific tool, not the renderer-wide style:
+
+- soil, dunes, weathered slopes, and other geomorphic surfaces retain smooth
+  macro form;
+- exposed rock, cliffs, basalt, scree, coral skeleton, and possibly ice may use
+  authored facets where planar structure clarifies geology;
+- vegetation remains topology-light and silhouette-led;
+- fauna remains stylized and topology-efficient, but must not read as visibly
+  faceted at inspection distance;
+- FFT water remains optically continuous and is never made low-poly merely to
+  match land geometry;
+- outlines are off by default; value separation, atmosphere, and contact must
+  carry silhouettes before a screen-space edge pass is considered.
+
+This is an art-direction decision, not a WebGPU optimization. Moderate triangle
+counts are not an observed bottleneck. The known performance risks are draw
+submission, vegetation and reef overdraw, shadow work, full-resolution
+screen-space passes, and material complexity. Geometry simplification still
+belongs in measured LOD and instancing decisions, but exposing polygons must
+earn a visual benefit independently.
+
 ## Alternatives
 
 ### A — Shared palette and light response
@@ -45,7 +71,7 @@ mapping, value compression, roughness families, distance detail, and atmospheric
 integration. This adds no pass and only small shader arithmetic. It is the
 lowest-risk route, but silhouettes and contacts may remain weak.
 
-### B — Shared materials plus restrained edges (recommended)
+### B — Shared materials plus restrained edges
 
 Add A, then compose selective depth/normal edges and contact darkening in the
 existing post pipeline. Use one MRT scene pass, one bounded edge evaluation,
@@ -53,12 +79,20 @@ and the current grade/bloom stage. Outlines must be distance- and category-aware
 terrain horizons, creature silhouettes, and major foliage masses may read;
 internal tessellation must not.
 
-### C — Fully illustrative renderer
+### C — Hybrid stylized-naturalist materials and geometry (recommended)
+
+Build on A, preserve smooth macro terrain, and allow selective authored facets
+only for materials whose structure supports them. Keep water continuous,
+fauna inspection-safe, and vegetation silhouette-led. This asks more of the
+material grammar than a global `flatShading` switch, but it preserves ecological
+and deep-time legibility while gaining the deliberate shapes of the reference.
+
+### D — Fully illustrative renderer
 
 Quantize lighting aggressively and add watercolor noise, temporal stipple, or
 broad image-space abstraction. This could create a strong identity but risks
 flattening habitat information, water motion, evolved traits, and deep-time
-differences. Do not attempt it until B proves insufficient.
+differences. Do not attempt it until C proves insufficient.
 
 ## Candidate visual grammar
 
@@ -67,8 +101,9 @@ differences. Do not attempt it until B proves insufficient.
 2. **Value hierarchy:** sky and distant water are quiet; land masses separate
    at mid value; creatures and epoch-significant features get the clearest
    local contrast.
-3. **Lighting bands:** compress diffuse response into soft authored bands while
-   retaining continuous specular response for water and wet surfaces.
+3. **Lighting response:** begin with continuous diffuse light and bounded value
+   compression. Treat authored diffuse bands as a separate experiment; retain
+   continuous specular response for water and wet surfaces.
 4. **Edge hierarchy:** silhouette and contact edges only—never a universal black
    outline or exposure of procedural triangle density.
 5. **Detail frequency:** macro variation is shared across the world; fine detail
@@ -77,13 +112,17 @@ differences. Do not attempt it until B proves insufficient.
    direction, and contact treatment rather than reading as color-picked assets.
 7. **Transitions:** shoreline, forest edge, rock/soil, and water depth are
    material transitions driven by shared world fields, not coincident geometry.
+8. **Geometry language:** preserve smooth geomorphic macro form and expose
+   facets only where rock, coral, ice, or another material has a plausible
+   planar structure. Polygon visibility is never a global consistency rule.
 
 ## Visual target and candidate parameters
 
-The intended read is mocked up as an art-direction one-sheet — the same fixed
-`whole-island` landing under all three grammars beside today's baseline, plus the
-palette, value ladder, and the seven rules. It is the shared reference the three
-agents converge on so they do not each invent a different read from prose.
+The initial intended read was mocked up as an art-direction one-sheet — the same
+fixed `whole-island` landing under three early bundled grammars beside today's
+baseline, plus the palette and value ladder. Keep it as a mood and color
+reference, not as the experiment design: the controlled matrix below supersedes
+its bundled grammar comparison.
 
 > **Mockup artifact:** <https://claude.ai/code/artifact/eedb6aea-a7d8-49c5-942e-18a33f071a9e>
 > (owner-owned; private until shared. It is an *authored approximation of the
@@ -95,15 +134,22 @@ blue, vivid greens, warm sand), **no outlines**, grounded vegetation. It was a
 watermarked Adobe Stock preview, so it is a *style* reference only, not an asset.
 The mockup palette and the recommended grammar below are tuned to it.
 
-**Open decision — low-poly geometry.** The reference's faceted look is terrain
-*shape*, not a shader. Taking only the palette + flat shading on the current
-geomorphic terrain is low-risk; committing to faceted terrain is a bigger change
-that must still read the 1 / 1k / 100k / 1M deep-time rungs. **Owner's call before
-it is baked in** — do not adopt faceted terrain silently.
+**Decision — selective faceting, not global low-poly.** The reference's faceted
+look is terrain shape, not a WebGPU feature or automatic performance win. Epoch
+will preserve smooth geomorphic terrain and test facets only on geological or
+material structures that plausibly benefit from them. Do not switch the terrain,
+water, fauna, or whole renderer to flat shading. Any selective faceting must
+still improve the 1 / 1k / 100k / 1M deep-time read at close, mid, and
+whole-island scales.
 
-**Proposed shared palette (candidate — for owner approval, not fixed).** Starting
-values for the TSL palette library, tuned to the reference. Atmosphere biases
-light, habitat sets local hue, material identity adds bounded variation on top.
+**Proposed shared palette (candidate — for owner approval, not fixed).** The hex
+values below are anchors, not the palette system. The TSL library must expose
+semantic roles: atmosphere light/shadow bias, habitat hue, material identity,
+wetness/depth, succession state, and protected accents for fauna and
+epoch-significant features. Each role needs bounded value and chroma ranges plus
+explicit day, dawn, storm, haze, and underwater transforms. Validate the result
+after ACES tone mapping at the supported exposure range; raw swatches are not
+evidence.
 
 | Family | Values |
 |---|---|
@@ -119,19 +165,30 @@ anchors the low (~0.16–0.44); creatures and epoch cues are the only elements
 granted the widest local contrast (~0.14 and ~0.82). Read the plates in
 grayscale and this is what should survive.
 
-**Grammar parameters.**
+**Material-response contract.** Color unifies the frame, but materials remain
+distinct through bounded response families. The implementation must record, per
+family, diffuse softness, roughness range, specular width, transmission or
+subsurface allowance, normal/detail frequency, wet-state behavior, atmospheric
+tint, and the distance at which fine detail retires. At minimum cover rock,
+soil, sand, foliage, bark, hide/coat, coral tissue/skeleton, foam, and water.
 
-| Grammar | Palette | Shading | Edges | Grounding |
-|---|---|---|---|---|
-| A — flat-faceted *(recommended)* | shared | flat low-poly facets | none | on |
-| B — faceted + whisper edge | shared | flat low-poly facets | silhouette + contact, faint | on |
-| A′ — smooth soft-shaded | shared | continuous | none | on |
+**Candidate variables.** Do not bundle palette mapping, lighting quantization,
+and geometry normals into named grammars. They are independent variables and
+must be isolated before combining a winner.
 
-The reference revised the recommendation from B to **A**: it carries value with
-flat facets and has *no outlines*, so B now exists only to test whether the
-faintest edge helps or the no-outline read wins. Specular (sun glint, wet
-surfaces) stays continuous even under flat diffuse (rule 03). These are a
-starting target to tune from live WebGPU evidence, not fixed truth.
+| Test | Geometry normals | Lighting | Palette |
+|---|---|---|---|
+| Baseline | current | current | current |
+| Palette only | current | current | semantic shared palette |
+| Lighting only | current | soft value compression | current |
+| Palette + lighting | current | soft value compression | semantic shared palette |
+| Global flat diagnostic | flat | continuous | semantic shared palette |
+| Selective geological facets | mixed by material | continuous or softly compressed | semantic shared palette |
+
+The global-flat row is a diagnostic, not a candidate default. It exists to show
+whether visible facets add anything that material-specific facets do not. No
+outline variant enters this first matrix; add one later only if the selected
+no-outline treatment still fails silhouette or contact readability.
 
 ## Candidate dataflow
 
@@ -144,7 +201,7 @@ landing snapshot + environment fields (CPU authority)
                     v
  scene pass: color + normal + depth (MRT)
                     v
- selective edge/contact treatment
+ shared grounding/contact treatment
                     v
  palette/value grade + restrained bloom
                     v
@@ -155,55 +212,50 @@ Style uniforms update only when atmosphere or an art-direction control changes.
 Existing environmental textures update on landing changes. There is no GPU
 readback and no new simulation state.
 
-## First spike: style laboratory
+## First spike: controlled style laboratory
 
-Add a feature-gated `?style=cohesion` laboratory to the existing renderer. Apply
-three grammars to the unchanged fixed `whole-island` landing:
+Add a feature-gated `?style=cohesion` laboratory to the existing renderer. Build
+the six rows in the candidate-variable matrix without changing simulation or
+content. The implementation may stage this as palette/lighting first and
+geometry second, but the comparison sheet must preserve the isolated rows.
 
-1. soft value bands plus shared palette;
-2. the same with restrained silhouette/contact edges;
-3. continuous light with shared palette and grounding only.
+Use terrain, FFT water, vegetation, the accepted marsh grazer, atmosphere, and
+post-processing for the primary terrestrial comparison. Also include one
+existing accepted reef/shore frame as a compatibility sentinel; do not restyle
+or re-accept the reef in this Work Unit. Its purpose is to reject a terrestrial
+grammar that obviously cannot extend underwater without destroying the reef's
+material separation. Do not add fish, weather variants, or new content.
 
-These are the concrete forms of the alternatives above: grammar 1 is a
-posterized reading of **A**, grammar 2 is **B**, and grammar 3 is **A** without
-value banding. **C** (fully illustrative) is deliberately not built in this
-spike; it is reached only if the owner later judges B insufficient.
-
-Use only terrain, FFT water, vegetation, the accepted marsh grazer, atmosphere,
-and post-processing. Do not add reefs, fish, weather variants, or content.
-
-**Selection evidence must be a single comparison sheet.** Capture the current
-default renderer *and* all three grammars at the same fixed `whole-island`
-landing, side by side, so the owner selects from a real comparison rather than
-from sequential single shots. Choosing from one-at-a-time frames is a failure
-mode this project has already hit; the unmodified baseline must be in the frame.
+**Selection evidence must use fixed comparison sheets.** Capture the current
+default renderer and all isolated rows at the same landing, time, camera, and
+exposure. Provide whole-island, shoreline, herd-detail, and reef/shore sentinel
+sheets. The unmodified baseline must appear on every sheet. A winner at only one
+camera scale is not a winner.
 
 **Known interactions to watch — flag, do not silently absorb:**
 
-- *Banded diffuse versus accepted creature evidence.* Grammars 1 and 2 compress
-  diffuse into authored bands, which changes how the already-recorded coat
-  warmth/lightness and insulation self-shadowing read. If a banded grammar is
+- *Compressed diffuse versus accepted creature evidence.* The lighting-only and
+  combined rows change how the already-recorded coat
+  warmth/lightness and insulation self-shadowing read. If compressed lighting is
   chosen, those reads need a fresh owner verdict — they were tuned under
-  continuous light. Grammar 3 avoids this, which is a reason it may win by
-  default rather than on merit; name that so the choice stays honest.
-- *The edge stage is the performance variable.* B's silhouette/contact treatment
-  is the one place a full-resolution screen-space pass can appear. Record whether
-  it runs bounded (category-masked / reduced-resolution) or full-res; the
-  1080p/60 fps verdict on the owner's machine turns on this more than on the
-  shared-material arithmetic, which is cheap.
+  continuous light.
+- *Do not infer performance from polygon visibility.* Record triangles, draws,
+  material count, shadow draws, and frame time for the geometry rows. A visible
+  low-poly surface is not a performance optimization unless measurements show
+  that its resource reduction matters.
 
-**Coverage is deliberately partial.** The lab and its `shoreline`/`herd-contrast`
-follow-ons exercise only the terrestrial subset. The marine/reef/underwater
-family (coral, fish, seagrass, reef-water, marine snow, drifters) is not in
-these frames, and the reef landing renderer is already **owner-accepted
-(2026-08-13)**. A grammar chosen here therefore carries a known downstream cost:
-retrofitting it onto the accepted reef renderer without regressing that verdict.
-That retrofit is a separate, later Work Unit, not part of grammar selection.
+**Coverage is bounded, not terrestrial-only.** The reef/shore sentinel does not
+authorize a marine retrofit, but marine incompatibility is now a rejection
+signal during grammar selection rather than a deferred surprise. The full
+marine family (coral, fish, seagrass, reef water, marine snow, and drifters)
+still receives its own later Work Unit and owner verdict.
 
-After the owner selects one grammar from live WebGPU evidence, carry only that
-candidate into `shoreline` and `herd-contrast`. Record 1080p foreground WebGPU
-FPS/frame time, draw count, new full-resolution passes, compilation behavior,
-and deterministic captures.
+After the owner selects the useful variables from live WebGPU evidence, combine
+only those into one hybrid candidate. Record 1080p foreground WebGPU FPS/frame
+time, triangle and draw counts, material/shadow draws, new full-resolution
+passes, compilation behavior, and deterministic captures. The exact next gate
+is an owner verdict on the four camera-scale sheets plus the four deep-time
+rungs; only then may the candidate be proposed for default integration.
 
 ## Acceptance gate
 
@@ -280,4 +332,3 @@ state is `docs/polish/BACKLOG.md`, `SCORECARD.md`, and `LOG.md`; repo navigation
 is `docs/polish/MAP.md`. Any agent picking up this work reads those first and
 records where it stopped there, so the next agent — whichever tool it is — can
 continue without the prior conversation.
-
