@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   CASCADE_BED,
   CASCADE_WATER,
+  MIN_PLUNGE_DISCHARGE,
   resolvePlungeSites,
+  visibleCascadeAeration,
   writeCascadeGeometry,
   writePlungeGeometry,
 } from "./cascade-renderer";
@@ -180,6 +182,15 @@ describe("cascade coverage", () => {
     expect(read(sheer)).toBeLessThanOrEqual(1);
   });
 
+  it("keeps steep trickles dark instead of promoting them to whitewater", () => {
+    const trickle: StreamSegment = {
+      from: 0, to: 6, discharge: 0.12, drop: 3, length: 1, fromDistance: 5, toDistance: 4,
+    };
+    const fall: StreamSegment = { ...trickle, discharge: 0.9 };
+    expect(visibleCascadeAeration(trickle)).toBe(0);
+    expect(visibleCascadeAeration(fall)).toBeGreaterThan(0.9);
+  });
+
   it("places one plunge only where falling water lands on gentler ground", () => {
     const terrain = slope(8, 3);
     const stacked: StreamSegment[] = [
@@ -200,6 +211,17 @@ describe("cascade coverage", () => {
       { from: 8, to: 16, discharge: 0.9, drop: 3, length: 1, fromDistance: 3, toDistance: 2 },
     ];
     expect(resolvePlungeSites(terrain, segments, 100)).toHaveLength(0);
+  });
+
+  it("does not invent a plunge pool for a low-volume cliff trickle", () => {
+    const terrain = slope(8, 3);
+    const segments: StreamSegment[] = [
+      {
+        from: 8, to: 16, discharge: MIN_PLUNGE_DISCHARGE - 0.01,
+        drop: 3, length: 1, fromDistance: 3, toDistance: 2,
+      },
+    ];
+    expect(resolvePlungeSites(terrain, segments, -100)).toHaveLength(0);
   });
 
   it("drapes plunge patches onto the bed instead of lidding them flat", () => {

@@ -31,13 +31,15 @@ const CROSS_STRIPS = 4;
 const MAX_CASCADE_VERTICES = MAX_REACHES * SUBDIVISIONS * CROSS_STRIPS * VERTICES_PER_QUAD;
 
 const MAX_PLUNGES = 360;
+/** A trickle can wet a cliff, but it cannot excavate a readable plunge pool. */
+export const MIN_PLUNGE_DISCHARGE = 0.36;
 // A plunge patch spans several metres, so it has to be subdivided to drape onto
 // the bed instead of cutting a flat lid through it.
 const PLUNGE_CELLS = 5;
 const MAX_PLUNGE_VERTICES = MAX_PLUNGES * PLUNGE_CELLS * PLUNGE_CELLS * VERTICES_PER_QUAD;
 
 export interface CascadeRenderer {
-  setTerrain(terrain: TerrainHistory, seaLevel: number): void;
+  setTerrain(terrain: TerrainHistory, seaLevel: number, retainedWaterSurface?: Float32Array): void;
   update(elapsed: number): void;
 }
 
@@ -73,6 +75,7 @@ export function resolvePlungeSites(
   const sites: PlungeSite[] = [];
   for (const segment of segments) {
     if (classifyReach(segment) !== "fall") continue;
+    if (segment.discharge < MIN_PLUNGE_DISCHARGE) continue;
     const next = byFrom.get(segment.to);
     if (next && classifyReach(next) === "fall") continue;
     if (terrain.elevations[segment.to]! <= seaLevel + 0.2) continue;
@@ -108,6 +111,17 @@ export const CASCADE_WATER: CascadeProfile = { widthScale: 1.16, depthScale: 0.4
  * touching the authoritative heightfield.
  */
 export const CASCADE_BED: CascadeProfile = { widthScale: 1.82, depthScale: 0, lift: -0.03 };
+
+/**
+ * Grade says how violently a reach could aerate; discharge says whether there
+ * is enough water for that aeration to be visible. Keeping those axes separate
+ * stops tiny hillside trickles from turning into full-strength white jets.
+ */
+export function visibleCascadeAeration(segment: StreamSegment): number {
+  const volume = Math.max(0, Math.min(1, (segment.discharge - 0.16) / 0.58));
+  const easedVolume = volume * volume * (3 - 2 * volume);
+  return reachAeration(segment) * easedVolume;
+}
 
 /** Write terrain-hugging ribbons along steep reaches for one surface profile. */
 export function writeCascadeGeometry(
@@ -185,10 +199,14 @@ export function writeCascadeGeometry(
     const horizontalLength = Math.max(0.001, Math.hypot(dx, dz));
     const px = -dz / horizontalLength;
     const pz = dx / horizontalLength;
-    const aeration = reachAeration(segment);
+    const aeration = visibleCascadeAeration(segment);
     // Falling water accelerates, so a steep reach runs narrower than the creek
     // feeding it and narrows further toward its base.
-    const waterWidth = (0.36 + Math.min(1.5, Math.sqrt(segment.discharge) * 0.95))
+    // Width must approach a narrow thread at the visibility threshold. The old
+    // 0.36 m floor made the weakest legal reach almost as broad as a creek and
+    // was the main reason isolated steep cells read as water being spat out of
+    // the hillside.
+    const waterWidth = (0.1 + Math.min(1.5, Math.sqrt(segment.discharge) * 0.62))
       * (1 - aeration * 0.24);
     const width = waterWidth * profile.widthScale;
     const depth = (0.07 + waterWidth * 0.34) * profile.depthScale;
@@ -397,8 +415,8 @@ export function createCascadeRenderer(scene: Group): CascadeRenderer {
   scene.add(plungeMesh);
 
   return {
-    setTerrain(terrain, seaLevel) {
-      const segments = resolveStreamSegments(terrain, seaLevel);
+    setTerrain(terrain, seaLevel, retainedWaterSurface) {
+      const segments = resolveStreamSegments(terrain, seaLevel, { retainedWaterSurface });
       const steep = segments.filter((segment) => {
         const kind = classifyReach(segment);
         return kind === "rapid" || kind === "fall";

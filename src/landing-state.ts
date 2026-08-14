@@ -592,9 +592,14 @@ export function createLandingState(scene: Scene): WorldExperience {
   }
 
   function syncTerrainDetails(): void {
+    const seaLevel = SEA_LEVEL[activeClimate.seaLevel];
+    const freshwaterField = resolveFreshwaterField(
+      currentSnapshot(), seaLevel, activeClimate.rainfall,
+    );
     terrainDetails.update(worldHistory.terrain, heightAt, SEA_LEVEL[activeClimate.seaLevel]);
-    streams.setTerrain(worldHistory.terrain, SEA_LEVEL[activeClimate.seaLevel]);
-    cascades.setTerrain(worldHistory.terrain, SEA_LEVEL[activeClimate.seaLevel]);
+    streams.setTerrain(worldHistory.terrain, seaLevel, freshwaterField.surface);
+    cascades.setTerrain(worldHistory.terrain, seaLevel, freshwaterField.surface);
+    freshwater.setField(freshwaterField);
   }
   syncTerrainDetails();
 
@@ -681,6 +686,8 @@ export function createLandingState(scene: Scene): WorldExperience {
       activeClimate.rainfall,
     );
     freshwater.setField(field);
+    streams.setTerrain(worldHistory.terrain, SEA_LEVEL[activeClimate.seaLevel], field.surface);
+    cascades.setTerrain(worldHistory.terrain, SEA_LEVEL[activeClimate.seaLevel], field.surface);
     if (currentOutcome) {
       currentOutcome.freshwaterField = field;
       currentOutcome.freshwater = field.basins;

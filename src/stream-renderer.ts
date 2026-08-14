@@ -16,7 +16,7 @@ const VERTICES_PER_REACH = 6;
 const MAX_VERTICES = MAX_SEGMENTS * SUBDIVISIONS * VERTICES_PER_REACH;
 
 export interface StreamRenderer {
-  setTerrain(terrain: TerrainHistory, seaLevel: number): void;
+  setTerrain(terrain: TerrainHistory, seaLevel: number, retainedWaterSurface?: Float32Array): void;
   update(elapsed: number): void;
 }
 
@@ -137,8 +137,8 @@ export function createStreamRenderer(scene: Group): StreamRenderer {
   scene.add(mesh);
 
   return {
-    setTerrain(terrain, seaLevel) {
-      const segments = resolveStreamSegments(terrain, seaLevel);
+    setTerrain(terrain, seaLevel, retainedWaterSurface) {
+      const segments = resolveStreamSegments(terrain, seaLevel, { retainedWaterSurface });
       // Single-source steep reaches are waterfall candidates, not creek
       // surfaces. Keep them in topology but reserve their rendering for the
       // dedicated waterfall transition layer.
