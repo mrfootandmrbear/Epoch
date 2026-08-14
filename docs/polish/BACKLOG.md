@@ -83,6 +83,35 @@ no capture can contain land animals — the `herd` golden camera in
   something the game never actually shows. Keep the seed and jump durations
   fixed so the shot stays a valid A/B basis.
 
+## Water cascades — open items
+
+> Branch `water-cascades-jacobian-foam`. Whitecaps now land onto the measured
+> fold distribution (ea4dc30). **This branch is not done** — the caveats below
+> remain before it can be called finished.
+
+### W-1 · Whitecap landing is unverified in motion — needs owner verdict
+**Impact 3 · Cost 1 · Risk 1 · Status: OPEN**
+
+Foam now keys onto the physical fold selector and reads correctly in still
+WebGPU captures at the `wave-height` and `shoreline` cameras, with no
+over-foaming and no regression (tsc clean, 238/238). But both review sessions
+judged it from **frozen capture frames**, not live motion. Per the
+owner-verdict gate this is **ready for owner verdict, not accepted**. Confirm
+it reads as a convincing live wind sea on the fresh dev server (5199,
+`?shot=shoreline`) before closing.
+
+### W-2 · Water-shading fragment cost is unmeasured
+**Impact 4 · Cost 3 · Risk 2 · Status: OPEN**
+
+The fragment stage does 6 bilinear `vec4` taps per pixel with hand-written
+filtering (storage buffers have no sampler), plus two 4-octave turbulence
+evaluations, at 1080p. It has **never been measured against the 60 fps
+target**, and the preview pane throttles `requestAnimationFrame` so it cannot
+be measured there — this needs a foreground WebGPU run on the owner's machine.
+Suspected real fix if it is over budget: migrate the cascade outputs to
+storage textures so the hardware sampler does the filtering, which is a
+compute-side change in `fft-ocean.ts` and a larger piece not yet started.
+
 ## Phase 1 — not yet run
 
 The hostile-reviewer audit across art direction, geometry, materials, lighting,
