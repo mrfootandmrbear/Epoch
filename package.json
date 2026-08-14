@@ -11,7 +11,8 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "test": "vitest run",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "spike:godot:fixture": "node spikes/godot-integrated-slice/scripts/export-fixture.mjs"
   },
   "devDependencies": {
     "@dgreenheck/ez-tree": "github:dgreenheck/ez-tree#dcf309bd86bd521083d9c70f01f2de45fdc7c457",

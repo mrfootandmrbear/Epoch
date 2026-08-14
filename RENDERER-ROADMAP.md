@@ -29,6 +29,7 @@ Volcanic comparison uses the same camera and time with `&volcano=active` or anot
 
 | Area | Status | Present evidence | Next gate |
 |---|---|---|---|
+| Cross-system visual cohesion | **Direction approved; experimenting** | Godot migration plan cancelled after its integrated slice showed that engine replacement does not create a shared art direction. Three.js r185 exposes public TSL material, posterization, MRT depth/normal, screen-space depth, toon-outline, and composed post-processing primitives. | Build the feature-gated three-grammar style laboratory in `docs/STYLIZED-RENDER-COHESION.md`; owner selects one from live whole-island WebGPU evidence before integration. |
 | Deep-time landform | **Candidate** | One-pass weathering, drainage incision, and coastal retreat; four-rung fixed captures; numeric regression test. | Owner verdict on magnitude and plausibility. |
 | Volcanic island history | **Experimenting** | A fixed player-placed hot spot accretes a bounded shield before erosion; vigorous/active/waning/extinct output is persistent, deterministic downhill flows resurface capped terrain, basalt and ash alter the terrain surface and ecology, bathymetry reaches −55 m, and retained volcanic load drives deep-time subsidence after extinction. | Capture the same vent as seamount, breached shield, carved island, and drowned remnant; tune life-cycle pacing and flow silhouettes from those frames. |
 | Atmosphere | **Sky/horizon built; climate integration experimenting** | Owner-accepted world-space sky over a real solar arc and continuous far-water horizon. Climate-driven exponential height fog remains a bounded lower-atmosphere modifier. | Preserve the accepted horizon; judge only climate fog contradictions in the environment fixtures. Add clouds later. |
@@ -76,16 +77,17 @@ Rung 5 now has a visible foreground diagnostic reading of 60 fps and 15 draws on
 
 ## Planned sequence
 
-1. Capture one fixed vent across emergence and decline, then tune volcanic growth and subsidence pacing; keep the open-ocean start as a separate owner decision.
-2. Record the owner verdict on the four-rung milestone and tune geomorphic magnitude if requested.
-3. Preserve the accepted sky/horizon while validating climate-driven fog only where the environment fixtures reveal contradictions; add authored clouds later.
-4. Judge the five state-driven environment fixtures, then add triplanar rock projection only if they expose stretching.
-5. Finish water composition: absorption, refraction, choppy displacement, crest foam, and shallow/deep transitions.
-6. Replace island-wide shadow coverage with a close/far strategy.
-7. Validate accepted ecosystem assets in the landing renderer before expanding asset breadth.
-8. Extend freshwater into connected flowing surfaces: drainage-fed streams and creeks, waterfall transitions at steep drops, then persistent snowfield/glacier flow for suitable climates.
-9. Run the bounded creature expression spike, then advance the embodiment ladder in order; placement relative to the existing renderer work remains an owner scheduling decision.
-10. Preserve the accepted `epoch-reef-builder-family` paired evidence while extending reef ecology incrementally.
+1. Run the bounded stylized-cohesion laboratory and select a shared visual grammar before further isolated effect polish.
+2. Capture one fixed vent across emergence and decline, then tune volcanic growth and subsidence pacing; keep the open-ocean start as a separate owner decision.
+3. Record the owner verdict on the four-rung milestone and tune geomorphic magnitude if requested.
+4. Preserve the accepted sky/horizon while validating climate-driven fog only where the environment fixtures reveal contradictions; add authored clouds later.
+5. Judge the five state-driven environment fixtures, then add triplanar rock projection only if they expose stretching.
+6. Revisit water composition inside the selected shared grammar: absorption, refraction, choppy displacement, crest foam, and shallow/deep transitions.
+7. Replace island-wide shadow coverage with a close/far strategy.
+8. Validate accepted ecosystem assets in the landing renderer before expanding asset breadth.
+9. Extend freshwater into connected flowing surfaces: drainage-fed streams and creeks, waterfall transitions at steep drops, then persistent snowfield/glacier flow for suitable climates.
+10. Run the bounded creature expression spike, then advance the embodiment ladder in order; placement relative to the existing renderer work remains an owner scheduling decision.
+11. Preserve the accepted `epoch-reef-builder-family` paired evidence while extending reef ecology incrementally.
 
 ## Maintenance rule
 
