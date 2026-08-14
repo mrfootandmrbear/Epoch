@@ -9,8 +9,17 @@ import {
   Quaternion,
   Vector3,
 } from "three/webgpu";
-import { float, fract, instanceIndex, positionLocal, sin, smoothstep, uniform, vec3 } from "three/tsl";
+import { float, fract, instanceIndex, normalWorld, positionLocal, sin, smoothstep, uniform, varyingProperty, vec3 } from "three/tsl";
 import type { SeagrassOutcome } from "./outcome-resolver";
+import {
+  causticLight,
+  createReefWaterUniforms,
+  downwelling,
+  opticalPath,
+  waterHaze,
+  waterTransmission,
+  type ReefWaterUniforms,
+} from "./reef-water";
 import { seagrassGeometry, type SeagrassGeometryLevel } from "./seagrass-geometry-assets";
 import { RENDER_SCALE } from "./render-scale";
 
@@ -20,16 +29,16 @@ const LOD_REPARTITION_DISTANCE = RENDER_SCALE.lod.seagrassRepartition;
 const UP = new Vector3(0, 1, 0);
 
 export interface SeagrassRenderer {
+  readonly water: ReefWaterUniforms;
   setMeadow: (seagrass: readonly SeagrassOutcome[], heightAt: (x: number, z: number) => number) => void;
   update: (elapsed: number, viewPosition: Readonly<Vector3>) => void;
 }
 
-export function createSeagrassRenderer(scene: Group): SeagrassRenderer {
+export function createSeagrassRenderer(scene: Group, sharedWater?: ReefWaterUniforms): SeagrassRenderer {
+  const water = sharedWater ?? createReefWaterUniforms();
   const sceneTime = uniform(0);
   const material = new MeshStandardNodeMaterial({
     color: 0xffffff,
-    emissive: 0x102b18,
-    emissiveIntensity: 0.22,
     roughness: 0.88,
     metalness: 0,
     side: DoubleSide,
@@ -44,6 +53,15 @@ export function createSeagrassRenderer(scene: Group): SeagrassRenderer {
   const flutter = sin(sceneTime.mul(0.19).add(tuftPhase.mul(1.7)).sub(bladeHeight.mul(1.35))).mul(0.028);
   const sway = primary.add(flutter).mul(swayProfile);
   material.positionNode = positionLocal.add(vec3(sway, float(0), sway.mul(0.18)));
+  const path = opticalPath(water.seaLevel);
+  const haze = waterHaze(path);
+  const light = downwelling(water.seaLevel);
+  const transmission = waterTransmission(path);
+  const caustic = causticLight(water.time, water.seaLevel, normalWorld.y, water.causticStrength);
+  const albedo = varyingProperty("vec3", "vInstanceColor");
+  material.colorNode = albedo.mul(light).mul(float(1).add(caustic))
+    .mul(transmission).mul(float(1).sub(haze));
+  material.emissiveNode = water.hazeColor.mul(haze).mul(light);
 
   function batch(level: SeagrassGeometryLevel): InstancedMesh {
     const mesh = new InstancedMesh(seagrassGeometry(level), material, MAX_TUFTS);
@@ -89,6 +107,7 @@ export function createSeagrassRenderer(scene: Group): SeagrassRenderer {
   }
 
   return {
+    water,
     setMeadow(seagrass, heightAt) {
       currentMeadow = seagrass;
       currentHeightAt = heightAt;

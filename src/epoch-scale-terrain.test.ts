@@ -30,7 +30,8 @@ describe("epoch-scale terrain milestone", () => {
   it("reserves landscape-scale change for the deep-time jump ladder", () => {
     expect(geomorphicDuration(1).deepTime).toBe(0);
     expect(geomorphicDuration(1_000).deepTime).toBe(0);
-    expect(geomorphicDuration(100_000).deepTime).toBeGreaterThan(0.6);
+    expect(geomorphicDuration(100_000).deepTime).toBeGreaterThan(0.5);
+    expect(geomorphicDuration(100_000).deepTime).toBeLessThan(0.6);
     expect(geomorphicDuration(1_000_000).deepTime).toBe(1);
   });
 
@@ -43,5 +44,19 @@ describe("epoch-scale terrain milestone", () => {
     expect(changedCells(initial, oneYear.elevations, 0.5)).toBe(0);
     expect(changedCells(initial, millionYears.elevations, 0.5)).toBeGreaterThan(150);
     expect(landCells(millionYears.elevations)).toBeLessThan(landCells(oneYear.elevations));
+  });
+
+  it("keeps the final deep-time rung stronger than the 100k landing", () => {
+    const initial = fixedIsland();
+    const history = createTerrainHistory(initial, 41, 380);
+    const hundredThousand = resolveTerrainHistory(history, 100_000, DEFAULT_CLIMATE);
+    const million = resolveTerrainHistory(history, 1_000_000, DEFAULT_CLIMATE);
+    const totalChange = (result: Float32Array) => result.reduce(
+      (sum, elevation, index) => sum + Math.abs(elevation - initial[index]!),
+      0,
+    );
+
+    expect(totalChange(million.elevations)).toBeGreaterThan(totalChange(hundredThousand.elevations) * 1.2);
+    expect(landCells(million.elevations)).toBeLessThan(landCells(hundredThousand.elevations));
   });
 });

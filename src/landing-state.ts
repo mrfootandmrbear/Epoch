@@ -51,7 +51,7 @@ import { createInitialWorldState, validateWorldHistory } from "./world-history";
 import { packEnvironmentField, resolveEnvironmentField } from "./environment";
 import type { MarineLineageChange } from "./marine-lineage";
 import { findTerrainPath, isWalkable } from "./animal-navigation";
-import { approachHeading, deriveHerdBehavior, type HerdBehavior } from "./herd-behavior";
+import { approachHeading, deriveHerdBehavior, herdLayoutRadius, type HerdBehavior } from "./herd-behavior";
 import { sampleCoat } from "./coat-variation";
 import {
   DEFAULT_CLIMATE,
@@ -61,6 +61,7 @@ import {
 import { RENDER_SCALE, creaturePoseInterval } from "./render-scale";
 import { resolveVolcanicAccretion } from "./volcanism";
 import type { VolcanicOutput } from "./volcanism";
+import { createVolcanicHotSpotMarker } from "./volcanic-hotspot-marker";
 import { startingWorldPreset, type StartingWorldPreset } from "./starting-world-presets";
 import { createFishRenderer } from "./fish-renderer";
 import { createDistantDrifterRenderer } from "./distant-drifter-renderer";
@@ -476,6 +477,8 @@ export function createLandingState(scene: Scene): WorldExperience {
   const reefWater = createReefWaterUniforms(SEA_LEVEL[DEFAULT_CLIMATE.seaLevel]);
   const terrain = makeTerrain(terrainStateTexture, volcanicTexture, environmentTexture, reefWater);
   scene.add(terrain);
+  const hotSpotMarker = createVolcanicHotSpotMarker();
+  scene.add(hotSpotMarker.group);
   const terrainDetails = createTerrainDetailRenderer(scene);
   const terrainHeightTexture = makeHeightTexture(terrain);
   const oceanMaskTexture = makeOceanMaskTexture();
@@ -484,7 +487,7 @@ export function createLandingState(scene: Scene): WorldExperience {
   const life = new Group();
   life.visible = false;
   const vegetation = createVegetationRenderer(life);
-  const seagrass = createSeagrassRenderer(life);
+  const seagrass = createSeagrassRenderer(life, reefWater);
   const reef = createCoralRenderer(life, new Vector3(0.4, 0.72, 0.3).normalize(), reefWater);
   const marineSnow = createMarineSnow(life, reef.water);
   const reefHaze = new Color();
@@ -492,7 +495,7 @@ export function createLandingState(scene: Scene): WorldExperience {
   const freshwater = createFreshwaterRenderer(life);
   const streams = createStreamRenderer(life);
   const cascades = createCascadeRenderer(life);
-  const fish = createFishRenderer(life);
+  const fish = createFishRenderer(life, reefWater);
   const aerialAnimals = addAerialAnimals(life);
   const distantDrifter = createDistantDrifterRenderer();
   scene.add(distantDrifter.group);
@@ -554,6 +557,12 @@ export function createLandingState(scene: Scene): WorldExperience {
     return (a + (b - a) * tx) + ((c + (d - c) * tx) - (a + (b - a) * tx)) * tz;
   }
 
+  function syncHotSpotMarkerHeight(): void {
+    const hotSpot = worldHistory.hotSpots[0];
+    if (!hotSpot || !hotSpotMarker.group.visible) return;
+    hotSpotMarker.group.position.set(hotSpot.x, heightAt(hotSpot.x, hotSpot.z) + 0.12, hotSpot.z);
+  }
+
   /**
    * Creature counterpart to the vegetation renderer's `updateLod`: repartition
    * only when the camera has actually moved, then let each animal keep its
@@ -583,9 +592,14 @@ export function createLandingState(scene: Scene): WorldExperience {
   }
 
   function syncTerrainDetails(): void {
+    const seaLevel = SEA_LEVEL[activeClimate.seaLevel];
+    const freshwaterField = resolveFreshwaterField(
+      currentSnapshot(), seaLevel, activeClimate.rainfall,
+    );
     terrainDetails.update(worldHistory.terrain, heightAt, SEA_LEVEL[activeClimate.seaLevel]);
-    streams.setTerrain(worldHistory.terrain, SEA_LEVEL[activeClimate.seaLevel]);
-    cascades.setTerrain(worldHistory.terrain, SEA_LEVEL[activeClimate.seaLevel]);
+    streams.setTerrain(worldHistory.terrain, seaLevel, freshwaterField.surface);
+    cascades.setTerrain(worldHistory.terrain, seaLevel, freshwaterField.surface);
+    freshwater.setField(freshwaterField);
   }
   syncTerrainDetails();
 
@@ -672,6 +686,8 @@ export function createLandingState(scene: Scene): WorldExperience {
       activeClimate.rainfall,
     );
     freshwater.setField(field);
+    streams.setTerrain(worldHistory.terrain, SEA_LEVEL[activeClimate.seaLevel], field.surface);
+    cascades.setTerrain(worldHistory.terrain, SEA_LEVEL[activeClimate.seaLevel], field.surface);
     if (currentOutcome) {
       currentOutcome.freshwaterField = field;
       currentOutcome.freshwater = field.basins;
@@ -700,11 +716,12 @@ export function createLandingState(scene: Scene): WorldExperience {
   ): void {
     const renderer = rendererFor(id, "sheltered-grazer");
     renderer.behavior = deriveHerdBehavior(traits);
+    const layoutRadius = herdLayoutRadius(renderer.animals.length, renderer.behavior.spacing, spread);
     renderer.animals.forEach((animal, index) => {
-      const radial = Math.sqrt((index + 0.5) / renderer.animals.length) * spread;
+      const radial = Math.sqrt((index + 0.5) / renderer.animals.length) * layoutRadius;
       const angle = index * 2.399963;
-      const x = centerX + Math.cos(angle) * radial + (hash(index, renderer.seed + 311) - 0.5) * 3.4;
-      const z = centerZ + Math.sin(angle) * radial + (hash(index, renderer.seed + 407) - 0.5) * 3.4;
+      const x = centerX + Math.cos(angle) * radial;
+      const z = centerZ + Math.sin(angle) * radial;
       animal.position.set(x, heightAt(x, z), z);
       animal.rotationY = -0.55 + hash(index, renderer.seed + 204) * 0.45;
       animal.visible = isWalkable(heightAt, x, z, activeClimate);
@@ -838,6 +855,7 @@ export function createLandingState(scene: Scene): WorldExperience {
     }
     terrainStateDirty = true;
     terrainDirty = true;
+    syncHotSpotMarkerHeight();
   }
 
   function sculpt(point: Vector3, direction: 1 | -1, settings: Readonly<TerrainBrushSettings>): void {
@@ -879,21 +897,27 @@ export function createLandingState(scene: Scene): WorldExperience {
     },
     placeHotSpot(point: Vector3, output: VolcanicOutput) {
       const margin = 72;
+      const x = Math.max(-TERRAIN_HALF + margin, Math.min(TERRAIN_HALF - margin, point.x));
+      const z = Math.max(-TERRAIN_HALF + margin, Math.min(TERRAIN_HALF - margin, point.z));
       worldHistory = {
         ...worldHistory,
         hotSpots: [{
           id: "island-vent",
-          x: Math.max(-TERRAIN_HALF + margin, Math.min(TERRAIN_HALF - margin, point.x)),
-          z: Math.max(-TERRAIN_HALF + margin, Math.min(TERRAIN_HALF - margin, point.z)),
+          x,
+          z,
           output,
         }],
       };
+      hotSpotMarker.group.position.set(x, heightAt(x, z) + 0.12, z);
+      hotSpotMarker.setOutput(output);
+      hotSpotMarker.group.visible = true;
     },
     setVolcanicOutput(output: VolcanicOutput) {
       worldHistory = {
         ...worldHistory,
         hotSpots: worldHistory.hotSpots.map((hotSpot) => ({ ...hotSpot, output })),
       };
+      hotSpotMarker.setOutput(output);
     },
     finishSculpt() {
       flushTerrainChanges();
@@ -947,6 +971,15 @@ export function createLandingState(scene: Scene): WorldExperience {
           ...worldHistory,
           hotSpots: [{ id: "island-vent", ...preset.hotSpot, output: preset.volcanicOutput }],
         };
+        hotSpotMarker.group.position.set(
+          preset.hotSpot.x,
+          preset.heightAt(preset.hotSpot.x, preset.hotSpot.z) + 0.12,
+          preset.hotSpot.z,
+        );
+        hotSpotMarker.setOutput(preset.volcanicOutput);
+        hotSpotMarker.group.visible = true;
+      } else {
+        hotSpotMarker.group.visible = false;
       }
       syncTerrainGeometryFromHistory();
       flushTerrainChanges();
@@ -972,8 +1005,8 @@ export function createLandingState(scene: Scene): WorldExperience {
       // The rung-6 and rung-7 fixture: two populations at opposite trait means
       // on the same ground, seated close enough that one near camera reaches
       // both coats and one mid camera judges both gaits.
-      placeShowcaseHerd("contrast-nimble-showcase", CONTRAST_NIMBLE_TRAITS, 6, 16, 11);
-      placeShowcaseHerd("contrast-bulky-showcase", CONTRAST_BULKY_TRAITS, 30, 0, 11);
+      placeShowcaseHerd("contrast-nimble-showcase", CONTRAST_NIMBLE_TRAITS, -18, 24, 11);
+      placeShowcaseHerd("contrast-bulky-showcase", CONTRAST_BULKY_TRAITS, 48, -18, 11);
     },
     showcaseFish() {
       const traits = {
@@ -985,10 +1018,12 @@ export function createLandingState(scene: Scene): WorldExperience {
         depthControl: 0.7,
         propulsionPlan: "tail" as const,
       };
-      const samples = Array.from({ length: 8 }, (_, index) => ({
-        x: 104 + Math.cos(index * 2.399) * (1.8 + index * 0.52),
+      // LW-1: a tighter cluster of 10 (the renderer cap) reads as a shoal at
+      // the ~11 m hero camera instead of a few scattered specks.
+      const samples = Array.from({ length: 10 }, (_, index) => ({
+        x: 104 + Math.cos(index * 2.399) * (1.5 + index * 0.34),
         y: -5.2 + (index % 3) * 0.32,
-        z: 116 + Math.sin(index * 2.399) * (1.8 + index * 0.52),
+        z: 116 + Math.sin(index * 2.399) * (1.5 + index * 0.34),
         heading: index * 2.399,
         scale: 1,
       }));
@@ -1012,10 +1047,13 @@ export function createLandingState(scene: Scene): WorldExperience {
       validateWorldHistory(worldHistory);
       worldHistory = {
         ...worldHistory,
-        terrain: resolveTerrainHistory(
-          resolveVolcanicAccretion(worldHistory.terrain, worldHistory.hotSpots, years),
+        // Resolve inherited weathering first. Active vents then leave recent
+        // construction at the landing instead of aging their newest lava by
+        // the entire jump interval.
+        terrain: resolveVolcanicAccretion(
+          resolveTerrainHistory(worldHistory.terrain, years, climate),
+          worldHistory.hotSpots,
           years,
-          climate,
         ),
       };
       const positions = terrain.geometry.attributes.position;
@@ -1032,6 +1070,7 @@ export function createLandingState(scene: Scene): WorldExperience {
       colors.needsUpdate = true;
       positions.needsUpdate = true;
       terrain.geometry.computeVertexNormals();
+      syncHotSpotMarkerHeight();
       syncShoreSurface();
       life.visible = true;
       const snapshot = currentSnapshot(totalYears);
@@ -1129,6 +1168,7 @@ export function createLandingState(scene: Scene): WorldExperience {
       reef.setLighting(sunDirection, sunColor, reefHazeColor(reefHaze, sunColor));
     },
     update(elapsed: number, viewPosition?: Readonly<Vector3>) {
+      hotSpotMarker.update(elapsed);
       distantDrifter.update(elapsed, SEA_LEVEL[activeClimate.seaLevel]);
       streams.update(elapsed);
       cascades.update(elapsed);

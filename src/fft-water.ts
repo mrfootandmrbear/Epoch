@@ -29,7 +29,8 @@ import {
   vec3,
 } from "three/tsl";
 import { FFTOcean, sampleBilinearFloat } from "./fft-ocean";
-import type { AtmosphereState } from "./atmosphere";
+import type { ResolvedAtmosphere, AtmosphereState } from "./atmosphere";
+import type { OceanSeaState } from "./ocean-sea-state";
 
 interface ChopLayer {
   angleDeg: number;
@@ -55,10 +56,11 @@ export interface FFTWaterOptions {
   terrainHeightTexture: DataTexture;
   oceanMaskTexture: DataTexture;
   terrainSize?: number;
+  seaState?: Pick<OceanSeaState, "chopScale" | "crestFoamStrength">;
 }
 
 export type FFTWaterMesh = Mesh & {
-  updateAtmosphere(state: AtmosphereState): void;
+  updateAtmosphere(state: ResolvedAtmosphere): void;
 };
 
 export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): FFTWaterMesh {
@@ -70,6 +72,8 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
   const patch = ocean.patchSize;
   const terrainSize = options.terrainSize ?? 380;
   const sceneTime = ocean.clock;
+  const chopScale = options.seaState?.chopScale ?? 1;
+  const crestFoamStrength = options.seaState?.crestFoamStrength ?? 0;
 
   const geometry = new PlaneGeometry(size, size, segments, segments);
   geometry.rotateX(-Math.PI / 2);
@@ -107,9 +111,9 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
 
       const layerFade = float(1.0).sub(smoothstep(fadeStart, fadeEnd, distV));
       const phase = x.mul(kx).add(z.mul(kz)).add(sceneTime.mul(omega));
-      h.addAssign(sin(phase).mul(layer.amplitude).mul(layerFade));
-      dHdx.addAssign(cos(phase).mul(layer.amplitude * kx).mul(layerFade));
-      dHdz.addAssign(cos(phase).mul(layer.amplitude * kz).mul(layerFade));
+      h.addAssign(sin(phase).mul(layer.amplitude * chopScale).mul(layerFade));
+      dHdx.addAssign(cos(phase).mul(layer.amplitude * chopScale * kx).mul(layerFade));
+      dHdz.addAssign(cos(phase).mul(layer.amplitude * chopScale * kz).mul(layerFade));
     }
 
     return vec3(h, dHdx, dHdz);
@@ -146,8 +150,9 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
   const waveNormal = normalize(vec3(vWave.y.negate(), 1.0, vWave.z.negate()));
   material.normalNode = transformNormalToView(waveNormal);
 
-  const deepColor = color(new Color(0x041c26));
-  const shallowColor = color(new Color(0x008ca7));
+  const deepColor = uniform(new Color(0x041c26));
+  const shallowColor = uniform(new Color(0x008ca7));
+  const aerialDensity = uniform(1);
   const zenithColor = uniform(new Color(0x4f8fb5));
   const horizonColor = uniform(options.atmosphere.fogColor.clone().offsetHSL(0, 0.01, 0.025));
   const foamColor = color(new Color(0xf3fbff));
@@ -276,7 +281,7 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
       // the way out and terminates in a hard line; with it the water loses
       // contrast into the sky and the far edge of any finite plane stops
       // being a visible boundary.
-      aerial: smoothstep(140, 3200, viewDist),
+      aerial: smoothstep(float(140).div(aerialDensity), float(3200).div(aerialDensity), viewDist),
     };
   };
 
@@ -307,13 +312,34 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
     const intersectionBand = smoothstep(0.03, 0.2, waterDepth)
       .mul(float(1).sub(smoothstep(0.2, 0.95, waterDepth)))
       .mul(insideTerrain);
+    // LW-3: foam is aerated water, so gate it on wave energy rather than on
+    // depth alone. vWave.x is the crest height and length(vWave.yz) the local
+    // surface slope (steepness); together they mark rising, breaking water.
+    // Without this, every shallow patch foams — a solid ring at the true
+    // shoreline plus detached blobs over submerged flats that read as decals
+    // in open water. Weighting the band by wave energy scallops the ring and
+    // starves the flat patches that had nothing generating them.
+    const waveEnergy = clamp(
+      max(vWave.x.mul(0.85).add(0.2), length(vWave.yz).mul(1.3)),
+      0,
+      1,
+    );
     const shorePulse = sin(sceneTime.mul(1.35).add(positionWorld.x.mul(0.045)).add(positionWorld.z.mul(0.03)))
-      .mul(0.16).add(0.58);
-    const shoreBreakup = smoothstep(0.58, 0.88, turb.add(shorePulse));
-    const shoreFoam = intersectionBand.mul(shoreBreakup).mul(0.86)
+      .mul(0.16).add(0.5);
+    const shoreBreakup = smoothstep(0.55, 0.9, turb.mul(0.6).add(shorePulse).add(waveEnergy.mul(0.5)));
+    const shoreFoam = intersectionBand.mul(shoreBreakup).mul(waveEnergy.mul(0.55).add(0.45)).mul(0.86)
       .mul(float(1).sub(distFade.mul(0.55)));
 
-    return mix(mix(albedo, foamColor, shoreFoam), distantWater, aerial);
+    // Open-water whitecaps belong to steep, positive crests—not to a screen-
+    // space noise mask. The FFT slope is a bounded proxy for the Jacobian
+    // until horizontal displacement is carried through as its own buffer.
+    const crest = smoothstep(0.12, 0.68, vWave.x)
+      .mul(smoothstep(0.16, 0.72, length(vWave.yz)));
+    const crestBreakup = smoothstep(0.42, 0.82, turb.add(crest.mul(0.5)));
+    const crestFoam = crest.mul(crestBreakup).mul(crestFoamStrength)
+      .mul(float(1).sub(patchRim)).mul(float(1).sub(distFade.mul(0.35)));
+
+    return mix(mix(albedo, foamColor, max(shoreFoam, crestFoam)), distantWater, aerial);
   })();
 
   // The far-water skirt. The displaced patch is only 1400m across, so its own
@@ -342,12 +368,14 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
   farWater.frustumCulled = false;
   mesh.add(farWater);
 
-  const updateAtmosphere = (state: AtmosphereState) => {
+  const updateAtmosphere = (state: ResolvedAtmosphere) => {
     sunColorNode.value.copy(state.sunColor);
     horizonColor.value.copy(state.fogColor).offsetHSL(0, 0.01, 0.025);
     zenithColor.value.set(0x4f8fb5).lerp(state.ambientColor, 0.28).offsetHSL(0, 0.04, -0.08);
+    deepColor.value.set(0x041c26).multiply(state.mood.waterTint);
+    shallowColor.value.set(0x008ca7).multiply(state.mood.waterTint);
+    aerialDensity.value = state.mood.hazeDensityScale;
   };
-  updateAtmosphere(options.atmosphere);
 
   return Object.assign(mesh, { updateAtmosphere });
 }

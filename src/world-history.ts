@@ -9,7 +9,7 @@ import { CORAL_GUILDS } from "./reef-succession";
 import { DEFAULT_CLIMATE, type ClimateForces } from "./climate";
 import { isFounderFoodSource, isFounderOriginClimate, isFounderSizeBand } from "./founder-profile";
 
-export const WORLD_HISTORY_VERSION = 7 as const;
+export const WORLD_HISTORY_VERSION = 8 as const;
 
 export interface WorldHistory {
   readonly version: typeof WORLD_HISTORY_VERSION;
@@ -160,6 +160,8 @@ export function validateWorldHistory(value: unknown): asserts value is WorldHist
   validateFloat32Field(terrain.ash, expectedLength, "world history terrain.ash", true);
   validateFloat32Field(terrain.volcanicLoad, expectedLength, "world history terrain.volcanicLoad", true);
   validateFloat32Field(terrain.substrateAge, expectedLength, "world history terrain.substrateAge", true);
+  validateFloat32Field(terrain.surfaceAgeYears, expectedLength, "world history terrain.surfaceAgeYears");
+  validateFloat32Field(terrain.soilDevelopment, expectedLength, "world history terrain.soilDevelopment", true);
   validateFloat32Field(terrain.sediment, expectedLength, "world history terrain.sediment", true);
   validateFloat32Field(terrain.carbonate, expectedLength, "world history terrain.carbonate", true);
   if (!Number.isFinite(terrain.marineNutrients) || (terrain.marineNutrients as number) < 0 || (terrain.marineNutrients as number) > 1) {

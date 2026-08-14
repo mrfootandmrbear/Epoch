@@ -1,0 +1,62 @@
+{
+  "set": "nextReview",
+  "capturedAt": "2026-08-14T01:20:42.579Z",
+  "viewport": {
+    "width": 1600,
+    "height": 900
+  },
+  "settleMs": 2500,
+  "contactSheet": "contact-sheet.png",
+  "consoleErrors": [],
+  "shots": [
+    {
+      "label": "01-volcano-fresh",
+      "url": "http://localhost:5178/?shot=whole-island&volcanoPhase=fresh&time=42",
+      "backend": "backend: WebGL2 · 0 fps · 15 draws",
+      "ms": 50756,
+      "frame": "frames/01-volcano-fresh.png"
+    },
+    {
+      "label": "02-volcano-recovered",
+      "url": "http://localhost:5178/?shot=whole-island&volcanoPhase=recovered&time=42",
+      "backend": "backend: WebGL2 · 0 fps · 15 draws",
+      "ms": 68466,
+      "frame": "frames/02-volcano-recovered.png"
+    },
+    {
+      "label": "03-volcano-carved",
+      "url": "http://localhost:5178/?shot=whole-island&volcanoPhase=carved&time=42",
+      "backend": "backend: WebGL2 · 0 fps · 15 draws",
+      "ms": 65429,
+      "frame": "frames/03-volcano-carved.png"
+    },
+    {
+      "label": "04-volcano-drowned",
+      "url": "http://localhost:5178/?shot=whole-island&volcanoPhase=drowned&time=42",
+      "backend": "backend: WebGL2 · 0 fps · 15 draws",
+      "ms": 71842,
+      "frame": "frames/04-volcano-drowned.png"
+    },
+    {
+      "label": "05-island-100kyr",
+      "url": "http://localhost:5178/?shot=whole-island&years=100000&time=42",
+      "backend": "backend: WebGL2 · 0 fps · 15 draws",
+      "ms": 68359,
+      "frame": "frames/05-island-100kyr.png"
+    },
+    {
+      "label": "06-island-1myr",
+      "url": "http://localhost:5178/?shot=whole-island&years=1000000&time=42",
+      "backend": "backend: WebGL2 · 0 fps · 15 draws",
+      "ms": 57934,
+      "frame": "frames/06-island-1myr.png"
+    },
+    {
+      "label": "07-storm",
+      "url": "http://localhost:5178/?shot=storm&years=1000&time=42",
+      "backend": "backend: WebGL2 · 0 fps · 15 draws",
+      "ms": 69888,
+      "frame": "frames/07-storm.png"
+    }
+  ]
+}

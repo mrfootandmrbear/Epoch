@@ -7,6 +7,7 @@ import {
   mix,
   mx_noise_float,
   normalWorld,
+  positionLocal,
   positionWorld,
   smoothstep,
   texture,
@@ -50,7 +51,10 @@ export function createTerrainMaterial(options: TerrainMaterialOptions): TerrainM
   // same number is two chances for the waterline and the light net to disagree.
   const seaLevel = options.water.seaLevel;
   seaLevel.value = options.seaLevel;
-  const terrainUv = positionWorld.xz.div(options.terrainExtent).add(0.5);
+  // The terrain mesh is world-aligned at the origin, so local XZ is also its
+  // stable history-texture coordinate. Keeping lookup independent of vertex
+  // displacement lets reef relief rise without sliding through its own field.
+  const terrainUv = positionLocal.xz.div(options.terrainExtent).add(0.5);
   const state = texture(options.stateTexture, terrainUv);
   const volcanic = texture(options.volcanicTexture, terrainUv);
   const environment = texture(options.environmentTexture, terrainUv);
@@ -80,6 +84,8 @@ export function createTerrainMaterial(options: TerrainMaterialOptions): TerrainM
   const medium = mx_noise_float(metres.mul(0.42).add(vec2(17.3, -9.1)));
   const grain = mx_noise_float(metres.mul(1.55).add(vec2(-31.7, 22.4)));
   const micro = mx_noise_float(metres.mul(4.4).add(vec2(53.1, 11.8)));
+  const carbonateMottle = mx_noise_float(metres.mul(1.55).add(vec2(83.7, -47.2)));
+  const carbonateFleck = mx_noise_float(metres.mul(5.2).add(vec2(-121.3, 68.9)));
   // Volume noise is orientation independent on exposed faces, avoiding the
   // contour bands that fine XZ projection creates on steep heightfield walls.
   const rockNoise = mx_noise_float(positionWorld.mul(0.58).add(19.7));
@@ -113,15 +119,42 @@ export function createTerrainMaterial(options: TerrainMaterialOptions): TerrainM
   // carbonate starts below the surf band, favours shelf-like upward faces,
   // and yields wherever fresh basalt still dominates.
   const waterDepth = max(float(0), seaLevel.sub(positionWorld.y));
+  // The history texture stores accumulated carbonate as a deliberately soft
+  // field. Lift that field into a legible continuous shelf here rather than
+  // representing each reef site with a separate rock mesh: adjoining deposits
+  // should visually merge into one reef pavement before colonies are drawn.
+  const visibleCarbonate = smoothstep(0.001, 0.06, carbonateDeposit);
+  const reefDepthMask = smoothstep(0.9, 2.6, max(float(0), seaLevel.sub(positionLocal.y)))
+    .mul(float(1).sub(smoothstep(15, 25, max(float(0), seaLevel.sub(positionLocal.y)))));
+  // Carbonate reef is built rock, not pale sand. Broad connected lobes lift
+  // the existing terrain into pavement and low ledges; the colony renderer
+  // contributes no matching prop rocks. Keeping the lift under a metre lets
+  // colony bases remain embedded in rather than buried by the framework.
+  const reefMass = smoothstep(-0.38, 0.42, macro.add(medium.mul(0.38)));
+  const reefRelief = visibleCarbonate
+    .mul(reefDepthMask)
+    .mul(float(1).sub(basalt.mul(0.9)))
+    .mul(float(0.06).add(reefMass.mul(0.3)));
+  material.positionNode = positionLocal.add(vec3(0, reefRelief, 0));
   const carbonateShelf = smoothstep(0.9, 2.6, waterDepth)
     .mul(float(1).sub(smoothstep(15, 25, waterDepth)))
     .mul(smoothstep(0.56, 0.88, normalWorld.y))
     .mul(float(1).sub(basalt.mul(0.86)))
-    .mul(carbonateDeposit)
+    .mul(visibleCarbonate)
     .mul(float(1).sub(sediment.mul(0.62)));
-  const carbonateVariation = macro.mul(0.045).add(medium.mul(0.025).mul(mediumFade));
-  const carbonate = vec3(0.61, 0.57, 0.44).add(carbonateVariation);
-  const carbonateGround = mix(groundDetail, carbonate, carbonateShelf.mul(0.74));
+  // Reef pavement is a mosaic of dead framework, limestone chips, boring
+  // holes and coralline films. Cell noise breaks the broad colour wash into
+  // fragments; narrow Worley valleys supply dark crevices rather than dunes.
+  const fragmentTone = carbonateMottle.mul(0.13).add(carbonateFleck.mul(0.045));
+  const carbonateVariation = macro.mul(0.045)
+    .add(medium.mul(0.04).mul(mediumFade))
+    .add(fragmentTone.mul(grainFade));
+  // Submerged carbonate is filtered toward slate/cyan; keep the warm channel
+  // below green and blue so it never reads as sunlit brown earth.
+  const limestone = vec3(0.43, 0.47, 0.49).add(carbonateVariation);
+  const corallineFilm = smoothstep(0.42, 0.78, carbonateMottle.add(medium.mul(0.24)));
+  const carbonate = mix(limestone, vec3(0.39, 0.36, 0.45), corallineFilm.mul(0.3));
+  const carbonateGround = mix(groundDetail, carbonate, carbonateShelf.mul(0.94));
   const frostCover = frost.mul(float(1).sub(slope.mul(0.72))).mul(float(1).sub(shore));
   const frostColor = mix(new Color(0xb9c0bb), new Color(0xd9dfdc), substrateAge.mul(0.25));
   const groundColor = mix(carbonateGround, frostColor, frostCover.mul(0.72));
@@ -135,7 +168,11 @@ export function createTerrainMaterial(options: TerrainMaterialOptions): TerrainM
     normalWorld.y,
     options.water.causticStrength,
   );
-  const litGround = groundColor.mul(float(1).add(caustic.mul(1.35)));
+  // Bright broad caustics on a smooth low-frequency base were doing most of
+  // the "Mario sand" read. They stay visible on reef rock, but subordinate to
+  // its fixed material structure.
+  const causticGain = mix(float(1.35), float(0.52), carbonateShelf);
+  const litGround = groundColor.mul(float(1).add(caustic.mul(causticGain)));
 
   // The seabed is under the same water as everything standing on it. Without
   // this the sand kept its dry warm brown while the colonies on it were being
@@ -152,9 +189,14 @@ export function createTerrainMaterial(options: TerrainMaterialOptions): TerrainM
     .add(medium.mul(0.24).mul(mediumFade).mul(float(1).sub(rockExposure)))
     .add(grain.mul(0.105).mul(grainFade).mul(float(1).sub(rockExposure)))
     .add(micro.mul(0.035).mul(microFade).mul(float(1).sub(rockExposure)))
-    .add(rockNoise.mul(0.2).mul(rockExposure).mul(grainFade));
+    .add(rockNoise.mul(0.2).mul(rockExposure).mul(grainFade))
+    .add(medium.mul(0.34).mul(carbonateShelf).mul(mediumFade))
+    .add(grain.mul(0.16).mul(carbonateShelf).mul(grainFade))
+    .add(carbonateMottle.mul(0.28).mul(carbonateShelf).mul(grainFade))
+    .add(carbonateFleck.mul(0.11).mul(carbonateShelf).mul(microFade));
   const bumpStrength = mix(float(1.45), float(2.65), rockExposure)
     .mul(float(1).sub(shore.mul(0.38)))
+    .add(carbonateShelf.mul(1.65))
     .mul(float(1).sub(smoothstep(250, 520, distance)));
   material.normalNode = proceduralBump(bumpHeight, bumpStrength);
   material.roughnessNode = clamp(

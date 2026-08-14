@@ -281,12 +281,19 @@ function tiltFrom(
   return [result[0] / length, result[1] / length, result[2] / length];
 }
 
-/** Crustose coralline algae: a thin irregular crust hugging the rock. */
-function buildCrust(level: CoralGeometryLevel): BufferGeometry {
-  const builder = new MeshBuilder();
-  const segments = level === "near" ? 22 : 12;
-  const rings = level === "near" ? 4 : 2;
-  const centre = builder.vertex(0, 1, 0);
+/** One living patch spreading across carbonate substrate. */
+function crustPatch(
+  builder: MeshBuilder,
+  segments: number,
+  rings: number,
+  cx: number,
+  cz: number,
+  radiusScale: number,
+  baseHeight: number,
+  crownHeight: number,
+  seed: number,
+): void {
+  const centre = builder.vertex(cx, crownHeight, cz);
   const rows: number[][] = [];
   for (let ring = 1; ring <= rings; ring++) {
     const radial = ring / rings;
@@ -295,28 +302,81 @@ function buildCrust(level: CoralGeometryLevel): BufferGeometry {
       const theta = (segment / segments) * Math.PI * 2;
       // A lobed, uneven margin. Crust spreads outward from where it settled,
       // so a perfectly circular patch would be the one wrong silhouette.
-      const lobe = 1 + valueNoise3(Math.cos(theta) * 2.4, 0, Math.sin(theta) * 2.4) * 0.34;
-      const radius = radial * lobe;
+      const lobe = 1 + valueNoise3(
+        Math.cos(theta) * 2.4 + seed,
+        seed * 0.7,
+        Math.sin(theta) * 2.4 - seed,
+      ) * 0.3;
+      // Tissue occupies the crown but leaves a rock shoulder visible around
+      // it. That host/coral boundary is the ecological cue a free-standing
+      // coloured mat cannot supply.
+      const radius = radial * lobe * radiusScale;
+      // Keep a raised, uneven lip at the perimeter. The previous surface fell
+      // all the way to y=0 and had no side wall, so at gameplay distance its
+      // silhouette collapsed to a paper-thin coloured polygon floating over
+      // the sand. A crust is still low, but it is a carbonate layer with a
+      // visibly fused edge rather than a decal.
+      const surface = baseHeight + (1 - radial * radial) * (crownHeight - baseHeight);
       row.push(builder.vertex(
-        Math.cos(theta) * radius,
-        (1 - radial * radial) * (0.7 + valueNoise3(Math.cos(theta) * 3, radial * 3, Math.sin(theta) * 3) * 0.3),
-        Math.sin(theta) * radius,
+        cx + Math.cos(theta) * radius,
+        surface * (0.9 + valueNoise3(Math.cos(theta) * 3 + seed, radial * 3, Math.sin(theta) * 3) * 0.1),
+        cz + Math.sin(theta) * radius,
       ));
     }
     rows.push(row);
   }
   const first = rows[0]!;
   for (let segment = 0; segment < segments; segment++) {
-    builder.triangle(centre, first[segment]!, first[(segment + 1) % segments]!);
+    builder.triangle(centre, first[(segment + 1) % segments]!, first[segment]!);
   }
   for (let ring = 0; ring < rows.length - 1; ring++) {
     const inner = rows[ring]!;
     const outer = rows[ring + 1]!;
     for (let segment = 0; segment < segments; segment++) {
       const next = (segment + 1) % segments;
-      builder.quad(inner[segment]!, outer[segment]!, outer[next]!, inner[next]!);
+      builder.quad(inner[segment]!, inner[next]!, outer[next]!, outer[segment]!);
     }
   }
+
+  // Close the irregular outer edge down onto the substrate. Besides giving the
+  // colony real thickness, this dark vertical rim supplies the contact cue that
+  // makes the pink tissue read as grown onto rock instead of hovering above it.
+  const outer = rows[rows.length - 1]!;
+  const base: number[] = [];
+  for (let segment = 0; segment < segments; segment++) {
+    const theta = (segment / segments) * Math.PI * 2;
+    // Re-evaluate the deterministic outer lobe so the wall is vertical and
+    // its foot matches the top edge exactly.
+    const lobe = 1 + valueNoise3(
+      Math.cos(theta) * 2.4 + seed,
+      seed * 0.7,
+      Math.sin(theta) * 2.4 - seed,
+    ) * 0.3;
+    base.push(builder.vertex(
+      cx + Math.cos(theta) * lobe * radiusScale,
+      0,
+      cz + Math.sin(theta) * lobe * radiusScale,
+    ));
+  }
+  for (let segment = 0; segment < segments; segment++) {
+    const next = (segment + 1) % segments;
+    builder.quad(outer[segment]!, outer[next]!, base[next]!, base[segment]!);
+  }
+  const underside = builder.vertex(cx, 0, cz);
+  for (let segment = 0; segment < segments; segment++) {
+    builder.triangle(underside, base[segment]!, base[(segment + 1) % segments]!);
+  }
+}
+
+/** Crustose coralline algae: one living patch fused to the carbonate seabed. */
+function buildCrust(level: CoralGeometryLevel): BufferGeometry {
+  const builder = new MeshBuilder();
+  crustPatch(
+    builder,
+    level === "near" ? 18 : 10,
+    level === "near" ? 4 : 2,
+    0, 0, 1, 0.16, 1, 2.1,
+  );
   return builder.build();
 }
 

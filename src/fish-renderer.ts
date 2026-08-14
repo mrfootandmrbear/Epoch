@@ -6,13 +6,23 @@ import {
   InstancedMesh,
   Matrix4,
   Mesh,
-  MeshStandardMaterial,
+  MeshStandardNodeMaterial,
   Quaternion,
   Vector3,
 } from "three/webgpu";
+import { float, normalWorld, varyingProperty } from "three/tsl";
 import source from "../assets/ecosystem/epoch-coastal-forager/exports/coastal-forager.runtime.json";
 import type { MarinePopulationOutcome, MarineTraits } from "./marine-lineage";
 import type { CoastalAnimalOutcome } from "./outcome-resolver";
+import {
+  causticLight,
+  createReefWaterUniforms,
+  downwelling,
+  opticalPath,
+  waterHaze,
+  waterTransmission,
+  type ReefWaterUniforms,
+} from "./reef-water";
 
 export const FISH_MORPH_CHANNELS = [
   "bodySize", "streamlining", "maneuverability", "depthControl", "swimLeft", "swimRight",
@@ -74,13 +84,24 @@ interface FishState {
 
 export interface FishRenderer {
   readonly mesh: InstancedMesh;
+  readonly water: ReefWaterUniforms;
   setPopulation: (population: MarinePopulationOutcome | undefined, samples: readonly CoastalAnimalOutcome[]) => void;
   update: (elapsed: number) => void;
 }
 
-export function createFishRenderer(parent: Group): FishRenderer {
+export function createFishRenderer(parent: Group, sharedWater?: ReefWaterUniforms): FishRenderer {
   const geometry = createCoastalForagerGeometry();
-  const material = new MeshStandardMaterial({ color: 0xffffff, roughness: 0.48, metalness: 0.04 });
+  const water = sharedWater ?? createReefWaterUniforms();
+  const material = new MeshStandardNodeMaterial({ color: 0xffffff, roughness: 0.48, metalness: 0.04 });
+  const path = opticalPath(water.seaLevel);
+  const haze = waterHaze(path);
+  const light = downwelling(water.seaLevel);
+  const transmission = waterTransmission(path);
+  const caustic = causticLight(water.time, water.seaLevel, normalWorld.y, water.causticStrength);
+  const albedo = varyingProperty("vec3", "vInstanceColor");
+  material.colorNode = albedo.mul(light).mul(float(1).add(caustic.mul(1.2)))
+    .mul(transmission).mul(float(1).sub(haze));
+  material.emissiveNode = water.hazeColor.mul(haze).mul(light);
   const mesh = new InstancedMesh(geometry, material, MAX_FISH);
   const probe = new Mesh(geometry, material);
   const states: FishState[] = Array.from({ length: MAX_FISH }, (_, index) => ({
@@ -125,7 +146,7 @@ export function createFishRenderer(parent: Group): FishRenderer {
       // runtime family inside its 0.35–1.4 m manifest contract while allowing
       // body size to remain legible against coral branches.
       const condition = 0.9 + state.expression.energy * 0.1;
-      scale.setScalar((0.22 + state.expression.bodySize * 0.1) * condition * state.sampleScale);
+      scale.setScalar((0.27 + state.expression.bodySize * 0.1) * condition * state.sampleScale);
       matrix.compose(new Vector3(x, y, z), rotation, scale);
       mesh.setMatrixAt(index, matrix);
       setMorph(index, state.expression, Math.sin(phase * 4.8) * (0.36 + state.expression.streamlining * 0.26));
@@ -139,6 +160,7 @@ export function createFishRenderer(parent: Group): FishRenderer {
 
   return {
     mesh,
+    water,
     setPopulation(population, samples) {
       const expression = population?.traits ? fishExpression(population.traits, population.energy) : undefined;
       states.forEach((state, index) => {
@@ -153,7 +175,16 @@ export function createFishRenderer(parent: Group): FishRenderer {
         state.expression = expression;
         const warmth = expression.thermalTolerance;
         const condition = expression.energy;
-        color.setHSL(0.51 - warmth * 0.18, 0.18 + condition * 0.28, 0.28 + condition * 0.34);
+        // LW-1: the old hue band (0.33–0.51) sat on top of the teal water
+        // column, so the shoal read as water. Coloration reads habitat
+        // temperature instead — warm-water reef fish are vivid gold-to-coral,
+        // cool-water fish deep blue-violet — and both branches sit off the
+        // water band so the population separates from its medium. The split at
+        // warmth 0.5 is a real tropical/temperate threshold, not a gradient.
+        const hue = warmth >= 0.5
+          ? 0.09 - (warmth - 0.5) * 0.16 // 0.09 gold → 0.01 coral-red
+          : 0.60 + (0.5 - warmth) * 0.16; // 0.60 blue → 0.68 violet
+        color.setHSL(hue, 0.6 + condition * 0.28, 0.44 + condition * 0.16);
         mesh.setColorAt(index, color);
       });
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;

@@ -35,6 +35,18 @@ const LOD_REPARTITION_DISTANCE = RENDER_SCALE.lod.coralRepartition;
 const UP = new Vector3(0, 1, 0);
 
 /**
+ * Stable presentation-scale variation within the resolver's biological size.
+ * The resolver supplies the mature envelope; this creates the recruit-to-adult
+ * hierarchy that makes neighbouring colonies read as a growing community.
+ */
+function colonyPresentationScale(colony: CoralColony): number {
+  const noise = Math.sin(colony.x * 12.9898 + colony.z * 78.233 + colony.rotation * 19.19)
+    * 43758.5453;
+  const variation = noise - Math.floor(noise);
+  return 0.52 + variation * 0.48;
+}
+
+/**
  * How much of the colony is thin enough for light to pass through it.
  *
  * A sea fan is almost entirely membrane and a Porites bommie is a solid block
@@ -168,7 +180,11 @@ export function createCoralRenderer(
       tiltRotation.setFromAxisAngle(tiltAxis, colony.tilt);
       rotation.multiply(tiltRotation);
     }
-    scale.set(colony.radius, colony.height, colony.radius);
+    // Keep the biological footprint resolved for every form. In particular,
+    // encrusting tissue must leave enough continuous reef rock visible around
+    // it to read as attached growth rather than a stack of coloured plates.
+    const size = colonyPresentationScale(colony);
+    scale.set(colony.radius * size, colony.height * size, colony.radius * size);
     matrix.compose(position, rotation, scale);
     mesh.setMatrixAt(index, matrix);
 

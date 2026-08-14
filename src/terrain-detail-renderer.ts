@@ -13,6 +13,7 @@ import type { TerrainHistory } from "./terrain-history";
 
 const MAX_OUTCROPS = 420;
 const MAX_SCREE = 760;
+const MAX_REEF_RUBBLE = 100000;
 
 function hash(x: number, z: number, seed: number): number {
   const value = Math.sin(x * 127.1 + z * 311.7 + seed * 74.7) * 43758.5453;
@@ -50,7 +51,15 @@ export function createTerrainDetailRenderer(scene: Scene): TerrainDetailRenderer
     new MeshStandardMaterial({ color: 0xffffff, roughness: 0.97, metalness: 0 }),
     MAX_SCREE,
   );
-  for (const mesh of [outcrops, scree]) {
+  const reefRubble = new InstancedMesh(
+    new IcosahedronGeometry(1, 0),
+    new MeshStandardMaterial({ color: 0xffffff, roughness: 0.98, metalness: 0 }),
+    MAX_REEF_RUBBLE,
+  );
+  outcrops.name = "terrain-outcrops";
+  scree.name = "terrain-scree";
+  reefRubble.name = "reef-rubble";
+  for (const mesh of [outcrops, scree, reefRubble]) {
     mesh.instanceMatrix.setUsage(DynamicDrawUsage);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
@@ -68,6 +77,55 @@ export function createTerrainDetailRenderer(scene: Scene): TerrainDetailRenderer
       const half = terrain.extent / 2;
       let outcropCount = 0;
       let screeCount = 0;
+      let reefRubbleCount = 0;
+
+      // Mature reef floor is broken carbonate framework, not a smooth plane.
+      // Sample independently of coral positions so rubble forms a continuous
+      // benthic layer rather than one presentation rock under each colony.
+      for (let gz = 1; gz < terrain.side - 1 && reefRubbleCount < MAX_REEF_RUBBLE; gz++) {
+        for (let gx = 1; gx < terrain.side - 1 && reefRubbleCount < MAX_REEF_RUBBLE; gx++) {
+          const index = gz * terrain.side + gx;
+          const carbonate = terrain.carbonate[index]!;
+          const basalt = terrain.basalt[index]!;
+          const sediment = terrain.sediment[index]!;
+          const density = MathUtils.smoothstep(carbonate, 0.001, 0.025)
+            * (1 - basalt * 0.9) * (1 - sediment * 0.55);
+          if (density < 0.05) continue;
+          const baseX = gx * step - half;
+          const baseZ = gz * step - half;
+          for (let piece = 0; piece < 6 && reefRubbleCount < MAX_REEF_RUBBLE; piece++) {
+            if (hash(gx, gz, 200 + piece) > density * 0.98) continue;
+            const x = baseX + (hash(gx, gz, 220 + piece) - 0.5) * step * 2.2;
+            const z = baseZ + (hash(gx, gz, 240 + piece) - 0.5) * step * 2.2;
+            const y = heightAt(x, z);
+            const depth = seaLevel - y;
+            if (depth < 0.85 || depth > 25) continue;
+
+            const sizeRoll = hash(gx, gz, 260 + piece);
+            const size = 0.07 + sizeRoll * sizeRoll * 0.2;
+            const slab = hash(gx, gz, 280 + piece);
+            transform.position.set(x, y + size * 0.22, z);
+            transform.rotation.set(
+              hash(gx, gz, 300 + piece) * Math.PI,
+              hash(gx, gz, 320 + piece) * Math.PI * 2,
+              hash(gx, gz, 340 + piece) * Math.PI,
+            );
+            transform.scale.set(
+              size * (0.65 + hash(gx, gz, 360 + piece) * 1.15),
+              size * (0.3 + slab * 0.42),
+              size * (0.72 + hash(gx, gz, 380 + piece) * 0.9),
+            );
+            transform.updateMatrix();
+            reefRubble.setMatrixAt(reefRubbleCount, transform.matrix);
+            // Dead skeleton, weathered limestone and coralline-coated rubble.
+            const tint = hash(gx, gz, 400 + piece);
+            color.set(tint > 0.94 ? 0x4b555d : tint > 0.58 ? 0x6f7a82 : 0x92999c)
+              .offsetHSL(0, -0.025, (hash(gx, gz, 420 + piece) - 0.5) * 0.07);
+            reefRubble.setColorAt(reefRubbleCount, color);
+            reefRubbleCount++;
+          }
+        }
+      }
 
       // A four-cell stride keeps placement sparse and stable while still
       // sampling every authored landform across the island.
@@ -129,10 +187,13 @@ export function createTerrainDetailRenderer(scene: Scene): TerrainDetailRenderer
 
       outcrops.count = outcropCount;
       scree.count = screeCount;
+      reefRubble.count = reefRubbleCount;
       outcrops.instanceMatrix.needsUpdate = true;
       scree.instanceMatrix.needsUpdate = true;
+      reefRubble.instanceMatrix.needsUpdate = true;
       if (outcrops.instanceColor) outcrops.instanceColor.needsUpdate = true;
       if (scree.instanceColor) scree.instanceColor.needsUpdate = true;
+      if (reefRubble.instanceColor) reefRubble.instanceColor.needsUpdate = true;
     },
   };
 }
