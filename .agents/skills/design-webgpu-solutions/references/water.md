@@ -63,6 +63,15 @@ passing crest and dissipate, rather than strobing with the wave.
 
 ### 2.3 Geometry → BRDF transition with distance
 
+**Moving short-wave energy into the normal only helps if the normal is
+evaluated per fragment.** A per-vertex normal is interpolated across the mesh
+cells, which destroys exactly the sub-cell detail being migrated into it — the
+sea renders as a dark glassy sheet and foam smears into soft bands. Sample the
+cascades from world position in the fragment stage. In Epoch this single change
+was the difference between "oil slick" and water; coarse geometry was never the
+real limit, per-vertex shading was.
+
+
 Displace geometry with the long and medium bands only. Attenuate resolved
 short-wave slopes with distance and move their remaining energy into
 **roughness**. Turning sub-pixel waves directly into normals is the standard
