@@ -1,0 +1,34 @@
+{
+  "set": "underwaterOptics",
+  "capturedAt": "2026-08-14T01:12:38.277Z",
+  "viewport": {
+    "width": 1600,
+    "height": 900
+  },
+  "settleMs": 2500,
+  "contactSheet": "contact-sheet.png",
+  "consoleErrors": [],
+  "shots": [
+    {
+      "label": "01-fish",
+      "url": "http://localhost:5178/?shot=fish&fixture=mature-warm-reef&fish=candidate&time=42",
+      "backend": "backend: WebGL2 · 0 fps · 15 draws",
+      "ms": 56635,
+      "frame": "frames/01-fish.png"
+    },
+    {
+      "label": "02-seagrass-meadow",
+      "url": "http://localhost:5178/?shot=seagrass-meadow&time=42",
+      "backend": "backend: WebGL2 · 0 fps · 15 draws",
+      "ms": 45968,
+      "frame": "frames/02-seagrass-meadow.png"
+    },
+    {
+      "label": "03-accepted-reef",
+      "url": "http://localhost:5178/?shot=reef&fixture=mature-warm-reef&time=42",
+      "backend": "backend: WebGL2 · 0 fps · 15 draws",
+      "ms": 68193,
+      "frame": "frames/03-accepted-reef.png"
+    }
+  ]
+}

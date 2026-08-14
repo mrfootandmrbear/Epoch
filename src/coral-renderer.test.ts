@@ -2,10 +2,15 @@ import { describe, expect, it } from "vitest";
 import { Color, Group, InstancedMesh, Matrix4, Quaternion, Vector3 } from "three/webgpu";
 import { createCoralRenderer } from "./coral-renderer";
 import { CORAL_SWAY_ATTRIBUTE, CORAL_DETAIL_ATTRIBUTE, CORAL_TINT_ATTRIBUTE } from "./coral-material";
-import { MAX_REEF_COLONIES, type CoralColony, type CoralGuild } from "./reef-succession";
+import {
+  MAX_REEF_COLONIES,
+  type CoralColony,
+  type CoralGuild,
+} from "./reef-succession";
 
 function colony(overrides: Partial<CoralColony> = {}): CoralColony {
   return {
+    siteId: "site:0",
     x: 0, y: -6, z: 0,
     guild: "massive-porites",
     radius: 1, height: 0.7,
@@ -42,7 +47,7 @@ function setup() {
 }
 
 describe("coral renderer", () => {
-  it("draws one instanced batch per growth form and detail level", () => {
+  it("draws each growth-form LOD without adding presentation boulders", () => {
     const { scene } = setup();
     expect(meshes(scene).length).toBe(12);
   });
@@ -94,9 +99,26 @@ describe("coral renderer", () => {
     expect(position.x).toBeCloseTo(12);
     expect(position.y).toBeCloseTo(-8);
     expect(position.z).toBeCloseTo(-4);
-    // Unit-box geometry scaled by the radius and height succession resolved.
-    expect(scale.x).toBeCloseTo(2.5);
-    expect(scale.y).toBeCloseTo(1.6);
+    // Presentation variation makes recruits and adults legibly different but
+    // never enlarges them past the biological envelope succession resolved.
+    expect(scale.x).toBeGreaterThanOrEqual(2.5 * 0.52);
+    expect(scale.x).toBeLessThanOrEqual(2.5);
+    expect(scale.y / scale.x).toBeCloseTo(1.6 / 2.5);
+  });
+
+  it("keeps encrusting tissue low enough to expose its reef-rock substrate", () => {
+    const { scene, renderer } = setup();
+    renderer.setReef([colony({ guild: "crustose-algae", radius: 2, height: 0.24 })]);
+    renderer.update(0, new Vector3(0, 0, 0));
+
+    const matrix = new Matrix4();
+    meshFor(scene, "crustose-algae", "near").getMatrixAt(0, matrix);
+    const scale = new Vector3();
+    matrix.decompose(new Vector3(), new Quaternion(), scale);
+    expect(scale.x).toBeGreaterThanOrEqual(2 * 0.52 - 1e-5);
+    expect(scale.x).toBeLessThanOrEqual(2);
+    expect(scale.z).toBeCloseTo(scale.x);
+    expect(scale.y / scale.x).toBeCloseTo(0.24 / 2);
   });
 
   it("carries per-instance tissue colour rather than one colour per form", () => {

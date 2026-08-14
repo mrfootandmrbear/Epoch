@@ -24,7 +24,7 @@ function climate(overrides: Partial<ClimateForces>): ClimateForces {
 
 describe("environment foundations", () => {
   it("keeps the representative set bounded and seats the reef vent beside its review shelf", () => {
-    expect(Object.keys(ENVIRONMENT_FIXTURES)).toHaveLength(5);
+    expect(Object.keys(ENVIRONMENT_FIXTURES)).toHaveLength(6);
     const reef = ENVIRONMENT_FIXTURES["mature-warm-reef"];
     const distanceToReviewShelf = Math.hypot(reef.hotSpot.x - 104, reef.hotSpot.z - 116);
     expect(distanceToReviewShelf).toBeGreaterThan(55);

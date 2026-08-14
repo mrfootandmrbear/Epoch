@@ -101,7 +101,6 @@ export function createCoralMaterial(options: CoralMaterialOptions): CoralMateria
     .mul(0.5).add(0.5);
   const tissue = mix(skeleton, tint, health)
     .mul(float(0.88).add(mottle.mul(0.24)));
-
   const caustic = causticLight(time, seaLevel, normalWorld.y, causticStrength);
   const litTissue = tissue.mul(light).mul(float(1).add(caustic.mul(1.5)));
   material.colorNode = litTissue.mul(transmission).mul(float(1).sub(haze));
@@ -119,24 +118,42 @@ export function createCoralMaterial(options: CoralMaterialOptions): CoralMateria
     .mul(light)
     .mul(transmission)
     .mul(float(1).sub(haze));
+  // Many reef corals re-emit the blue/near-UV light abundant underwater as
+  // green, cyan, or red fluorescence. In daylight this is a restrained colour
+  // lift concentrated in healthy mottled tissue—not a self-lit neon object.
+  const fluorescentProtein = smoothstep(0.5, 0.86, mottle)
+    .mul(health)
+    .mul(float(0.14).add(translucency.mul(0.14)));
+  const fluorescence = tint
+    .mul(fluorescentProtein)
+    // Fluorescent proteins still return a visible colour accent when ordinary
+    // diffuse illumination is weak; blue excitation does not look like a
+    // second diffuse-light pass.
+    .mul(float(0.5).add(light.mul(0.5)))
+    .mul(transmission)
+    .mul(float(1).sub(haze));
   // In-scattered light is still light: it has to dim with depth alongside
   // everything else, or a deep colony ends up sitting in brighter water than
   // the shallow one next to it.
-  material.emissiveNode = scatter.add(hazeColor.mul(haze).mul(light));
+  material.emissiveNode = scatter.add(fluorescence).add(hazeColor.mul(haze).mul(light));
 
   // Polyp relief, retired once it stops resolving. Corallite structure is most
   // of what a colony looks like within touching distance and none of what it
   // looks like from across the reef.
   const polypFade = float(1).sub(smoothstep(10, 34, viewDistance));
   const polyps = mx_noise_float(positionLocal.mul(34).add(seed.mul(9.7)));
-  material.normalNode = proceduralBump(polyps, polypFade.mul(0.85));
+  material.normalNode = proceduralBump(
+    polyps,
+    polypFade.mul(0.85),
+  );
 
   // Living tissue is wet and slightly waxy; bare bleached skeleton is chalk.
-  material.roughnessNode = clamp(
+  const tissueRoughness = clamp(
     mix(float(0.94), float(0.78), health).sub(caustic.mul(0.06)),
     0.6,
     0.98,
   );
+  material.roughnessNode = tissueRoughness;
 
   return Object.assign(material, {
     setSunDirection(direction: Vector3) {

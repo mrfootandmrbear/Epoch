@@ -3,7 +3,7 @@
   "id": "epoch-reef-builder-family",
   "displayName": "Epoch Reef Builder Family",
   "category": "coral",
-  "stage": "accepted",
+  "stage": "candidate",
   "role": "Build persistent shallow-water reef structure and flow-sorted benthic habitat",
   "habitats": [
     "warm photic shelf",
@@ -52,7 +52,18 @@
     "previews/reef-builder-side.png",
     "previews/reef-builder-top.png",
     "previews/reef-builder-colony.png",
-    "previews/reef-builder-game-distance.png"
+    "previews/reef-builder-game-distance.png",
+    "previews/reef-builder-lw2-crust-candidate.png",
+    "previews/reef-builder-lw2-coral-on-rock-candidate.png",
+    "previews/reef-builder-lw2-clustered-rocks-candidate.png",
+    "previews/reef-builder-lw2-communal-framework-candidate.png",
+    "previews/reef-builder-lw2-continuous-reef-candidate.png",
+    "previews/reef-builder-lw2-varied-scale-fluorescence-candidate.png",
+    "previews/reef-builder-lw2-reef-rock-seabed-candidate.png",
+    "previews/reef-builder-lw2-dense-reef-rubble-candidate.png",
+    "previews/reef-builder-lw2-carbonate-texture-candidate.png",
+    "previews/reef-builder-lw2-cool-coarse-seafloor-candidate.png",
+    "previews/reef-builder-lw2-light-grey-seafloor-candidate.png"
   ],
   "exports": ["exports/reef-builder-near.json", "exports/reef-builder-far.json"],
   "lods": [
@@ -60,8 +71,8 @@
     { "name": "far", "file": "exports/reef-builder-far.json", "maxTriangles": 1186 }
   ],
   "animations": { "required": [] },
-  "showcase": "previews/reef-builder-showcase.png",
+  "showcase": "previews/reef-builder-lw2-light-grey-seafloor-candidate.png",
   "acceptance": {
-    "verdict": "Owner reviewed the paired mature-reef integration with persistent carbonate shelf and exposed basalt on 2026-08-13 and accepted it as passing for future iteration."
+    "verdict": "Owner reviewed the paired mature-reef integration with persistent carbonate shelf and exposed basalt on 2026-08-13 and accepted it as passing for future iteration. Four LW-2 revisions were rejected in sequence: volume without rock, one coral on one rock, several encrusting patches across several rocks, then mixed colonies on repeated site boulders. The continuous reef with varied scale and fluorescence was judged good. After the multi-scale carbonate material replaced the smooth Mario-like sand read, the coarse dark underwater-rock pass was judged too dark. The light-grey revision was closer, but its sparse near-black pieces read as shadows; those are now dark grey. Fresh visual verdict remains required."
   }
 }

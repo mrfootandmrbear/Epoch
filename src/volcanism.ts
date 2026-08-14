@@ -33,6 +33,8 @@ function routeLavaFlows(
   forage: Float32Array,
   vegetationProtection: Float32Array,
   substrateAge: Float32Array,
+  surfaceAgeYears: Float32Array,
+  soilDevelopment: Float32Array,
   sediment: Float32Array,
   carbonate: Float32Array,
   vent: HotSpot,
@@ -67,6 +69,8 @@ function routeLavaFlows(
       forage[current] *= 0.12;
       vegetationProtection[current] *= 0.08;
       substrateAge[current] *= 0.08;
+      surfaceAgeYears[current] = 0;
+      soilDevelopment[current] *= 0.06;
       sediment[current] *= 0.18;
       carbonate[current] = 0;
       budget -= 1;
@@ -99,6 +103,8 @@ export function resolveVolcanicAccretion(
   const disturbance = previous.disturbance.slice();
   const vegetationProtection = previous.vegetationProtection.slice();
   const substrateAge = previous.substrateAge.slice();
+  const surfaceAgeYears = previous.surfaceAgeYears.slice();
+  const soilDevelopment = previous.soilDevelopment.slice();
   const sediment = previous.sediment.slice();
   const carbonate = previous.carbonate.slice();
   const forage = previous.forage.slice();
@@ -136,13 +142,15 @@ export function resolveVolcanicAccretion(
         forage[index] *= 1 - deposit * 0.92;
         nutrients[index] *= 1 - deposit * 0.94;
         substrateAge[index] *= 1 - deposit;
+        surfaceAgeYears[index] *= 1 - deposit;
+        soilDevelopment[index] *= 1 - deposit * 0.96;
         sediment[index] *= 1 - deposit * 0.86;
         carbonate[index] *= 1 - deposit;
       }
     }
     routeLavaFlows(
       previous, elevations, basalt, volcanicLoad, disturbance, nutrients, forage,
-      vegetationProtection, substrateAge, sediment, carbonate,
+      vegetationProtection, substrateAge, surfaceAgeYears, soilDevelopment, sediment, carbonate,
       vent, strength, duration, salt,
     );
   }
@@ -150,5 +158,6 @@ export function resolveVolcanicAccretion(
   return {
     ...previous, elevations, basalt, ash, volcanicLoad, disturbance,
     vegetationProtection, forage, nutrients, substrateAge, sediment, carbonate,
+    surfaceAgeYears, soilDevelopment,
   };
 }

@@ -58,6 +58,24 @@ const SHOT_SETS = {
     { label: "08-island-10kyr", query: "shot=whole-island&years=10000&time=42" },
     { label: "09-shoreline-1myr", query: "shot=shoreline&years=1000000&time=42" },
   ],
+  // Shared underwater-medium regression: organisms must inherit the accepted
+  // reef's extinction, haze, caustics, and depth lighting without changing the
+  // protected coral/seabed composition itself.
+  underwaterOptics: [
+    { label: "01-fish", query: "shot=fish&fixture=mature-warm-reef&fish=candidate&time=42" },
+    { label: "02-seagrass-meadow", query: "shot=seagrass-meadow&time=42" },
+    { label: "03-accepted-reef", query: "shot=reef&fixture=mature-warm-reef&time=42" },
+  ],
+  nextReview: [
+    { label: "01-volcano-fresh", query: "shot=whole-island&volcanoPhase=fresh&time=42" },
+    { label: "02-volcano-recovered", query: "shot=whole-island&volcanoPhase=recovered&time=42" },
+    { label: "03-volcano-carved", query: "shot=whole-island&volcanoPhase=carved&time=42" },
+    { label: "04-volcano-drowned", query: "shot=whole-island&volcanoPhase=drowned&time=42" },
+    { label: "05-island-100kyr", query: "shot=whole-island&years=100000&time=42" },
+    { label: "06-island-1myr", query: "shot=whole-island&years=1000000&time=42" },
+    { label: "07-storm", query: "shot=storm&years=1000&time=42" },
+    { label: "08-storm-wave-height", query: "shot=wave-height&seaState=storm&years=1000&time=42" },
+  ],
   // UI/HUD review runs WITHOUT capture mode, because `?shot=` hides every
   // panel. These are the surfaces a new player actually sees first.
   ui: [
@@ -197,7 +215,9 @@ async function capture(args) {
 
       const backend = await page.evaluate(() => document.getElementById("status")?.textContent ?? "");
       const file = path.join(framesDir, `${shot.label}.png`);
-      await page.screenshot({ path: file, type: "png" });
+      // GPU-backed canvases can take longer than Playwright's 30 s default to
+      // read back under software/WebGPU CI backends, even after captureReady.
+      await page.screenshot({ path: file, type: "png", timeout: 120_000 });
       results.push({
         label: shot.label,
         file,

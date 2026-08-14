@@ -13,6 +13,84 @@ export interface AtmosphereState {
   readonly exposure: number;
 }
 
+export interface ClimateMood {
+  readonly keyTint: Color;
+  readonly keyIntensityScale: number;
+  readonly ambientTint: Color;
+  readonly ambientIntensityScale: number;
+  readonly hazeColor: Color;
+  readonly hazeDensityScale: number;
+  readonly waterTint: Color;
+  readonly gradeTint: readonly [number, number, number];
+  readonly gradeSaturation: number;
+  readonly gradeContrast: number;
+}
+
+export interface ResolvedAtmosphere extends AtmosphereState {
+  readonly mood: ClimateMood;
+}
+
+const WHITE = 0xffffff;
+
+/** Pure render expression of authoritative climate forces. Mild/temperate is identity. */
+export function climateMood(climate: Readonly<ClimateForces>): ClimateMood {
+  const temperature = climate.temperature === "cold" ? -1 : climate.temperature === "warm" ? 1 : 0;
+  const moisture = climate.rainfall === "arid" ? -1 : climate.rainfall === "wet" ? 1 : 0;
+  const calmHumidity = climate.wind === "calm" && moisture > 0 ? 0.08 : 0;
+
+  const keyTint = new Color(WHITE);
+  if (temperature < 0) keyTint.setRGB(0.88, 0.95, 1.08);
+  if (temperature > 0) keyTint.setRGB(1.09, 1.015, 0.88);
+  const ambientTint = new Color(WHITE);
+  if (temperature < 0) ambientTint.setRGB(0.88, 0.96, 1.09);
+  if (temperature > 0) ambientTint.setRGB(1.04, 1.02, 0.94);
+  if (moisture > 0) ambientTint.multiply(new Color().setRGB(0.94, 1.035, 1.025));
+
+  const hazeColor = new Color(0xb9ced9);
+  if (temperature < 0) hazeColor.set(0xaabfce);
+  if (temperature > 0 && moisture < 0) hazeColor.set(0xdac9a7);
+  if (temperature > 0 && moisture > 0) hazeColor.set(0x91c9c2);
+  if (temperature < 0 && moisture < 0) hazeColor.set(0xaebbc5);
+
+  const waterTint = new Color(WHITE);
+  if (temperature < 0) waterTint.setRGB(0.72, 0.86, 1.0);
+  if (temperature > 0 && moisture > 0) waterTint.setRGB(0.83, 1.12, 1.12);
+  if (temperature > 0 && moisture < 0) waterTint.setRGB(0.88, 1.02, 1.04);
+
+  return {
+    keyTint,
+    keyIntensityScale: MathUtils.clamp(1 + temperature * 0.06 - moisture * 0.07, 0.82, 1.14),
+    ambientTint,
+    ambientIntensityScale: MathUtils.clamp(1 + moisture * 0.08 - Math.max(0, -temperature) * 0.04, 0.86, 1.14),
+    hazeColor,
+    hazeDensityScale: MathUtils.clamp(1 + moisture * 0.22 + calmHumidity, 0.72, 1.3),
+    waterTint,
+    gradeTint: temperature < 0 ? [0.965, 0.99, 1.035] : temperature > 0 ? [1.035, 1.005, 0.965] : [1, 1, 1],
+    gradeSaturation: MathUtils.clamp(1 - Math.max(0, moisture) * 0.035 + Math.max(0, -moisture) * 0.025, 0.94, 1.04),
+    gradeContrast: MathUtils.clamp(1 - moisture * 0.045, 0.94, 1.05),
+  };
+}
+
+export function resolveAtmosphere(
+  elapsed: number,
+  profile: AtmosphereProfile,
+  climate: Readonly<ClimateForces>,
+): ResolvedAtmosphere {
+  const base = sampleAtmosphere(elapsed, profile);
+  const mood = climateMood(climate);
+  return {
+    ...base,
+    mood,
+    sunColor: base.sunColor.clone().multiply(mood.keyTint),
+    ambientColor: base.ambientColor.clone().multiply(mood.ambientTint),
+    fogColor: climate.temperature === "mild" && climate.rainfall === "temperate"
+      ? base.fogColor.clone()
+      : base.fogColor.clone().lerp(mood.hazeColor, 0.58),
+    sunIntensity: base.sunIntensity * mood.keyIntensityScale,
+    ambientIntensity: base.ambientIntensity * mood.ambientIntensityScale,
+  };
+}
+
 export interface HeightFogState {
   readonly density: number;
   readonly ceiling: number;

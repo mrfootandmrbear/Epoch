@@ -2,6 +2,10 @@ import type { ClimateForces } from "./climate";
 import type { VolcanicOutput } from "./volcanism";
 
 export const ENVIRONMENT_FIXTURES = {
+  "cold-wet-calm-present": {
+    climate: { rainfall: "wet", temperature: "cold", wind: "calm", seaLevel: "present" },
+    years: 10_000,
+  },
   "cold-arid-exposed-low": {
     climate: { rainfall: "arid", temperature: "cold", wind: "westerly", seaLevel: "low" },
     years: 10_000,

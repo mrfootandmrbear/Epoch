@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { coralGeometry, type CoralGeometryLevel } from "./coral-geometry-assets";
+import {
+  coralGeometry,
+  type CoralGeometryLevel,
+} from "./coral-geometry-assets";
 import { CORAL_GUILDS, type CoralGuild } from "./reef-succession";
 
 const LEVELS: readonly CoralGeometryLevel[] = ["near", "far"];
@@ -47,6 +50,28 @@ describe("coral geometry assets", () => {
   it("seats every form on the substrate rather than floating above it", () => {
     for (const guild of CORAL_GUILDS) {
       expect(bounds(guild, "near").min.y, guild).toBeLessThan(0.06);
+    }
+  });
+
+  it("builds the encrusting form as a closed raised layer rather than an open sheet", () => {
+    for (const level of LEVELS) {
+      const geometry = coralGeometry("crustose-algae", level);
+      const position = geometry.getAttribute("position");
+      const index = geometry.getIndex()!;
+      const edges = new Map<string, number>();
+      for (let i = 0; i < index.count; i += 3) {
+        const triangle = [index.getX(i), index.getX(i + 1), index.getX(i + 2)];
+        for (let edge = 0; edge < 3; edge++) {
+          const a = triangle[edge]!;
+          const b = triangle[(edge + 1) % 3]!;
+          const key = a < b ? `${a}:${b}` : `${b}:${a}`;
+          edges.set(key, (edges.get(key) ?? 0) + 1);
+        }
+      }
+
+      expect(bounds("crustose-algae", level).max.y).toBeGreaterThan(0.7);
+      expect([...edges.values()].every((uses) => uses === 2), level).toBe(true);
+      expect(position.count, level).toBeGreaterThan(level === "near" ? 80 : 20);
     }
   });
 
