@@ -61,6 +61,23 @@ selection — noise never chooses the crest location.
 Accumulate with separate birth and decay rates so whitecaps linger behind a
 passing crest and dissipate, rather than strobing with the wave.
 
+**Calibrate the foam threshold against the measured fold distribution, never
+an assumed 0..1.** The fold measure reaching the shader is damped by
+everything applied upstream of it — in Epoch, a global `amplitudeScale` on the
+displacement-derivative fields and then the resolved-share gate on the
+shortest and most-folding cascade. The physical selector can top out near 0.3
+while the threshold sits at 0.35, in which case no crest ever foams and the
+sea looks calm for no visible reason. Match the ramp width to the same ceiling
+too: a span sized for a range that never arrives leaves even the strongest
+crest under half opacity, and foam reads as haze rather than white water.
+
+Measure it directly rather than bisecting the threshold. Return the fold value
+straight out of the colour node for one frame and read the greyscale field:
+that single render gives the crest population, the broad-ripple noise floor,
+and the ceiling, and the threshold then comes from data. Bisecting blind wastes
+several iterations above the distribution and then crosses it abruptly, which
+is indistinguishable from the over-foaming failure in §3.
+
 ### 2.3 Geometry → BRDF transition with distance
 
 **Moving short-wave energy into the normal only helps if the normal is

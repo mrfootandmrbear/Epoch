@@ -73,7 +73,15 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
   const terrainSize = options.terrainSize ?? 380;
   const sceneTime = ocean.clock;
   const choppiness = options.choppiness ?? 1.0;
-  const foamThreshold = options.foamThreshold ?? 0.35;
+  // The fold measure (1 - Jacobian) is damped twice before it reaches here:
+  // once by the global amplitudeScale (0.22) applied to the displacement
+  // derivatives in fft-ocean.ts, and again by resolvedShare(), which gates the
+  // shortest — and physically most folding — cascade to ~0.14 of its weight.
+  // A fold heatmap at 11 m/s wind concentrates the crest population in the
+  // 0.13–0.30 band and never reaches ~0.3+; the old 0.35 threshold sat
+  // entirely above it, so no crest ever foamed. 0.14 keys foam onto that crest
+  // population while staying clear of the ~0.1 broad-ripple noise floor.
+  const foamThreshold = options.foamThreshold ?? 0.14;
 
   const geometry = new PlaneGeometry(size, size, segments, segments);
   geometry.rotateX(-Math.PI / 2);
@@ -416,7 +424,11 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
     // polka-dot open water this replaces — see references/water.md §2.2.
     const crestTurb = foamTurbulence(vec2(positionWorld.x.mul(0.11), positionWorld.z.mul(0.14)));
     const fold = float(1).sub(foldMeasure);
-    const whitecap = smoothstep(foamThreshold, foamThreshold + 0.34, fold)
+    // Ramp width matches the measured fold ceiling (~0.30): the old +0.34 span
+    // was sized for a range that reached ~0.69 and left even the strongest
+    // crest at under half opacity, so foam read as haze. +0.16 lets the top of
+    // the crest population saturate to real white.
+    const whitecap = smoothstep(foamThreshold, foamThreshold + 0.16, fold)
       .mul(smoothstep(0.3, 0.78, crestTurb.add(0.42)))
       .mul(float(1).sub(distFade.mul(0.35)));
 
