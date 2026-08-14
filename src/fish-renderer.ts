@@ -6,13 +6,23 @@ import {
   InstancedMesh,
   Matrix4,
   Mesh,
-  MeshStandardMaterial,
+  MeshStandardNodeMaterial,
   Quaternion,
   Vector3,
 } from "three/webgpu";
+import { float, normalWorld, varyingProperty } from "three/tsl";
 import source from "../assets/ecosystem/epoch-coastal-forager/exports/coastal-forager.runtime.json";
 import type { MarinePopulationOutcome, MarineTraits } from "./marine-lineage";
 import type { CoastalAnimalOutcome } from "./outcome-resolver";
+import {
+  causticLight,
+  createReefWaterUniforms,
+  downwelling,
+  opticalPath,
+  waterHaze,
+  waterTransmission,
+  type ReefWaterUniforms,
+} from "./reef-water";
 
 export const FISH_MORPH_CHANNELS = [
   "bodySize", "streamlining", "maneuverability", "depthControl", "swimLeft", "swimRight",
@@ -74,13 +84,24 @@ interface FishState {
 
 export interface FishRenderer {
   readonly mesh: InstancedMesh;
+  readonly water: ReefWaterUniforms;
   setPopulation: (population: MarinePopulationOutcome | undefined, samples: readonly CoastalAnimalOutcome[]) => void;
   update: (elapsed: number) => void;
 }
 
-export function createFishRenderer(parent: Group): FishRenderer {
+export function createFishRenderer(parent: Group, sharedWater?: ReefWaterUniforms): FishRenderer {
   const geometry = createCoastalForagerGeometry();
-  const material = new MeshStandardMaterial({ color: 0xffffff, roughness: 0.48, metalness: 0.04 });
+  const water = sharedWater ?? createReefWaterUniforms();
+  const material = new MeshStandardNodeMaterial({ color: 0xffffff, roughness: 0.48, metalness: 0.04 });
+  const path = opticalPath(water.seaLevel);
+  const haze = waterHaze(path);
+  const light = downwelling(water.seaLevel);
+  const transmission = waterTransmission(path);
+  const caustic = causticLight(water.time, water.seaLevel, normalWorld.y, water.causticStrength);
+  const albedo = varyingProperty("vec3", "vInstanceColor");
+  material.colorNode = albedo.mul(light).mul(float(1).add(caustic.mul(1.2)))
+    .mul(transmission).mul(float(1).sub(haze));
+  material.emissiveNode = water.hazeColor.mul(haze).mul(light);
   const mesh = new InstancedMesh(geometry, material, MAX_FISH);
   const probe = new Mesh(geometry, material);
   const states: FishState[] = Array.from({ length: MAX_FISH }, (_, index) => ({
@@ -139,6 +160,7 @@ export function createFishRenderer(parent: Group): FishRenderer {
 
   return {
     mesh,
+    water,
     setPopulation(population, samples) {
       const expression = population?.traits ? fishExpression(population.traits, population.energy) : undefined;
       states.forEach((state, index) => {

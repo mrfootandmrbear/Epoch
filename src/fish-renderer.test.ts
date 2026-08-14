@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { Group, Matrix4, Quaternion, Vector3 } from "three/webgpu";
 import { createCoastalForagerGeometry, createFishRenderer, fishExpression, FISH_MORPH_CHANNELS } from "./fish-renderer";
+import { createReefWaterUniforms } from "./reef-water";
 
 describe("coastal forager renderer", () => {
+  it("uses the landing's shared underwater medium", () => {
+    const water = createReefWaterUniforms(-2);
+    expect(createFishRenderer(new Group(), water).water).toBe(water);
+  });
   it("ships one topology-stable channel for every visible shape and swim axis", () => {
     const geometry = createCoastalForagerGeometry();
     expect(geometry.getAttribute("position").count).toBeGreaterThan(100);

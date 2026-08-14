@@ -487,7 +487,7 @@ export function createLandingState(scene: Scene): WorldExperience {
   const life = new Group();
   life.visible = false;
   const vegetation = createVegetationRenderer(life);
-  const seagrass = createSeagrassRenderer(life);
+  const seagrass = createSeagrassRenderer(life, reefWater);
   const reef = createCoralRenderer(life, new Vector3(0.4, 0.72, 0.3).normalize(), reefWater);
   const marineSnow = createMarineSnow(life, reef.water);
   const reefHaze = new Color();
@@ -495,7 +495,7 @@ export function createLandingState(scene: Scene): WorldExperience {
   const freshwater = createFreshwaterRenderer(life);
   const streams = createStreamRenderer(life);
   const cascades = createCascadeRenderer(life);
-  const fish = createFishRenderer(life);
+  const fish = createFishRenderer(life, reefWater);
   const aerialAnimals = addAerialAnimals(life);
   const distantDrifter = createDistantDrifterRenderer();
   scene.add(distantDrifter.group);

@@ -53,9 +53,14 @@ export function geomorphicDuration(jumpYears: number): Readonly<{
   deepTime: number;
 }> {
   const logYears = Math.log10(Math.max(1, jumpYears));
+  const deepTimeRamp = clamp01((logYears - 3) / 3);
   return {
     weathering: clamp01(logYears / 6),
-    deepTime: clamp01((logYears - 3) / 3),
+    // Hold the 100k rung at visibly weathered-but-still-recognizable, then let
+    // the last order of magnitude carry the strongest incision, retreat, and
+    // volcanic sag. A linear log ramp made 100k (0.67) too close to 1M (1.0)
+    // in the whole-island camera.
+    deepTime: Math.pow(deepTimeRamp, 1.4),
   };
 }
 

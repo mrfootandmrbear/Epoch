@@ -54,7 +54,9 @@ import {
   type WindRegime,
 } from "./climate";
 import { RENDER_SCALE } from "./render-scale";
+import { resolveOceanSeaState } from "./ocean-sea-state";
 import type { VolcanicOutput } from "./volcanism";
+import { isVolcanicLifecyclePhase, volcanicLifecyclePrefix } from "./volcanic-lifecycle";
 import { ENVIRONMENT_FIXTURES, isEnvironmentFixtureName } from "./environment-fixtures";
 import { STARTING_WORLD_PRESETS, startingWorldPreset } from "./starting-world-presets";
 import {
@@ -182,6 +184,11 @@ const captureFixtureName = captureParams.get("fixture");
 const captureFixture = isEnvironmentFixtureName(captureFixtureName)
   ? ENVIRONMENT_FIXTURES[captureFixtureName]
   : undefined;
+const requestedVolcanicPhase = captureParams.get("volcanoPhase");
+const captureStormSea = captureShot === "storm" || captureParams.get("seaState") === "storm";
+const captureVolcanicPhase = isVolcanicLifecyclePhase(requestedVolcanicPhase)
+  ? requestedVolcanicPhase
+  : null;
 const postProcessingOptions = readPostProcessingOptions(captureParams);
 let lastInteraction = performance.now() / 1000;
 const presentation = createPresentationController(camera, controls, (active) => {
@@ -229,7 +236,7 @@ function clampedSmoothstep(min: number, max: number, value: number): number {
 function updateAtmosphere(elapsed: number): void {
   const profile: AtmosphereProfile = captureSky === "dawn" || captureShot === "dawn"
     ? "dawn"
-    : captureShot === "storm"
+    : captureStormSea
       ? "storm"
       : captureMode
         ? "day"
@@ -271,6 +278,9 @@ function updateShadowCoverage(): void {
 
 await Promise.all([loadTreeGeometryAssets(), loadSeagrassGeometryAssets()]);
 const landingState = createLandingState(scene);
+if (captureMode && captureVolcanicPhase) {
+  landingState.resetStartingWorld(startingWorldPreset("young-volcano"));
+}
 const terrainCursor = new Mesh(
   new RingGeometry(0.92, 1, 64),
   new MeshBasicMaterial({ color: 0xe5edbc, transparent: true, opacity: 0.82, depthTest: false }),
@@ -677,25 +687,27 @@ let fftOcean: FFTOcean | undefined;
 let oceanMesh: ReturnType<typeof createFFTOceanMesh> | undefined;
 let rendererReady = false;
 let renderPipeline: ReturnType<typeof createEpochRenderPipeline> | undefined;
-const oceanCache = new Map<WindRegime, {
+const oceanCache = new Map<string, {
   ocean: FFTOcean;
   mesh: ReturnType<typeof createFFTOceanMesh>;
 }>();
 
-function applyOceanForces(forces: ClimateForces): void {
+function applyOceanForces(forces: ClimateForces, storm = captureStormSea): void {
   if (!rendererReady) return;
   if (oceanMesh) scene.remove(oceanMesh);
-  let entry = oceanCache.get(forces.wind);
+  const cacheKey = `${forces.wind}:${storm ? "storm" : "fair"}`;
+  let entry = oceanCache.get(cacheKey);
   if (!entry) {
     const wind = WIND[forces.wind];
+    const seaState = resolveOceanSeaState(wind.speed, storm);
     const ocean = new FFTOcean(renderer, {
       patchSize: RENDER_SCALE.oceanPatch,
-      windSpeed: wind.speed,
+      windSpeed: seaState.windSpeed,
       windDirectionDeg: wind.x < 0 ? 180 : 0,
       fetch: 800000,
       // Keep the broad FFT component below the fine wind chop. At island
       // scale a full-amplitude low-frequency heightfield reads as gelatinous.
-      amplitudeScale: RENDER_SCALE.swellAmplitudeScale,
+      amplitudeScale: seaState.amplitudeScale,
       randomSeed: captureMode ? 0xe90c4 : undefined,
     });
     const mesh = createFFTOceanMesh(ocean, {
@@ -704,9 +716,10 @@ function applyOceanForces(forces: ClimateForces): void {
       atmosphere: sampleAtmosphere(captureTime, captureMode ? "day" : "cycle"),
       terrainHeightTexture: landingState.terrainHeightTexture,
       oceanMaskTexture: landingState.oceanMaskTexture,
+      seaState,
     });
     entry = { ocean, mesh };
-    oceanCache.set(forces.wind, entry);
+    oceanCache.set(cacheKey, entry);
   }
   fftOcean = entry.ocean;
   oceanMesh = entry.mesh;
@@ -749,9 +762,21 @@ async function start() {
   if (captureMode) {
     const captureYears = Number(captureParams.get("years") ?? captureFixture?.years ?? 10_000);
     if (captureParams.get("founders") === "drifter") landingState.introduceDistantDrifter(0, DEFAULT_FOUNDER_CHOICES);
-    committedClimate = captureClimate;
-    applyCommittedHeightFog();
-    landingState.advance(captureYears, captureYears, captureClimate);
+    if (captureVolcanicPhase) {
+      let lifecycleAge = 0;
+      for (const step of volcanicLifecyclePrefix(captureVolcanicPhase)) {
+        lifecycleAge += step.years;
+        landingState.setVolcanicOutput(step.output);
+        landingState.advance(step.years, lifecycleAge, step.climate);
+        committedClimate = { ...step.climate };
+      }
+      applyCommittedHeightFog();
+      applyOceanForces(committedClimate);
+    } else {
+      committedClimate = captureClimate;
+      applyCommittedHeightFog();
+      landingState.advance(captureYears, captureYears, captureClimate);
+    }
     if (captureParams.get("herd") === "candidate") landingState.showcaseGrazerHerd();
     if (captureParams.get("herd") === "contrast") landingState.showcaseHerdContrast();
     if (captureParams.get("fish") === "candidate") landingState.showcaseFish();

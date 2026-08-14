@@ -30,6 +30,7 @@ import {
 } from "three/tsl";
 import { FFTOcean, sampleBilinearFloat } from "./fft-ocean";
 import type { ResolvedAtmosphere, AtmosphereState } from "./atmosphere";
+import type { OceanSeaState } from "./ocean-sea-state";
 
 interface ChopLayer {
   angleDeg: number;
@@ -55,6 +56,7 @@ export interface FFTWaterOptions {
   terrainHeightTexture: DataTexture;
   oceanMaskTexture: DataTexture;
   terrainSize?: number;
+  seaState?: Pick<OceanSeaState, "chopScale" | "crestFoamStrength">;
 }
 
 export type FFTWaterMesh = Mesh & {
@@ -70,6 +72,8 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
   const patch = ocean.patchSize;
   const terrainSize = options.terrainSize ?? 380;
   const sceneTime = ocean.clock;
+  const chopScale = options.seaState?.chopScale ?? 1;
+  const crestFoamStrength = options.seaState?.crestFoamStrength ?? 0;
 
   const geometry = new PlaneGeometry(size, size, segments, segments);
   geometry.rotateX(-Math.PI / 2);
@@ -107,9 +111,9 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
 
       const layerFade = float(1.0).sub(smoothstep(fadeStart, fadeEnd, distV));
       const phase = x.mul(kx).add(z.mul(kz)).add(sceneTime.mul(omega));
-      h.addAssign(sin(phase).mul(layer.amplitude).mul(layerFade));
-      dHdx.addAssign(cos(phase).mul(layer.amplitude * kx).mul(layerFade));
-      dHdz.addAssign(cos(phase).mul(layer.amplitude * kz).mul(layerFade));
+      h.addAssign(sin(phase).mul(layer.amplitude * chopScale).mul(layerFade));
+      dHdx.addAssign(cos(phase).mul(layer.amplitude * chopScale * kx).mul(layerFade));
+      dHdz.addAssign(cos(phase).mul(layer.amplitude * chopScale * kz).mul(layerFade));
     }
 
     return vec3(h, dHdx, dHdz);
@@ -326,7 +330,16 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
     const shoreFoam = intersectionBand.mul(shoreBreakup).mul(waveEnergy.mul(0.55).add(0.45)).mul(0.86)
       .mul(float(1).sub(distFade.mul(0.55)));
 
-    return mix(mix(albedo, foamColor, shoreFoam), distantWater, aerial);
+    // Open-water whitecaps belong to steep, positive crests—not to a screen-
+    // space noise mask. The FFT slope is a bounded proxy for the Jacobian
+    // until horizontal displacement is carried through as its own buffer.
+    const crest = smoothstep(0.12, 0.68, vWave.x)
+      .mul(smoothstep(0.16, 0.72, length(vWave.yz)));
+    const crestBreakup = smoothstep(0.42, 0.82, turb.add(crest.mul(0.5)));
+    const crestFoam = crest.mul(crestBreakup).mul(crestFoamStrength)
+      .mul(float(1).sub(patchRim)).mul(float(1).sub(distFade.mul(0.35)));
+
+    return mix(mix(albedo, foamColor, max(shoreFoam, crestFoam)), distantWater, aerial);
   })();
 
   // The far-water skirt. The displaced patch is only 1400m across, so its own

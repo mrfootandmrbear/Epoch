@@ -84,8 +84,8 @@ climate mood that supplies atmospheric colour and light.
 |---|---|---|---|---|---|---|---|
 | Terrain geometry | `WorldHistory.terrain.elevations` | **Yes** (erosion accumulates) | `advance()` writes `PlaneGeometry` Y + vertex colour; `makeHeightTexture` | 1 mesh, `TerrainMaterial` (`terrain-material.ts`) | per jump / per sculpt | 380 m, 180² grid; no geometry LOD | drainage, volcanism, sea level |
 | Terrain material | packed `state`/`volcanic`/`environment` DataTextures (`terrain-material-state.ts`, `environment.ts`) | derived each jump | `packTerrainMaterialState` + `packEnvironmentField` | `MeshStandardNodeMaterial` + shared water optics | per jump | fades by camera distance | climate, reef carbonate, caustics |
-| Ocean surface | `FFTOcean` height/slope storage buffers (`fft-ocean.ts`) | no (regenerated per wind regime, cached by `WIND`) | Tessendorf/JONSWAP GPU IFFT (58 compute passes/frame) | 1 `NodeMaterial` patch + 1 far-water skirt ring (`fft-water.ts`) | per frame | 1400 m patch + 12 km skirt; wave/chop fade with distance | wind regime, sea level, terrain height texture |
-| Submerged optics | `ReefWaterUniforms` (`reef-water.ts`) | no | shared `opticalPath`/`waterTransmission`/`waterHaze`/`causticLight` | reused by seabed **and** coral materials | per frame (caustic clock) | extinction to ~26 m; caustics fade w/ depth | sun state, sea level |
+| Ocean surface | `FFTOcean` height/slope storage buffers (`fft-ocean.ts`) | no (regenerated per wind + fair/storm sea state, cached) | Tessendorf/JONSWAP GPU IFFT (58 compute passes/frame) | 1 `NodeMaterial` patch + 1 far-water skirt ring (`fft-water.ts`); slope-gated crest foam | per frame | 1400 m patch + 12 km skirt; wave/chop fade with distance | wind regime, presentation storm, sea level, terrain height texture |
+| Submerged optics | `ReefWaterUniforms` (`reef-water.ts`) | no | shared `opticalPath`/`waterTransmission`/`waterHaze`/`causticLight` | reused by seabed, coral, fish, and seagrass materials | per frame (caustic clock) | extinction to ~26 m; caustics fade w/ depth | sun state, sea level |
 | Coral / reef | `WorldHistory.reef` + `ReefOutcome.colonies` (`reef-succession.ts`) | **Yes** (framework, cover, stress) | `resolveReef` → `reef.setReef()` | 6 guilds × near/far `InstancedMesh` (`coral-renderer.ts`), `CoralMaterial` SSS + fluorescence | per jump; sway per frame | `coralNear` 46 m | currents, carbonate deposition, sediment |
 | Reef rubble / carbonate floor | `terrain.carbonate`/`basalt`/`sediment` | **Yes** | `terrain-detail-renderer.ts` (independent of colony positions) | 1 `InstancedMesh`, ≤100 000 icosahedra | per jump | none (frustumCulled off) | reef deposition, depth |
 | Vegetation | `LandingOutcome.trees` (`VegetationMorphology`) | no (re-resolved) | `vegetation-renderer.ts` near/far repartition | up to 4 guild × {branch,leaf} × {near,far} `InstancedMesh` (ez-tree geometry) | per jump; LOD on camera move | `treeNear` 92 m | moisture, exposure, slope, temperature, wind, sea level |
@@ -202,10 +202,10 @@ stale — noted in §9.)
 
 ## 8. Known visual effects that lack simulation causality / are input-limited
 
-- **Ocean is always glassy.** `WIND` has only calm(4)/westerly(18)/easterly(18)
-  m/s — **no storm tier** (`climate.ts:33`) — and swell is damped to
-  `swellAmplitudeScale: 0.22` (`render-scale.ts:10`). The `storm` atmosphere
-  profile only recolours the sky; the sea underneath stays a mirror (LW-7).
+- **Storm remains presentation state rather than climate state.** The storm
+  profile now raises the FFT input to at least 32 m/s, increases swell/chop,
+  and enables moving slope-gated crest foam. `ClimateForces.wind` still has no
+  storm tier, so a player cannot yet commit storm seas as a simulated force.
 - **Climate now reaches the air through one bounded mood.** `climateMood()` and
   `resolveAtmosphere()` modulate the shared key/fill, sky/fog, ocean base colour
   and distance fade, and post grade. Mild-temperate remains the exact baseline;
@@ -213,20 +213,9 @@ stale — noted in §9.)
 - **Per-profile grading is a near-noop** (`COLOR_TREATMENTS`): dawn ≈ +4.5% warm
   tint, storm ≈ +6% cool / −10% saturation. Below perceptual threshold at
   whole-island scale (LW-6).
-- **The two submerged marine *organisms* are lit in a different medium than the
-  water around them.** The shared water column (`reef-water.ts`:
-  `opticalPath`/`waterHaze`/`waterTransmission`/`causticLight`) is used by the
-  seabed (`terrain-material.ts`), coral (`coral-material.ts`), and marine snow —
-  but **not** by `fish-renderer.ts:83` or `seagrass-renderer.ts`, both plain
-  `MeshStandardMaterial` lit by the above-water scene lights. So the geology and
-  coral absorb red, haze into the column, and catch the caustic net with depth,
-  while the fish and seagrass among them do none of that and read "dry." (The
-  freshwater / stream / drifter renderers are also outside the medium, but
-  *correctly* — they are surface pools and land channels, not the ocean column.)
-  This is an integration mismatch no subsystem test reveals; it compounds LW-1
-  (fish fail to *recede* into the column, not only colour-match it). Bounded
-  follow-up, distinct from the atmosphere milestone: route the fish and seagrass
-  materials through the same `ReefWaterUniforms` the seabed and coral already use.
+- **Freshwater remains outside the reef medium by design.** Fish and seagrass
+  now share the same `ReefWaterUniforms` as seabed, coral, and marine snow.
+  Freshwater, streams, and drifters remain separate surface-water/land layers.
 
 ## 9. Documentation vs. code contradictions (flag, don't silently pick a side)
 
