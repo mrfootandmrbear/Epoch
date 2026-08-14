@@ -665,10 +665,11 @@ for (const select of [rainfallEl, temperatureEl, windEl, seaLevelEl]) {
 
 volcanicOutputEl.addEventListener("change", () => {
   const output = volcanicOutputEl.value as VolcanicOutput;
+  const outputLabel = volcanicOutputEl.selectedOptions[0]?.textContent?.replace(/^Volcano:\s*/, "") ?? output;
   landingState.setVolcanicOutput(output);
   formHintEl.textContent = output === "extinct"
     ? "The island stops growing; erosion and subsidence will take over."
-    : `${volcanicOutputEl.selectedOptions[0]?.textContent ?? output} output will act across the next jump.`;
+    : `${outputLabel} volcanic output will act across the next jump.`;
 });
 
 jumpButtonEl.addEventListener("click", () => {

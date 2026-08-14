@@ -535,8 +535,44 @@
       #experience .actions { justify-content: flex-start; flex-wrap: wrap; gap: 6px; }
       #experience .force-actions { margin-bottom: 0; }
       #experience .actions button, #experience .actions select { padding-top: 8px; padding-bottom: 8px; font-size: 11px; }
-      #experience .actions select { min-width: 0; flex: 1 1 132px; }
-      #experience .tool-actions button { flex: 1 0 auto; padding-inline: 12px; }
+      #experience .actions select {
+        min-width: 0;
+        flex: 1 1 132px;
+        border-color: rgba(146,190,204,.3);
+        background-color: rgba(18,39,45,.82);
+        background-image:
+          linear-gradient(45deg, transparent 50%, rgba(189,220,226,.8) 50%),
+          linear-gradient(135deg, rgba(189,220,226,.8) 50%, transparent 50%);
+        background-position:
+          calc(100% - 15px) 50%,
+          calc(100% - 10px) 50%;
+        background-repeat: no-repeat;
+        background-size: 5px 5px;
+        box-shadow: inset 0 0 0 1px rgba(111,164,181,.08);
+      }
+      #experience .tool-actions {
+        padding: 7px;
+        border: 1px solid rgba(163,193,145,.16);
+        border-radius: 11px;
+        background: rgba(74,101,65,.13);
+      }
+      #experience .tool-actions button {
+        flex: 1 0 auto;
+        padding-inline: 12px;
+        border-color: rgba(174,205,156,.28);
+        background: rgba(31,53,35,.82);
+      }
+      #experience .tool-actions button:hover { background: rgba(70,99,66,.92); }
+      #experience .tool-actions button.active {
+        color: #132017;
+        background: #b9cda9;
+        border-color: #dce8d2;
+        box-shadow: 0 0 0 2px rgba(185,205,169,.18);
+      }
+      #experience #distant-drifter {
+        border-color: rgba(217,190,119,.42);
+        background: rgba(104,78,31,.72);
+      }
       #experience #jump { flex: 1 1 150px; margin-left: 0; }
       .preset-copy { margin: 7px 2px 0; color: rgba(247,243,232,.58); font: 10px/1.35 system-ui, sans-serif; }
       #experience.compact { width: 238px !important; height: auto !important; min-width: 0; min-height: 0; resize: none; overflow: hidden; }
@@ -582,70 +618,73 @@
         <summary>Forces</summary>
       <div class="actions force-actions" aria-label="Climate forces">
         <select id="rainfall" aria-label="Rainfall regime">
-          <option value="arid">Arid</option>
-          <option value="temperate" selected>Temperate rain</option>
-          <option value="wet">Wet</option>
+          <option value="arid">Rain: Arid</option>
+          <option value="temperate" selected>Rain: Temperate</option>
+          <option value="wet">Rain: Wet</option>
         </select>
         <select id="temperature" aria-label="Temperature regime">
-          <option value="cold">Cold</option>
-          <option value="mild" selected>Mild</option>
-          <option value="warm">Warm</option>
+          <option value="cold">Temperature: Cold</option>
+          <option value="mild" selected>Temperature: Mild</option>
+          <option value="warm">Temperature: Warm</option>
         </select>
         <select id="wind" aria-label="Prevailing wind">
-          <option value="calm">Calm</option>
-          <option value="westerly" selected>West wind</option>
-          <option value="easterly">East wind</option>
+          <option value="calm">Wind: Calm</option>
+          <option value="westerly" selected>Wind: West</option>
+          <option value="easterly">Wind: East</option>
         </select>
         <select id="sea-level" aria-label="Sea level">
-          <option value="low">Low sea</option>
-          <option value="present" selected>Present sea</option>
-          <option value="high">High sea</option>
+          <option value="low">Sea level: Low</option>
+          <option value="present" selected>Sea level: Present</option>
+          <option value="high">Sea level: High</option>
         </select>
         <select id="volcanic-output" aria-label="Volcanic output">
-          <option value="vigorous">Vigorous vent</option>
-          <option value="active" selected>Active vent</option>
-          <option value="waning">Waning vent</option>
-          <option value="extinct">Extinct vent</option>
+          <option value="vigorous">Volcano: Vigorous</option>
+          <option value="active" selected>Volcano: Active</option>
+          <option value="waning">Volcano: Waning</option>
+          <option value="extinct">Volcano: Extinct</option>
         </select>
       </div>
       </details>
+      <details class="shell-section">
+        <summary>Time reveal</summary>
       <div class="actions force-actions reveal-actions" aria-label="Reveal treatment">
         <select id="reveal-treatment" aria-label="Reveal treatment"></select>
       </div>
+      </details>
       <details class="shell-section">
         <summary>Arrival</summary>
       <div class="actions force-actions" aria-label="Dispersal opportunities">
         <select id="drifter-food" aria-label="Founder food source">
-          <option value="ground-plants" selected>Ground plants</option>
-          <option value="woody-plants">Woody plants</option>
-          <option value="animal-prey">Animal prey</option>
-          <option value="mixed">Mixed foods</option>
+          <option value="ground-plants" selected>Diet: Ground plants</option>
+          <option value="woody-plants">Diet: Woody plants</option>
+          <option value="animal-prey">Diet: Animal prey</option>
+          <option value="mixed">Diet: Mixed foods</option>
         </select>
         <select id="drifter-size" aria-label="Founder size">
-          <option value="small">Small</option>
-          <option value="medium" selected>Medium</option>
-          <option value="large">Large</option>
+          <option value="small">Size: Small</option>
+          <option value="medium" selected>Size: Medium</option>
+          <option value="large">Size: Large</option>
         </select>
         <select id="drifter-climate" aria-label="Founder origin climate">
-          <option value="cold-open">Cold open</option>
-          <option value="cold-wet">Cold wet</option>
-          <option value="temperate-seasonal" selected>Temperate seasonal</option>
-          <option value="hot-dry">Hot dry</option>
-          <option value="hot-wet">Hot wet</option>
+          <option value="cold-open">Origin: Cold open</option>
+          <option value="cold-wet">Origin: Cold wet</option>
+          <option value="temperate-seasonal" selected>Origin: Temperate seasonal</option>
+          <option value="hot-dry">Origin: Hot dry</option>
+          <option value="hot-wet">Origin: Hot wet</option>
         </select>
         <button id="distant-drifter">Distant Drifter</button>
       </div>
       <p class="preset-copy" id="drifter-preview">A medium ground-plant feeder from a temperate seasonal climate. Exact anatomy will be generated when the raft is launched.</p>
       </details>
       <details class="shell-section" open>
-        <summary>Form</summary>
+        <summary>Terrain tools</summary>
       <div class="actions tool-actions">
-        <button class="active" data-tool="look">Look</button>
-        <button data-tool="raise">Raise land</button>
-        <button data-tool="carve">Carve</button>
-        <button data-tool="level">Level</button>
-        <button data-tool="cliff">Cliff</button>
-        <button data-tool="hotspot">Place hot spot</button>
+        <button class="active" data-tool="look">Explore camera</button>
+        <button data-tool="raise">Build land</button>
+        <button data-tool="carve">Cut channel</button>
+        <button data-tool="level">Flatten terrain</button>
+        <button data-tool="cliff">Steepen slope</button>
+        <button data-tool="hotspot">Add volcanic hot spot</button>
       </div>
       <div class="actions brush-controls" id="brush-controls" hidden>
         <label>Size <input id="brush-size" type="range" min="6" max="60" step="1" value="18"><output id="brush-size-value">18 m</output></label>
