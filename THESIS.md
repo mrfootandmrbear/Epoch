@@ -1,4 +1,9 @@
-# Epoch — Founding Doc
+# Epoch — retired founding document
+
+> **Retired 2026-08-14:** This document preserves the original rationale but no
+> longer directs the project. Use [PRODUCT.md](PRODUCT.md) for product direction,
+> [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for system boundaries, and
+> [docs/EXECUTION.md](docs/EXECUTION.md) for current status and priority.
 
 > **Status:** Day zero. Distilled from extensive playtesting of Epoch's predecessor, Habitat.
 > **Role:** What Epoch is and why it exists in this shape — the seed everything else should serve.

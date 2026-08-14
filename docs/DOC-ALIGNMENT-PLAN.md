@@ -1,4 +1,8 @@
-# Documentation Alignment Plan
+# Documentation Alignment Plan — archived
+
+> **Archived 2026-08-14:** This plan belongs to the retired documentation
+> system. Its live conclusions must be represented in
+> [EXECUTION.md](EXECUTION.md); do not execute or extend this plan.
 
 Status: partially applied proposal. The documentation corrections and candidate architecture framing landed on 2026-08-12. Unresolved product and implementation choices below remain questions, not commitments.
 

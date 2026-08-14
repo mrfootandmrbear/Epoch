@@ -1,6 +1,13 @@
 # Epoch agent instructions
 
-Epoch's product direction lives in [THESIS.md](THESIS.md). Preserve unrelated working-tree changes and keep simulation state separate from rendering concerns.
+Start with [docs/README.md](docs/README.md). Product direction lives in
+[PRODUCT.md](PRODUCT.md), system ownership in
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), and current priority/status in
+[docs/EXECUTION.md](docs/EXECUTION.md). When older roadmaps, studies, or audits
+disagree, these three contracts win.
+
+Preserve unrelated working-tree changes and keep simulation state separate from
+rendering concerns.
 
 ## Ecosystem assets
 

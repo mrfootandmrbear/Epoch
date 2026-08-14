@@ -1,6 +1,10 @@
 # Evolution Across Three Domains
 
-> **Status note (2026-08-13):** This comparison preserves early design rationale, not live completion state. Land branching, the first persistent marine lineage, and reef succession are now implemented and tested. Use [WILDLIFE-ROADMAP.md](WILDLIFE-ROADMAP.md) for the canonical capability ledger and sequence. [Ocean colonization, ecological pressure, and domain transitions](docs/OCEAN-COLONIZATION-AND-DOMAIN-TRANSITIONS.md) supersedes this document's early cross-domain sketches with the planned regional-pool, resident, visitor, viable-intermediate, and discrete-adaptation contracts.
+> **Archived design study:** This comparison preserves early rationale, not live
+> completion state. Use [docs/EXECUTION.md](docs/EXECUTION.md) for current
+> status and sequence. [Ocean colonization, ecological pressure, and domain
+> transitions](docs/OCEAN-COLONIZATION-AND-DOMAIN-TRANSITIONS.md) contains the
+> later cross-domain rationale.
 
 Comparing how Species: ALRE and Ecosystem model evolutionary mechanics — and what Epoch can take from each for land, water, and air life.
 

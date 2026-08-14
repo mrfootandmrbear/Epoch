@@ -1,24 +1,37 @@
 # Epoch
 
-Sculpt a world. Set the forces. Jump an epoch — a thousand years or more in one move. Look at what nature, water, and evolving life made of it.
+Begin with a Galápagos-inspired world. Set the forces. Jump millions of years.
+Discover what natural selection, chance, and your interventions made of it.
 
 **[Play Epoch](https://mrfootandmrbear.github.io/Epoch/)**
 
 Successor to [Habitat](https://github.com/mrfootandmrbear/Habitat), distilled from its playtesting down to what mattered most: forming is fun, but seeing what an epoch did to what you formed is the point.
 
-Start here: [THESIS.md](THESIS.md).
+Contributors start at [docs/README.md](docs/README.md). The maintained hierarchy
+is [product direction](PRODUCT.md) →
+[architecture](docs/ARCHITECTURE.md) → [current execution](docs/EXECUTION.md).
 
-Current wildlife capability, experiment order, and ecosystem asset gates are tracked in [WILDLIFE-ROADMAP.md](WILDLIFE-ROADMAP.md). It is the canonical status page for terrestrial, freshwater, marine, aerial, and coral work; the older design studies preserve rationale rather than live completion state.
+Detailed wildlife and renderer roadmaps are retained as migration references;
+[docs/EXECUTION.md](docs/EXECUTION.md) is the canonical status and priority page.
 
 What the predecessor proved—and what Epoch should deliberately leave behind—is captured in [HABITAT_REVIEW.md](HABITAT_REVIEW.md).
 
 First form→jump→reveal checkpoint running: directly raise or carve a bare island, choose a jump from 1 year through 1 million years, and reveal a duration-scaled living state over a procedural FFT ocean (Three.js, WebGPU + TSL) — `npm install && npm run dev`.
 
-Current renderer work and its owner-gated visual evidence are tracked in [RENDERER-ROADMAP.md](RENDERER-ROADMAP.md). The fixed epoch-scale comparison is available through the capture harness: `?shot=whole-island&years=1&time=42`, with `years` set to `1`, `1000`, `100000`, or `1000000`. Additional fixed cameras are declared in `src/presentation.ts`.
+Historical renderer evidence remains in [RENDERER-ROADMAP.md](RENDERER-ROADMAP.md).
+The fixed epoch-scale comparison is available through the capture harness:
+`?shot=whole-island&years=1&time=42`, with `years` set to `1`, `1000`,
+`100000`, or `1000000`. Additional fixed cameras are declared in
+`src/presentation.ts`.
 
 This checkpoint now includes the first bounded outcome resolver described in [HABITAT_REVIEW.md](HABITAT_REVIEW.md). Sculpted elevation, slope, shelter, inferred moisture, and exposure determine where succession establishes and where populations gather. It resolves a landing snapshot directly rather than stepping through every elapsed year, so deep-time jumps remain fast and deterministic.
 
-The prototype exposes the [THESIS.md §2.1](THESIS.md#21-two-speeds-not-one) jump ladder—1, 5, 10, 25, 50, 100, 1,000 years and progressively deeper-time presets through 1 million years. Jumps accumulate into a persistent world age; after every reveal the player can explore, reshape the landing state, choose another duration, and jump again. Later landings explicitly recount what changed since the previous epoch so the repeated loop reads as one island accumulating history rather than disconnected procedural outcomes. Duration controls succession maturity while terrain and player-selected rainfall, temperature, prevailing wind, and sea level control each landing.
+The game exposes a jump ladder—1, 5, 10, 25, 50, 100, 1,000 years and
+progressively deeper-time presets through 1 million years. Jumps accumulate into
+a persistent world age; after every reveal the player can explore, reshape the
+landing state, choose another duration, and jump again. Later landings recount
+what changed so the loop reads as one world accumulating history rather than
+disconnected outcomes.
 
 Climate is deliberately a whole-island forcing layer. Its derived habitat fields should connect terrestrial, freshwater, coastal and marine, aerial, and benthic reef ecology. Future plants, land animals, aquatic animals, flying animals, and coral colonies must resolve from those shared conditions and exchanges rather than growing into separate simulation silos.
 

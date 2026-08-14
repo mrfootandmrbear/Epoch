@@ -1,4 +1,10 @@
-# Renderer roadmap
+# Renderer roadmap — retired snapshot
+
+> **Retired 2026-08-14:** Preserve this detailed evidence during migration, but
+> do not take current priority or status from it. The maintained status and next
+> gates live in [docs/EXECUTION.md](docs/EXECUTION.md); product and ownership
+> rules live in [PRODUCT.md](PRODUCT.md) and
+> [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 > **Status:** Canonical landing-state rendering tracker.
 > **Updated:** 2026-08-14.
@@ -96,4 +102,6 @@ Rung 5 now has a visible foreground diagnostic reading of 60 fps and 15 draws on
 
 ## Maintenance rule
 
-Update this page whenever renderer status, capture URLs, or the milestone verdict changes. `WILDLIFE-ROADMAP.md` remains canonical for ecology and asset-family status; neither tracker may claim acceptance on behalf of the other.
+This snapshot is no longer maintained. Migrate material evidence into the
+relevant reference and update `docs/EXECUTION.md` when status or priority
+changes; no document may claim an owner visual verdict that was not recorded.

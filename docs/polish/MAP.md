@@ -9,7 +9,7 @@
 A single-page WebGPU/Three.js deep-time island simulator. The player sculpts a
 bare island, sets climate forcings, picks a jump duration (1 year → 1,000,000
 years), and watches a reveal transition into a resolved landing state. Design
-intent lives in `THESIS.md`; it is the authority on what the game is for.
+intent now lives in `PRODUCT.md`; it is the authority on what the game is for.
 
 ## Build, run, test
 
@@ -105,14 +105,15 @@ geometry consumed at load), `previews/`. Present: `epoch-canopy-tree`,
 `@dgreenheck/ez-tree` build-time generator; Epoch supplies its own faceted
 foliage, materials, instance colors, and LOD batching.
 
-## Existing canonical trackers — do not duplicate
+## Retired tracker system
 
-These are owned by the project and remain authoritative. `docs/polish/` tracks
-polish work and **must not claim acceptance on their behalf**:
+This map records the former tracker system for historical evidence. Current
+authority is defined in `docs/README.md`; `docs/polish/` must not claim visual
+acceptance:
 
-- `THESIS.md` — product direction. The bar.
-- `RENDERER-ROADMAP.md` — renderer capability ledger + owner visual verdicts.
-- `WILDLIFE-ROADMAP.md` — ecology and asset-family status.
+- `PRODUCT.md` — product direction.
+- `docs/ARCHITECTURE.md` — system ownership and boundaries.
+- `docs/EXECUTION.md` — current status, sequence, and gates.
 - `HABITAT_REVIEW.md` — what the predecessor proved / what to leave behind.
 - `AGENTS.md` — asset-family workflow, one agent task per bounded asset family.
 

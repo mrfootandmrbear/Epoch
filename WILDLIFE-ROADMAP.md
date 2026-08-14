@@ -1,4 +1,10 @@
-# Wildlife roadmap
+# Wildlife roadmap — retired snapshot
+
+> **Retired 2026-08-14:** Preserve this detailed capability history during
+> migration, but do not take current priority or status from it. The maintained
+> status and next gates live in [docs/EXECUTION.md](docs/EXECUTION.md); product
+> and ownership rules live in [PRODUCT.md](PRODUCT.md) and
+> [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 > **Status:** Canonical capability and experiment tracker.
 > **Updated:** 2026-08-14.
@@ -6,7 +12,9 @@
 
 Landing-state rendering quality is tracked separately in [RENDERER-ROADMAP.md](RENDERER-ROADMAP.md); asset acceptance still requires an in-renderer owner verdict.
 
-Epoch deliberately avoids a heavyweight decision register. This page answers the smaller operational questions: what is built, what is being tested, what comes next, and what evidence advances it. `THESIS.md` remains product direction; design studies remain rationale. When they disagree about current status, this page wins.
+This page preserves the detailed pre-migration capability ledger. It no longer
+sets product direction, current status, or priority; those live in `PRODUCT.md`
+and `docs/EXECUTION.md`.
 
 ## Status vocabulary
 

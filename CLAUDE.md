@@ -98,9 +98,9 @@ until confirmed on real WebGPU hardware.
 
 ## Do not touch / ownership
 
-- `THESIS.md`, `RENDERER-ROADMAP.md`, `WILDLIFE-ROADMAP.md`, `HABITAT_REVIEW.md`
-  are **owner-authored canonical trackers**. `docs/polish/` may reference them
-  and prepare evidence for them; it may not mark their gates satisfied.
+- `PRODUCT.md`, `docs/ARCHITECTURE.md`, and `docs/EXECUTION.md` are the
+  maintained contracts. Older roadmaps and `docs/polish/` preserve evidence;
+  they do not set priority or mark gates satisfied.
 - **The project uses an owner-verdict gate:** a renderer capability is not
   "Built" until automated checks pass *and* a human records a visual verdict.
   Polish work cannot self-certify through that gate. Say "ready for owner
