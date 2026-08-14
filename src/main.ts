@@ -103,6 +103,8 @@ const playerShellEl = experienceEl;
 const shellToggleEl = document.getElementById("shell-toggle") as HTMLButtonElement;
 const startingWorldEl = document.getElementById("starting-world") as HTMLSelectElement;
 const startingWorldDescriptionEl = document.getElementById("starting-world-description")!;
+const screensaverEnabledEl = document.getElementById("screensaver-enabled") as HTMLInputElement;
+const screensaverDelayEl = document.getElementById("screensaver-delay") as HTMLSelectElement;
 
 for (const preset of STARTING_WORLD_PRESETS) {
   const option = document.createElement("option");
@@ -197,9 +199,18 @@ let lastInteraction = performance.now() / 1000;
 // should remain continuous across the reveal.
 const POST_JUMP_MORNING_PHASE = 0.12;
 let atmosphereCycleOrigin = 0;
+const storedScreensaverEnabled = window.localStorage.getItem("epoch:screensaver-enabled");
+const storedScreensaverDelay = window.localStorage.getItem("epoch:screensaver-delay");
+screensaverEnabledEl.checked = storedScreensaverEnabled !== "false";
+if (storedScreensaverDelay && screensaverDelayEl.querySelector(`option[value="${storedScreensaverDelay}"]`)) {
+  screensaverDelayEl.value = storedScreensaverDelay;
+}
+let screensaverEnabled = screensaverEnabledEl.checked;
+let screensaverDelay = Number(screensaverDelayEl.value);
+let presentationTerrainHeightAt = (_x: number, _z: number) => -Infinity;
 const presentation = createPresentationController(camera, controls, (active) => {
   document.body.classList.toggle("attract-mode", active);
-});
+}, (x, z) => presentationTerrainHeightAt(x, z));
 if (captureMode) {
   presentation.applyShot(captureShot);
   document.body.classList.add("capture-mode");
@@ -211,6 +222,19 @@ for (const eventName of ["pointerdown", "wheel", "keydown", "touchstart"] as con
     if (presentation.active) presentation.setActive(false);
   }, { passive: true });
 }
+
+screensaverEnabledEl.addEventListener("change", () => {
+  screensaverEnabled = screensaverEnabledEl.checked;
+  window.localStorage.setItem("epoch:screensaver-enabled", String(screensaverEnabled));
+  lastInteraction = performance.now() / 1000;
+  if (!screensaverEnabled && presentation.active) presentation.setActive(false);
+});
+
+screensaverDelayEl.addEventListener("change", () => {
+  screensaverDelay = Number(screensaverDelayEl.value);
+  window.localStorage.setItem("epoch:screensaver-delay", screensaverDelayEl.value);
+  lastInteraction = performance.now() / 1000;
+});
 
 const sunLight = new DirectionalLight(new Color(0xfff2d9), 2.0);
 sunLight.position.copy(sunDirection).multiplyScalar(420);
@@ -284,6 +308,7 @@ function updateShadowCoverage(): void {
 
 await Promise.all([loadTreeGeometryAssets(), loadSeagrassGeometryAssets()]);
 const landingState = createLandingState(scene);
+presentationTerrainHeightAt = landingState.heightAt;
 if (captureMode && captureVolcanicPhase) {
   landingState.resetStartingWorld(startingWorldPreset("young-volcano"));
 }
@@ -796,7 +821,7 @@ async function start() {
 
   renderer.setAnimationLoop(() => {
     const elapsed = captureMode ? captureTime : performance.now() / 1000;
-    if (!captureMode && !presentation.active && elapsed - lastInteraction >= 25 && formTool === "look" && !jumped) {
+    if (screensaverEnabled && !captureMode && !presentation.active && elapsed - lastInteraction >= screensaverDelay && formTool === "look" && !jumped) {
       presentation.setActive(true, elapsed);
     }
     fftOcean?.update(elapsed);

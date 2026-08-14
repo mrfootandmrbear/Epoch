@@ -254,6 +254,18 @@
       .brush-controls input { width: 92px; accent-color: #b7c89f; }
       .brush-controls output { min-width: 34px; color: rgba(247,243,232,.75); }
       .brush-controls button { padding: 8px 12px; }
+      .screensaver-settings { align-items: center; }
+      .switch-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 10px;
+        border-radius: 999px;
+        color: rgba(247,243,232,.78);
+        background: rgba(8,20,20,.58);
+        font: 600 11px/1 system-ui, sans-serif;
+      }
+      .switch-label input { width: 30px; height: 16px; accent-color: #b7c89f; cursor: pointer; }
       #jump {
         margin-left: 8px;
         padding-inline: 24px;
@@ -625,6 +637,18 @@
         <button id="undo-sculpt" disabled aria-label="Undo terrain stroke">Undo</button>
         <button id="redo-sculpt" disabled aria-label="Redo terrain stroke">Redo</button>
       </div>
+      </details>
+      <details class="shell-section">
+        <summary>Screensaver</summary>
+        <div class="actions force-actions screensaver-settings" aria-label="Screensaver settings">
+          <label class="switch-label"><input id="screensaver-enabled" type="checkbox" checked role="switch"> Enabled</label>
+          <select id="screensaver-delay" aria-label="Screensaver idle timer">
+            <option value="15">After 15 seconds</option>
+            <option value="30" selected>After 30 seconds</option>
+            <option value="60">After 1 minute</option>
+            <option value="300">After 5 minutes</option>
+          </select>
+        </div>
       </details>
       </div>
     </div>

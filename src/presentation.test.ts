@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GOLDEN_SHOTS, isGoldenShotName } from "./presentation";
+import { GOLDEN_SHOTS, SCREENSAVER_SHOTS, isGoldenShotName, screensaverCameraHeight } from "./presentation";
 
 describe("golden shots", () => {
   it("provides the canonical visual review set", () => {
@@ -32,5 +32,19 @@ describe("golden shots", () => {
       expect([...shot.position, ...shot.target].every(Number.isFinite)).toBe(true);
       expect(shot.position).not.toEqual(shot.target);
     }
+  });
+});
+
+describe("screensaver camera", () => {
+  it("omits submerged and interior review shots from automatic travel", () => {
+    expect(SCREENSAVER_SHOTS).not.toContain("reef");
+    expect(SCREENSAVER_SHOTS).not.toContain("fish");
+    expect(SCREENSAVER_SHOTS).not.toContain("forest-interior");
+  });
+
+  it("arches between shots and never drops below terrain clearance", () => {
+    expect(screensaverCameraHeight(10, 12, 0.5)).toBeGreaterThan(40);
+    expect(screensaverCameraHeight(10, 80, 0.5)).toBe(88);
+    expect(screensaverCameraHeight(30, 0, 0)).toBe(30);
   });
 });

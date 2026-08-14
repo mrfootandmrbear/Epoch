@@ -32,7 +32,24 @@ export function isGoldenShotName(value: string | null): value is GoldenShotName 
   return value !== null && value in GOLDEN_SHOTS;
 }
 
-const shotNames = Object.keys(GOLDEN_SHOTS) as GoldenShotName[];
+export const SCREENSAVER_SHOTS: readonly GoldenShotName[] = [
+  "whole-island",
+  "ridge-silhouette",
+  "shoreline",
+  "reef-above",
+  "herd-contrast",
+  "dawn",
+  "storm",
+];
+
+export function screensaverCameraHeight(
+  interpolatedHeight: number,
+  terrainHeight: number,
+  progress: number,
+): number {
+  const travelLift = Math.sin(MathUtils.clamp(progress, 0, 1) * Math.PI) * 34;
+  return Math.max(interpolatedHeight + travelLift, terrainHeight + 8);
+}
 const position = new Vector3();
 const target = new Vector3();
 const nextPosition = new Vector3();
@@ -55,6 +72,7 @@ export function createPresentationController(
   camera: PerspectiveCamera,
   controls: OrbitControls,
   onActivityChange: (active: boolean) => void,
+  terrainHeightAt?: (x: number, z: number) => number,
 ): PresentationController {
   let active = false;
   let segmentStart = 0;
@@ -75,8 +93,8 @@ export function createPresentationController(
     segmentStart = elapsed;
     segmentIndex = 0;
     if (next) {
-      readShot(shotNames[0], position, target);
-      readShot(shotNames[1], nextPosition, nextTarget);
+      readShot(SCREENSAVER_SHOTS[0]!, position, target);
+      readShot(SCREENSAVER_SHOTS[1]!, nextPosition, nextTarget);
     }
     onActivityChange(next);
   }
@@ -89,14 +107,16 @@ export function createPresentationController(
       if (!active) return;
       const segmentElapsed = elapsed - segmentStart;
       if (segmentElapsed >= segmentDuration) {
-        segmentIndex = (segmentIndex + 1) % shotNames.length;
+        segmentIndex = (segmentIndex + 1) % SCREENSAVER_SHOTS.length;
         segmentStart = elapsed;
-        readShot(shotNames[segmentIndex], position, target);
-        readShot(shotNames[(segmentIndex + 1) % shotNames.length], nextPosition, nextTarget);
+        readShot(SCREENSAVER_SHOTS[segmentIndex]!, position, target);
+        readShot(SCREENSAVER_SHOTS[(segmentIndex + 1) % SCREENSAVER_SHOTS.length]!, nextPosition, nextTarget);
       }
       const rawProgress = MathUtils.clamp((elapsed - segmentStart) / segmentDuration, 0, 1);
       const progress = rawProgress * rawProgress * (3 - 2 * rawProgress);
       camera.position.lerpVectors(position, nextPosition, progress);
+      const terrainFloor = terrainHeightAt?.(camera.position.x, camera.position.z) ?? -Infinity;
+      camera.position.y = screensaverCameraHeight(camera.position.y, terrainFloor, progress);
       controls.target.lerpVectors(target, nextTarget, progress);
       camera.lookAt(controls.target);
       camera.updateMatrixWorld();

@@ -436,6 +436,7 @@ export interface WorldExperience {
   terrain: Mesh;
   terrainHeightTexture: DataTexture;
   oceanMaskTexture: DataTexture;
+  heightAt: (x: number, z: number) => number;
   beginSculpt: () => void;
   sculpt: (point: Vector3, direction: 1 | -1, settings: Readonly<TerrainBrushSettings>) => void;
   level: (point: Vector3, settings: Readonly<TerrainBrushSettings>) => void;
@@ -915,6 +916,7 @@ export function createLandingState(scene: Scene): WorldExperience {
     terrain,
     terrainHeightTexture,
     oceanMaskTexture,
+    heightAt,
     beginSculpt() {
       sculptCheckpointed = false;
     },
