@@ -511,3 +511,54 @@ not overlap. The fixed WebGPU frame retains the nimble/bulky population read,
 shows distinct silhouettes and structured coats, and reports no warnings or
 errors. Targeted tests pass 29/29, TypeScript/Vite build is clean, and the
 accepted marsh-grazer package validates. Ready for owner verdict.
+
+---
+
+## WU-005 · Deep-time automatic transformation revision (2026-08-14)
+
+**Owner verdict.** The canonical deep-time candidate was rejected. After the
+1,000-year vegetation transformation, later automatic jumps did not visibly
+document continuing erosion, rainfall, deposition, and inherited change.
+Successive clicks appeared to settle into ecological stability. Herd review is
+deferred because unresolved water presentation dominates the relevant frames.
+
+**Cause.** Vegetation succession reaches its full scalar at 1,000 total years,
+while the terrain regression checked only isolated numeric endpoints. Rainfall
+was stored as local bounded runoff and erosion was evaluated per cell, so later
+change could be broad enough to satisfy the test without forming a readable
+connected landform. Mature vegetation suppressed up to 78% of that response.
+
+**Change.** `resolveTerrainHistory` now resolves the jump's local rainfall
+first, routes it downhill through a deterministic D8 catchment graph, and uses
+accumulated discharge plus catchment area to concentrate incision. Channel flow
+retains more erosive authority under mature vegetation than diffuse slope wash;
+near-coast outlets deposit a bounded share of transported material. The pass
+still resolves the landing directly and uses only inherited simulation state.
+
+**Regression contract.** `epoch-scale-terrain.test.ts` now covers all four
+canonical rungs, wet versus arid response, incision concentrated in a connected
+valley, and cumulative divergence across three successive 100,000-year clicks.
+
+**Evidence.** Full suite passes 271/271 and `npm run build` is clean. This is a
+simulation candidate, not an accepted visual result. The next gate is owner
+review on real WebGPU using both the four independent rung captures and an
+actual successive-jump sequence.
+
+**Live comparison revision.** The first real-browser four-rung pass still left
+100,000 and 1,000,000 years too similar: concentrated drainage remained a
+one-cell scratch. The retained candidate reserves more of the deep-time curve
+for the final order of magnitude, widens established drainage laterally into
+valleys, strengthens million-year channel incision, and makes final-rung coastal
+retreat more nonlinear. Two follow-up whole-island comparisons rendered without
+warnings or errors. The later rungs now separate more clearly while preserving
+the island's identity, but this evidence still awaits the owner's verdict.
+
+**Superseded by product alignment, 2026-08-14.** Owner review concluded that
+coefficient tuning could not make the upper rungs both dramatic and grounded.
+Epoch now targets one Galápagos-inspired hotspot archipelago with fixed hotspot,
+moving crust, multiple shield histories, regional upwelling/elevation climate,
+changing island connectivity, and population radiation driven by isolation and
+gene flow. The geomorphic code remains exploratory groundwork; its generic
+four-rung candidate is no longer awaiting acceptance. The replacement gate is
+the serialized two-shield evolutionary proof in
+`docs/GALAPAGOS-HOTSPOT-PLAN.md`.

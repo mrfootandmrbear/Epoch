@@ -29,7 +29,27 @@ form  →  jump  →  look
 
 Forming is tactile and immediate, same as Habitat. Jumping is the new center of gravity: not a fast-forward you watch tick by tick, but a deliberate leap where the payoff *is* the leap — you commit to a jump size and a set of forces, and the world on the other side is the answer.
 
-### 2.1 Two speeds, not one
+### 2.1 One world, not a climate catalogue
+
+Epoch's world is a stylized, **Galápagos-inspired equatorial hotspot
+archipelago**. The player is not selecting among unrelated arctic, temperate,
+and tropical planet presets. Variety comes from a coherent regional system:
+volcanic-shield age, elevation, trade-wind exposure, rainfall and garúa,
+upwelling, sea-level history, reef viability, and distance from the hotspot.
+
+The hotspot remains fixed while oceanic crust carries islands away from it.
+New shields can emerge as older land dissects, fragments, subsides, and
+eventually drowns. An island is therefore a temporary grouping of volcanic
+shields, not a permanent container. Deep time can change which land is joined,
+which populations exchange genes, and which younger islands inherit the living
+world from older ones.
+
+This is a product constraint, not a promise to reproduce the real Galápagos at
+literal scale. Epoch compresses geography and resolves landing states
+plausibly, but its geology, ocean, climate, and evolution should tell one
+compatible story. See `docs/GALAPAGOS-HOTSPOT-PLAN.md`.
+
+### 2.2 Two speeds, not one
 
 The engine runs at two different speeds, and they are not the same problem:
 
@@ -53,23 +73,37 @@ This is the permission slip that makes epoch-scale jumps tractable at all — mo
 
 Evolution is not a distant aspiration tacked on after the terrain works — it is part of what a jump is supposed to show. When you jump an epoch, what changed isn't only the land: populations that colonized it should plausibly have drifted, specialized, and diverged into forms suited to what the world became. A hollow that turned into a marsh and a ridge that turned into scrub should, an epoch later, plausibly hold different-looking descendants of whatever first arrived — not because the player bred them, but because that's what an epoch does to a population under selection.
 
+The Galápagos-style archipelago makes isolation and reconnection the engine of
+that change. Founder bottlenecks establish narrow starting variation. Saddles,
+channels, sea-level shifts, new shields, and drowned land change gene flow.
+Separated populations experience selection and drift in different habitats;
+credible reconnection may mix them again. Adaptive radiation, contraction, and
+extinction are all valid outcomes. Ecological stability is not a permanent
+victory state while the islands themselves keep changing.
+
 Same rule as §3 applies: this needs to be *plausible* population-level drift and radiation, not an accurate genetic model. Procedural trait/morph variation driven by what the local conditions rewarded is enough. The bar is "makes sense in hindsight," same as Habitat's arrival mechanic — not phylogenetic rigor.
 
 **Architected in, not sequenced after:** evolution is not gated behind §5 — it is validated alongside it, starting with the first spike. Too much else depends on world state already carrying population/trait data for evolution to be a layer added once rendering works; that's exactly the kind of retrofit §6 is trying to avoid on the visual side, and the same logic applies here. What is still sequenced is depth, not presence — the first spike proves a small population can look plausibly evolved and render at the bar set in §6, not that the full drift/radiation model is complete.
 
 ## 5. The load-bearing risk: rendering at epoch scale
 
-§2.1 splits this risk into two pieces, and they are not equally scary.
+§2.2 splits this risk into two pieces, and they are not equally scary.
 
 **Play-speed rendering** is Habitat's problem, already fought once. Rain sheet-flow, snow ground-cover, sim-backlog freezing — real fights, but at a known scale (96×96 grid, day-to-season spans) with prior art to draw on.
 
-**Jump-transition and landing-state rendering** is new and unproven. Two separate asks: (1) a load-screen treatment that sells "a thousand years happened" without literally simulating and rendering every intervening year — morph animation is one candidate, not a commitment (§2.1) — and (2) the state it clears to — a canyon, a reef, an ancient forest, whatever an epoch plausibly produced — has to render convincingly at whatever density and scale that implies, even though nothing about it needs to run in real time once it's landed.
+**Jump-transition and landing-state rendering** is new and unproven. Two separate asks: (1) a load-screen treatment that sells "a thousand years happened" without literally simulating and rendering every intervening year — morph animation is one candidate, not a commitment (§2.2) — and (2) the state it clears to — a canyon, a reef, an ancient forest, whatever an epoch plausibly produced — has to render convincingly at whatever density and scale that implies, even though nothing about it needs to run in real time once it's landed.
 
 **This is still the assumption everything else depends on.** If the landing state can't be rendered convincingly, or the load screen doesn't sell the jump, the two-verb loop in §2 doesn't work regardless of how good the underlying sim is — and the fix lives at the rendering/transition layer, not the sim.
 
 Treat landing-state rendering as the first thing to validate — ahead of sim depth, ahead of the load-screen/transition treatment, but *with* evolution (§4), not ahead of it. See §6 for how high a bar that validation needs to clear.
 
-**First spike, scoped narrowly:** a single fixed island, one jump size, terrain and water rendered at §6's bar, plus a small population rendered with visible trait variation. The jump-transition / load-screen treatment (§2.1, §8) is explicitly *not* attempted in this spike — deferred to a later one, not cut.
+**First aligned vertical slice, scoped narrowly:** two neighboring volcanic
+shields, one founder population, and a low connection that initially permits
+gene flow. A deep landing divides the habitats; a later landing reveals two
+visibly related but specialized descendants. Terrain, water, and both
+populations must render at §6's bar, and the lineage account must make the
+geology→isolation→adaptation chain understandable in hindsight. The
+jump-transition/load-screen treatment (§2.2, §8) remains deferred, not cut.
 
 ## 6. Visual bar: this should look stunning, not just work
 
@@ -85,6 +119,10 @@ Concretely:
 - **Renderer/tech stack: Three.js, fresh codebase (not a fork of Habitat's), targeting `WebGPURenderer` + TSL (Three.js Shading Language)** — that's what the reference above is built with, so matching it means matching its pipeline, not approximating the look on classic WebGL2. Trade-off, stated plainly rather than discovered later: WebGPU support isn't universal yet (weakest on Safari) — acceptable for a concept-stage solo project, revisit if/when distribution beyond a modern-Chromium target matters.
 - **§5's validation spike should target real visual quality, not a bare-minimum "does this read" proof of concept.** Whether epoch-scale rendering works and whether it looks good are one question, not two answered in sequence — a rendering pipeline built cheap is expensive to make beautiful afterward.
 - **§3 is what pays for this.** Simulation that doesn't chase precision frees up engineering and performance budget to spend on how the result actually looks. Plausibility is cheap; stunning is where the budget goes.
+- **One regional visual identity.** Young dark basalt, weathered older shields,
+  summit calderas, arid lowlands, fog-fed highlands, mangroves, reefs, and cool
+  productive upwelling water must read as parts of one place. Unrelated climate
+  and biome breadth is not a visual-quality goal.
 
 ## 7. What Epoch does not inherit from Habitat
 
@@ -94,11 +132,16 @@ Epoch starts without that scaffolding. One founding doc, not a constitution. Dec
 
 ## 8. Open, not yet decided
 
-- **How the landing state is actually computed.** §2.1 settles the *presentation* (transition, then reveal) but not the computation behind it — whether the end state is resolved directly from starting conditions + elapsed time (cheaper, and consistent with §3's "owes plausibility, not a literal trace"), or produced by stepping the sim forward at a coarse resolution and discarding the intermediate frames. Not needed to answer the first spike (§5), since that spike composes a landing state by hand rather than deriving one from a jump — but it's the next real fork after the spike lands.
+- **How the landing state is actually computed.** §2.2 settles the *presentation* (transition, then reveal) but not the computation behind it — whether the end state is resolved directly from starting conditions + elapsed time (cheaper, and consistent with §3's "owes plausibility, not a literal trace"), or produced by stepping the sim forward at a coarse resolution and discarding the intermediate frames. The aligned two-shield fixture in §5 is now the next proof boundary.
 - **What actually fills the load screen.** Morph animation (island visibly deforming pre→post) is one candidate, not a commitment — could as easily be something cheaper or more abstract. Its length, whether it scales with jump size, and whether it's skippable are all downstream of this and equally undecided. Explicitly out of scope for the first spike (§5).
 - **Vegetation/tree rendering tooling — ez-tree adopted as pinned build-time geometry tooling.** [ez-tree](https://github.com/dgreenheck/ez-tree) supplies seeded skeletons and shared-skeleton near/far LOD geometry at commit `dcf309bd86bd521083d9c70f01f2de45fdc7c457`; it is not part of Epoch's runtime rendering stack. Epoch replaces its stock billboard foliage and WebGL shader injection with faceted foliage, cached instanced geometry, and Epoch-owned WebGPU/TSL materials. The first candidate package covers broadleaf, conifer, windswept, and warm intertidal mangrove forms, including saltwater stilt-root habitat. Morphology remains habitat-driven, and the package remains a visual candidate until it receives an owner verdict. MIT licensing permits this adaptation.
 
-**Resolved since day zero:** renderer/tech stack (Three.js, fresh codebase, `WebGPURenderer` + TSL — see §6) and evolution's sequencing (baked in from the first spike, not gated — see §4) are no longer open; see those sections.
+**Resolved since day zero:** renderer/tech stack (Three.js, fresh codebase,
+`WebGPURenderer` + TSL — see §6) and evolution's sequencing (baked in from the
+first spike, not gated — see §4) are no longer open. **Resolved 2026-08-14:**
+Epoch targets one Galápagos-inspired hotspot-archipelago system rather than
+multiple unrelated climates; geology and population evolution are developed as
+one product architecture. See §2.1 and `docs/GALAPAGOS-HOTSPOT-PLAN.md`.
 
 **OD-1 — Creature trait-expression architecture — CANDIDATE.** Three.js r185 provides per-instance morph weights for `InstancedMesh` under its node/WebGPU path, making a topology-stable morph-target mesh the leading candidate and removing Foxel as a binding constraint. Epoch has not yet accepted the complete path: an in-engine spike must demonstrate the five proposed shape channels, two coat-color channels, animated motion, one-herd draw behavior, and frame cost on Apple Silicon before this decision is resolved. See §6 and `RENDERER-ROADMAP.md`.
 

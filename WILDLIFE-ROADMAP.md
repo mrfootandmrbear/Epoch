@@ -1,7 +1,7 @@
 # Wildlife roadmap
 
 > **Status:** Canonical capability and experiment tracker.
-> **Updated:** 2026-08-13.
+> **Updated:** 2026-08-14.
 > **Scope:** Wildlife, food-web connections, evolutionary lineages, and the ecosystem asset families that make those systems visible.
 
 Landing-state rendering quality is tracked separately in [RENDERER-ROADMAP.md](RENDERER-ROADMAP.md); asset acceptance still requires an in-renderer owner verdict.
@@ -20,6 +20,13 @@ Asset production has a separate, stricter ladder: `brief` → `source` → `prev
 ## Product contract
 
 Wildlife exists to make an epoch legible in hindsight. Populations—not individual animals—are simulation authority. A landing may instantiate individuals for movement and animation, but persistence belongs to lineage identity, habitat, traits, abundance, energy, ancestry, and ecological effects.
+
+The canonical world is now the Galápagos-inspired hotspot archipelago defined
+in `THESIS.md` §2.1 and `docs/GALAPAGOS-HOTSPOT-PLAN.md`. Wildlife development
+prioritizes founder effects, changing island connectivity, gene flow, isolation,
+drift, selection, adaptive radiation, reconnection, contraction, and extinction.
+Additional animal breadth does not outrank proving one ancestor splitting into
+visibly related specialists because geological change divided its populations.
 
 Every living domain should follow the same data flow:
 
@@ -45,9 +52,11 @@ Ocean colonization, resident/visitor scope, ecological pressure fields, and rare
 | Water-volume habitat | **Built** as a bounded proof | Surface, midwater, and benthic nodes connect horizontally through open water and vertically within columns; body size controls shallow clearance. A separate benthic field records coral-facing depth, light, slope, and substrate stability. | Add current direction, oxygen, and persistent nutrients when the first consumer needs each field. |
 | Terrestrial lineages | **Built** | Drifters introduce one tiny founder cohort; food-use adaptation, local forage, energy, and reproduction gate establishment. Established lineages persist identity, site, migration, abundance, extinction, bounded deep-time speciation, and means for body mass, leg length, foot width, insulation, coat warmth, coat lightness, and horn length. No per-axis variance is stored. | Replace primitive embodiment with one real fauna family and verify that trait extremes remain readable at gameplay distance. |
 | Distant Drifter founder design | **Experimenting** | The arrival panel now chooses food source, size band, and origin climate. Launch commits a stable generated phenotype and inherited food-affinity profile; establishment shares food availability, size-linked maintenance, and origin-climate fit. Small latent plant and marine affinities preserve rare future trophic transitions without inventing terrestrial prey. | Add the real raft image/diorama, evolve food affinities through variance and selection, and add predation only from a real population-level pressure source. See `docs/DISTANT-DRIFTER-DESIGN.md`. |
-| Per-population trait variance | **Planned** | Terrestrial lineages store means only. | Simulate bounded variance per axis with explicit responses to selection, drift, bottlenecks, and gene flow. |
-| Lineage DNA | **Planned** | Identity and ancestry persist; marine state reserves an origin domain and optional terrestrial ancestor seam. Distant Drifter now defines the land-first boundary between immutable founder provenance, hereditary distributions, current population condition, and lineage history. | Implement only fields consumed by founder fitness, rendering, or reporting; do not bind the earlier speculative 80–120-float GPU layout. |
-| Path-dependent selection | **Planned** | Selection primarily reads current conditions and inherited means. | Make different lineage histories produce different bounded outcomes under the same present conditions. |
+| Per-population trait variance | **Planned; next evolutionary foundation** | Terrestrial lineages store means only; renderer variation is cosmetic. | Simulate bounded variance per axis with explicit responses to selection, drift, founder bottlenecks, and gene flow. |
+| Habitat connectivity and gene flow | **Planned; next world/evolution seam** | Populations occupy sites and migrate, but no persistent graph states whether shields/islands exchange genes. | Derive stable habitat patches and connections from emergent island grouping; persist bounded gene-flow links between compatible populations. |
+| Lineage hereditary/history record | **Planned** | Identity and ancestry persist; marine state reserves an origin domain and optional terrestrial ancestor seam. Distant Drifter separates founder provenance, hereditary state, condition, and history. | Record only trait means/variance, founder bottleneck, accumulated pressures, gene flow, ancestry, branching, reconnection, range, contraction, and extinction fields consumed by resolution or reporting. |
+| Path-dependent selection and drift | **Planned** | Selection primarily reads current conditions and inherited means; small-population drift is not explicit. | Make two populations with different histories resolve differently under the same present conditions, and allow non-adaptive divergence under prolonged isolation. |
+| Adaptive radiation and reconnection | **Planned; replaces isolated speciation tuning** | Bounded speciation exists, but geography, variance, and gene flow do not yet cause it. | Branch only after persistent isolation plus viable niche difference and sufficient divergence; let reconnection restore gene flow or permit bounded hybridization where compatibility remains. |
 | Play-speed land behavior | **Built** | Terrain-aware paths, herd cohesion/separation, and walkability are renderer-side embodiments of resolved populations. Cohesion, separation, stride speed, and turn rate now read the population's trait means, so two lineages move differently; route requests run under a per-frame budget so a herd cannot stall a frame by re-pathing at once. Behaviour reads the means and never writes back. | Bias destination choice toward current forage without making local movement authoritative over epoch history. |
 | Freshwater | **Built** as habitat; **planned** as ecology | Drainage-fed basins are derived from the shared snapshot. | Define one ecological consumer before adding nutrient transport or freshwater wildlife. |
 | Marine animals | **Built** for one lineage; visual proof **experimenting** | A coastal-forager persists in connected 3D water bands with body-size clearance, depth choice, streamlining, maneuverability, depth control, thermal tolerance, energy, abundance, migration, and extinction. Its candidate renderer now expresses inherited shape, water band, condition, and swim cadence. | Owner verdict on the fixed fish showcase and live landing motion. |
@@ -154,27 +163,17 @@ The first asset family should still select one ecologically legible framework-bu
 
 ## Planned sequence
 
-1. **Marine population contract — built:** the first coastal-forager lineage is persistent and tested.
-2. **Reef-site contract — built:** persistent recruitment, living cover, framework, stress, dead structure, and connectivity live in world history.
-3. **Reef succession proof — built:** deterministic repeated jumps cover pioneer recruitment, disturbance, survivors, dead framework, and recovery.
-4. **Coral visual proof — built:** the first reef-builder family and paired integration are owner-accepted.
-5. **Marine habitat exchange — built:** reef productivity and retained structure raise marine productivity and nursery capacity without renderer state participating.
-6. **Marine visual proof — candidate:** `epoch-coastal-forager` advances the fixed trait contract through an instanced in-engine showcase; owner visual judgment remains required before acceptance.
-7. **Distant Drifter founder proof — active:** player-selected food source, size, and origin climate generate a stable distinctive founder; food, climate, size cost, and later real predation determine establishment through one fitness budget.
-8. **Terrestrial trait variance:** add and validate selection, drift, and the founder bottleneck without making rendered individuals simulation authority.
-9. **Land-first hereditary record:** implement the smallest founder/hereditary/history contracts required by the Drifter proof.
-10. **Marine/coastal pressure contract:** add the smallest spatial, renderer-independent pressure field consumed by population fitness or succession; pressures may change sign with abundance and context.
-11. **Ocean colonization scopes:** separate the pre-existing regional ocean pool, island-associated residents, and ocean-owned visitors; arrival, establishment, and visitation are different gates.
-12. **Coastal crab resident proof:** persist one shoreline scavenger lineage and demonstrate marine subsidy moving inland plus a terrestrial effect feeding back toward the coast. Do not start its asset until the trait and motion contract is bounded.
-13. **First marine pressure loop:** add aggregate urchin/grazer and eel/ambush-predator roles around the crab proof; require one legible trait response and one reef, algae, kelp, or shoreline succession response before adding more trophic levels.
-14. **Large marine visitors:** derive episodic sharks, rays, turtles, seals, whales, or large fish from island state without treating sightings as resident lineages.
-15. **Aerial persistence:** reuse the settled population concepts with nesting, lift, metabolic cost, predation, ground food, and marine prey availability.
-16. **Transition-corridor state:** record sustained intermediate habitat use, reproduction, fitness, ancestry, and tradeoffs; continuous capabilities may drift, while new locomotor or reproductive plans require discrete authored branches.
-17. **Sea-to-land proof:** test marine crab → intertidal → amphibious branching before attempting a vertebrate transition.
-18. **Bird flightlessness proofs:** treat dodo-like terrestrial flightlessness and penguin-like wing-propelled aquatic specialization as separate branches. Reliable food alone is insufficient; predation, nesting, mobility need, body size, locomotor investment, and metabolic cost must jointly select the outcome.
-19. **Land-to-water branching:** only after the corridor proof, allow semi-aquatic and predominantly aquatic descendants as divergent outcomes; never swap a terrestrial archetype directly into a fish body.
-20. **History visualization:** present land, fish, bird, reef, colonization, visitation, and transition histories with domain-appropriate relationships; reef succession should not be mislabeled as animal speciation.
-21. **Path-dependent selection:** make lineage history affect outcomes only after the hereditary contract can represent and test that history.
+1. **Preserve completed foundations:** marine lineages, reef sites/succession, reef visual proof, marine habitat exchange, and accepted fauna rendering remain evidence—not the next expansion target.
+2. **Archipelago habitat identity:** consume stable shield, emergent-island, habitat-patch, and connection IDs from the new world history.
+3. **Founder fixture:** establish one land population across two connected volcanic shields through the real arrival/fitness path.
+4. **Terrestrial trait variance:** add bounded hereditary variance and founder bottleneck effects without individual genomes.
+5. **Gene-flow graph:** derive ongoing exchange from saddle, water, distance, dispersal capability, and island connectivity.
+6. **Path-dependent selection and drift:** accumulate habitat pressures; allow isolated small populations to diverge adaptively and non-adaptively.
+7. **Radiation/reconnection contract:** resolve branching, restored gene flow, bounded compatibility, contraction, and extinction from persistent history rather than jump duration alone.
+8. **Two-shield evolutionary proof:** a 100,000-year landing divides the founder population; a later landing reveals two visibly related specialists with different traits, behavior, abundance, and range.
+9. **Causal lineage view:** explain where isolation occurred, what pressures mattered, what changed visibly, whether gene flow continued, and what survived.
+10. **Regional marine coupling:** reinterpret ocean temperature/productivity around upwelling, reef, seabird, shoreline, and terrestrial-subsidy relationships.
+11. **Only after the proof:** resume new crab, aerial, visitor, food-web, transition-corridor, and additional asset-family breadth in Galápagos-relevant order.
 
 ## Deferred until earned
 
@@ -187,6 +186,7 @@ The first asset family should still select one ecologically legible framework-bu
 - Treating a large marine visitor sighting as an island-owned evolutionary lineage.
 - A larger island solely to make unfinished food-web behavior appear spatially richer.
 - Additional wildlife families without a bounded ecological role and asset owner.
+- Wildlife or habitat families whose primary purpose is an unrelated global climate preset.
 
 ## Maintenance rule
 

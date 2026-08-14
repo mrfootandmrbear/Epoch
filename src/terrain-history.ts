@@ -42,6 +42,61 @@ function clamp01(value: number): number {
   return Math.min(1, Math.max(0, value));
 }
 
+const D8_X = [-1, 0, 1, -1, 1, -1, 0, 1] as const;
+const D8_Z = [-1, -1, -1, 0, 0, 1, 1, 1] as const;
+
+interface DrainageField {
+  readonly receiver: Int32Array;
+  readonly accumulation: Float32Array;
+  readonly catchment: Uint32Array;
+}
+
+/**
+ * Concentrate local rainfall into persistent-looking catchments. This remains
+ * a one-pass landing-state approximation: it routes the jump's resolved water
+ * over the inherited terrain instead of stepping individual storms.
+ */
+function resolveDrainageField(
+  elevations: Float32Array,
+  runoff: Float32Array,
+  side: number,
+): DrainageField {
+  const receiver = new Int32Array(elevations.length).fill(-1);
+  const accumulation = runoff.slice();
+  const catchment = new Uint32Array(elevations.length).fill(1);
+  const order = Array.from({ length: elevations.length }, (_, index) => index)
+    .sort((a, b) => elevations[b]! - elevations[a]! || a - b);
+
+  for (const index of order) {
+    const x = index % side;
+    const z = Math.floor(index / side);
+    let best = -1;
+    let bestDrop = 0;
+    for (let direction = 0; direction < 8; direction++) {
+      const nx = x + D8_X[direction]!;
+      const nz = z + D8_Z[direction]!;
+      if (nx < 0 || nx >= side || nz < 0 || nz >= side) continue;
+      const neighbor = nz * side + nx;
+      const drop = elevations[index]! - elevations[neighbor]!;
+      if (drop > bestDrop + 1e-6 || (Math.abs(drop - bestDrop) <= 1e-6 && neighbor < best)) {
+        best = neighbor;
+        bestDrop = drop;
+      }
+    }
+    receiver[index] = best;
+  }
+
+  // Descending elevation is a valid topological order because every receiver
+  // is strictly lower. Each cell contributes its water and area downstream.
+  for (const index of order) {
+    const downstream = receiver[index]!;
+    if (downstream < 0) continue;
+    accumulation[downstream] += accumulation[index]!;
+    catchment[downstream] += catchment[index]!;
+  }
+  return { receiver, accumulation, catchment };
+}
+
 /**
  * Epoch-scale geomorphic response. Short jumps still weather the surface, but
  * landscape-scale incision and coastal retreat only become important after a
@@ -56,11 +111,10 @@ export function geomorphicDuration(jumpYears: number): Readonly<{
   const deepTimeRamp = clamp01((logYears - 3) / 3);
   return {
     weathering: clamp01(logYears / 6),
-    // Hold the 100k rung at visibly weathered-but-still-recognizable, then let
-    // the last order of magnitude carry the strongest incision, retreat, and
-    // volcanic sag. A linear log ramp made 100k (0.67) too close to 1M (1.0)
-    // in the whole-island camera.
-    deepTime: Math.pow(deepTimeRamp, 1.4),
+    // Reserve the strongest widening, retreat, and volcanic sag for the final
+    // order of magnitude. The earlier 1.4 exponent left 100k and 1M too close
+    // in the owner-reviewed whole-island comparison.
+    deepTime: Math.pow(deepTimeRamp, 2),
   };
 }
 
@@ -119,6 +173,51 @@ export function resolveTerrainHistory(
   let exportedNutrients = 0;
   let coastalCells = 0;
 
+  // Resolve rainfall before reshaping the terrain so the entire jump uses one
+  // authoritative drainage field. Inherited runoff makes established channels
+  // more likely to keep carrying water on successive clicks.
+  for (let z = 1; z < side - 1; z++) {
+    for (let x = 1; x < side - 1; x++) {
+      const index = z * side + x;
+      const elevation = previous.elevations[index]!;
+      const downhill = Math.max(0, elevation - Math.min(
+        previous.elevations[index - 1]!, previous.elevations[index + 1]!,
+        previous.elevations[index - side]!, previous.elevations[index + side]!,
+      ));
+      const inheritedFlow = (
+        previous.runoff[index - 1]! + previous.runoff[index + 1]!
+        + previous.runoff[index - side]! + previous.runoff[index + side]!
+      ) * 0.125;
+      nextRunoff[index] = clamp01(rainSupply * (0.16 + downhill * 0.08) + inheritedFlow * 0.58);
+    }
+  }
+  const drainage = resolveDrainageField(previous.elevations, nextRunoff, side);
+  let channelField = new Float32Array(previous.elevations.length);
+  for (let index = 0; index < channelField.length; index++) {
+    const catchmentSignal = clamp01((Math.sqrt(drainage.catchment[index]!) - 2.5) / 8);
+    const dischargeSignal = clamp01(Math.sqrt(drainage.accumulation[index]!) / 5.5);
+    channelField[index] = catchmentSignal * dischargeSignal;
+  }
+  // A mature river is a valley, not a one-vertex scratch. Expand the connected
+  // centerline laterally as deep time increases; max propagation preserves the
+  // drainage silhouette instead of turning it into uniform smoothing.
+  const wideningPasses = deepTime >= 0.85 ? 4 : deepTime >= 0.3 ? 1 : 0;
+  for (let pass = 0; pass < wideningPasses; pass++) {
+    const widened = channelField.slice();
+    const falloff = [0.7, 0.56, 0.42, 0.3][pass] ?? 0.3;
+    for (let z = 1; z < side - 1; z++) {
+      for (let x = 1; x < side - 1; x++) {
+        const index = z * side + x;
+        const neighbor = Math.max(
+          channelField[index - 1]!, channelField[index + 1]!,
+          channelField[index - side]!, channelField[index + side]!,
+        ) * falloff;
+        widened[index] = Math.max(widened[index]!, neighbor);
+      }
+    }
+    channelField = widened;
+  }
+
   for (let z = 1; z < side - 1; z++) {
     for (let x = 1; x < side - 1; x++) {
       const index = z * side + x;
@@ -134,15 +233,26 @@ export function resolveTerrainHistory(
         + deepTime * erosion * exposed * (0.08 + relief * 0.018);
       const coastal = elevation < sea + 5
         ? duration * erosion * exposed * clamp01((sea + 5 - elevation) / 7) * 0.72
-          + deepTime * exposed * clamp01((sea + 7 - elevation) / 9) * (1.8 + wind * 1.1)
+          + Math.pow(deepTime, 1.5) * exposed * clamp01((sea + 7 - elevation) / 9)
+            * (3.5 + wind * 1.1)
         : 0;
       const downhill = Math.max(0, elevation - Math.min(
         previous.elevations[index - 1]!, previous.elevations[index + 1]!,
         previous.elevations[index - side]!, previous.elevations[index + side]!,
       ));
-      const drainageIncision = deepTime * rainSupply * exposed
-        * clamp01(previous.runoff[index]! * 0.7 + downhill * 0.055)
-        * (0.35 + relief * 0.045);
+      const channelStrength = channelField[index]!;
+      const channelTime = clamp01((Math.log10(Math.max(1, jumpYears)) - 2) / 4);
+      // Roots protect slopes, but concentrated flow can breach a mature canopy.
+      // This prevents the first forested landing from freezing geomorphology.
+      const channelExposure = 1 - protection * 0.35;
+      const drainageIncision = channelTime * rainSupply * channelExposure
+        * channelStrength * (0.65 + deepTime * 2.15 + downhill * 0.07 + relief * 0.065);
+      const reachesCoast = elevation <= sea + 3
+        && drainage.receiver[index]! >= 0
+        && previous.elevations[drainage.receiver[index]!]! <= sea + 1;
+      const alluvialDeposition = reachesCoast
+        ? channelTime * rainSupply * channelStrength * (0.18 + previous.sediment[index]! * 0.22)
+        : 0;
       // Volcanic islands keep sagging after their vent dies. Load relaxes
       // slowly, so extinct edifices still cross the shoreline in deep time.
       const subsidence = deepTime * previous.volcanicLoad[index]!
@@ -150,20 +260,16 @@ export function resolveTerrainHistory(
       nextElevations[index] = Math.max(
         -55,
         elevation + (neighborhood - elevation) * Math.min(0.42, transport)
-          - coastal - drainageIncision - subsidence,
+          - coastal - drainageIncision - subsidence + alluvialDeposition,
       );
 
-      const activity = clamp01((relief * 0.1 + coastal * 0.32) * erosion * exposed + duration * wind * 0.06);
+      const activity = clamp01(
+        (relief * 0.1 + coastal * 0.32) * erosion * exposed
+        + drainageIncision * 0.42 + duration * wind * 0.06,
+      );
       const recovery = duration * (0.08 + protection * 0.42 + Math.max(0, RAINFALL[climate.rainfall].moisture) * 0.2);
       nextDisturbance[index] = clamp01(previous.disturbance[index]! * (1 - recovery) + activity);
       const moisture = RAINFALL[climate.rainfall].moisture;
-      // Coarse D8-style drainage: local relief and rainfall accumulate water;
-      // vegetation retains soil while exposed erosion exports its nutrients.
-      const inheritedFlow = (
-        previous.runoff[index - 1]! + previous.runoff[index + 1]!
-        + previous.runoff[index - side]! + previous.runoff[index + side]!
-      ) * 0.125;
-      nextRunoff[index] = clamp01(rainSupply * (0.16 + downhill * 0.08) + inheritedFlow * 0.58);
       const inheritedAge = previous.surfaceAgeYears[index]!;
       const surfaceAge = Math.min(50_000_000, inheritedAge + jumpYears);
       nextSurfaceAgeYears[index] = surfaceAge;
@@ -195,9 +301,10 @@ export function resolveTerrainHistory(
       nextVolcanicLoad[index] = clamp01(previous.volcanicLoad[index]! * (1 - deepTime * 0.018));
       nextSubstrateAge[index] = clamp01(Math.max(previous.substrateAge[index]!, surfaceMaturity)
         * (1 - nextBasalt[index]! * 0.72));
-      const erodedMineral = clamp01(transport * 0.12 + nutrientLoss * 0.8);
+      const erodedMineral = clamp01(transport * 0.12 + drainageIncision * 0.34 + nutrientLoss * 0.8);
       const coastalDeposition = elevation <= sea + 5
         ? nextRunoff[index]! * duration * (0.08 + Math.max(0, sea + 3 - elevation) * 0.018)
+          + alluvialDeposition * 0.45
         : 0;
       nextSediment[index] = clamp01(previous.sediment[index]! * (1 - duration * 0.035)
         + erodedMineral + coastalDeposition);

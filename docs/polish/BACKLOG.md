@@ -85,6 +85,32 @@ no capture can contain land animals — the `herd` golden camera in
   something the game never actually shows. Keep the seed and jump durations
   fixed so the shot stays a valid A/B basis.
 
+## Deep-time landing-state verdict
+
+### DT-1 · Later epoch rungs converge visually after succession
+**Impact 5 · Cost 3 · Risk 2 · Score 0.83 · Status: REJECTED; GENERIC REVISION SUPERSEDED BY GALÁPAGOS ARCHITECTURE**
+
+Owner verdict on 2026-08-14 rejected the four-rung candidate: the 1,000-year
+landing supplies the only strong transformation once vegetation arrives, while
+100,000 and 1,000,000 years read as ecological stability instead of continued
+history. Automatic jumps and successive clicks must each leave visible,
+persistent evidence without making every jump catastrophically destructive.
+
+The prior regression floor compared isolated endpoints and accepted diffuse
+numeric elevation change. The current revision routes each jump's rainfall into
+deterministic catchments, concentrates incision along connected drainage paths,
+deposits some transported material near outlets, and lets concentrated flow
+partly breach mature vegetation protection. New tests require ordered response
+across all four canonical rungs, wet/arid separation, connected-valley incision,
+and continued divergence over three successive 100,000-year clicks.
+
+- **Automated evidence:** 271/271 tests pass; production build clean.
+- **Superseded gate:** do not seek acceptance for the generic four independent
+  rungs. Replace them with the serialized two-shield 1k/100k/1M sequence in
+  `docs/GALAPAGOS-HOTSPOT-PLAN.md`.
+- **Non-goal:** herd verdicts remain deferred while water presentation blocks a
+  fair visual judgment.
+
 ## Phase 1 — live-world visual audit (WU-001, 2026-08-13)
 
 A hostile-reviewer pass across the six live-world subsystems the owner named —

@@ -1,10 +1,15 @@
 # Environment foundation
 
-> Status: owner-accepted foundation, 2026-08-13. The sky/horizon regression is accepted separately, and the paired reef integration has its own recorded verdict.
+> Status: owner-accepted technical foundation, realigned 2026-08-14. Preserve
+> its evidence, but the nine broad climate identities are no longer product
+> destinations. They are migration/test inputs while the same continuous fields
+> are reinterpreted for the Galápagos regional system in
+> `docs/GALAPAGOS-HOTSPOT-PLAN.md`.
 
 ## State model
 
-The four player controls remain global jump forces. Rainfall × temperature defines nine foundational climate identities:
+The current implementation still exposes four global jump forces, and rainfall
+× temperature defines nine diagnostic foundation identities:
 
 | | Arid | Temperate | Wet |
 |---|---|---|---|
@@ -13,6 +18,11 @@ The four player controls remain global jump forces. Rainfall × temperature defi
 | Warm | warm-arid | warm-temperate | warm-wet |
 
 Wind direction/exposure and sea level modify those foundations spatially. Terrain elevation, slope, aspect, drainage, runoff, substrate age, disturbance, volcanism, sediment, and succession resolve local continuous fields. A small habitat vocabulary labels useful combinations without becoming simulation authority: exposed rock, dry ground, mesic ground, wet ground, frost ground, freshwater margin, intertidal, shallow shelf, reef shelf, and deep benthic.
+
+These identities now describe existing coverage, not the future control scheme.
+The Galápagos migration retains the continuous-field architecture while
+replacing broad climate selection with regional trade winds, rainfall/garúa,
+elevation, upwelling, sea-level history, and shield age.
 
 `TerrainHistory` owns inherited geology and ecological deposits: elevation, disturbance, vegetation protection, forage, nutrients, runoff, basalt, ash, volcanic load, years since resurfacing, substrate maturity, soil development, sediment, and carbonate. Wet extinct lava weathers and develops soil on century-to-millennial rungs; arid lava remains visibly and ecologically young for much longer. Active construction resolves after inherited weathering so the landing retains recent flows. `EnvironmentField` is derived per landing and is not serialized. Material palette mixing, procedural detail, water optics, fog, and LOD remain rendering state.
 

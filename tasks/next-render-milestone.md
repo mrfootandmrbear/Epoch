@@ -1,5 +1,12 @@
 # Next render milestone — Climate & time as one atmospheric identity
 
+> **Superseded as next work on 2026-08-14.** The implementation and its evidence
+> remain valid, but broad climate differentiation is no longer Epoch's product
+> direction. The next milestone is the Galápagos hotspot-archipelago and
+> two-shield evolutionary proof in `docs/GALAPAGOS-HOTSPOT-PLAN.md`. Future
+> atmosphere work should reinterpret this machinery for trade winds, garúa,
+> elevation zones, upwelling, and regional ocean state.
+
 > **One sentence:** Make the whole landing state sit inside a single
 > climate-and-time-driven atmosphere — light colour/direction/intensity, sky,
 > aerial-perspective haze (colour *and* density), water base colour, and grading
@@ -42,7 +49,7 @@ competent rendering systems" rather than "one stunning, causally coherent living
 world." Light and atmosphere are the one layer that touches everything at once,
 so fixing them is the highest-leverage way to make the whole compose.
 
-## 2. Why this is the highest-leverage problem *now*
+## 2. Historical rationale for this completed milestone
 
 - **Maximum cross-system leverage, minimum surface area.** One authority
   (`sampleAtmosphere` + the lights/uniforms it feeds) already reaches terrain,

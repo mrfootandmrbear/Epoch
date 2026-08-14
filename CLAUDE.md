@@ -34,6 +34,10 @@ Derived from `THESIS.md` §6. THESIS wins any conflict.
   / 1M years) must remain visually distinguishable. Any change that flattens
   the difference between rungs is a regression regardless of how good one frame
   looks.
+- **One Galápagos-inspired world, not a climate catalogue.** Young/old basalt,
+  shield calderas, arid lowlands, fog-fed highlands, mangroves, reefs, and cool
+  productive upwelling belong to one regional grammar. Do not expand unrelated
+  global biomes or fauna. See `docs/GALAPAGOS-HOTSPOT-PLAN.md`.
 
 ## Technical invariants
 
@@ -54,6 +58,11 @@ Derived from `THESIS.md` §6. THESIS wins any conflict.
   and lineage models must not learn about meshes, materials, or cameras.
 - **Deep-time jumps resolve a landing snapshot directly**, not year-by-year.
   Keep them fast and deterministic.
+- **Deep time couples geology and population evolution.** The hotspot is fixed,
+  crust and shields move, emergent island connections change, and populations
+  respond through founder effects, variance, gene flow, isolation, selection,
+  drift, radiation, reconnection, contraction, and extinction. Do not resume
+  generic erosion tuning before the two-shield architecture is authoritative.
 - **Capture mode must stay deterministic:** fixed seed `0xe90c4`, frozen sim
   time, forced `day` atmosphere, fixed cameras, UI hidden. Evidence is
   worthless if this drifts.

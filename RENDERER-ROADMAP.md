@@ -1,7 +1,7 @@
 # Renderer roadmap
 
 > **Status:** Canonical landing-state rendering tracker.
-> **Updated:** 2026-08-13.
+> **Updated:** 2026-08-14.
 > **Scope:** The visual proof required by `THESIS.md` §5–6: deep-time legibility, atmosphere, terrain, water, lighting, shadows, grading, and landing-state scale.
 
 `THESIS.md` defines the bar; this page records what has actually cleared it. A renderer capability is not **Built** until automated checks pass and an owner visual verdict is recorded against the fixed capture set.
@@ -21,7 +21,14 @@ Automated floor: `src/epoch-scale-terrain.test.ts` requires the one-year visible
 
 Volcanic comparison uses the same camera and time with `&volcano=active` or another output rung. `?shot=whole-island&years=1000&time=42&volcano=active` is a construction diagnostic. An extinct single-jump URL is not a decline proof because it has no inherited volcanic load; a serialized multi-jump life-cycle capture is required before an owner verdict.
 
-**Current verdict:** **Candidate**. The four rungs are now visually distinguishable and the upper ladder changes coastline geometry. Owner review is still required before calling the §5 milestone accepted.
+**Current verdict:** **Rejected 2026-08-14.** The 1,000-year vegetation landing
+provides the only magical transformation; 100,000 and 1,000,000 years do not
+yet mimic a credible island life cycle or separate strongly enough. Further
+generic erosion tuning is paused. The replacement milestone is the
+Galápagos-aligned two-shield sequence in
+`docs/GALAPAGOS-HOTSPOT-PLAN.md`: fixed hotspot, moving crust, shield age,
+sea-level/upwelling history, changing land connectivity, and a founder lineage
+whose descendants diverge after geographic isolation.
 
 **Sky/horizon regression boundary:** **Owner accepted on 2026-08-13.** The world-space solar arc, horizon haze composition, far-water continuity, and current sky/water meeting are protected by the fixed `whole-island` capture. This verdict applies only to sky/horizon presentation; it does not accept the reef-builder candidate or later climate-specific atmosphere work.
 
@@ -29,15 +36,15 @@ Volcanic comparison uses the same camera and time with `&volcano=active` or anot
 
 | Area | Status | Present evidence | Next gate |
 |---|---|---|---|
-| Cross-system visual cohesion | **Direction approved; experimenting** | Godot migration plan cancelled after its integrated slice showed that engine replacement does not create a shared art direction. Hybrid stylized-naturalist direction selected: semantic palette and material response first, smooth geomorphic macro terrain, selective geological facets, continuous water, no outlines by default. Three.js r185 exposes the required public TSL material and post-processing primitives. | Build the feature-gated controlled style laboratory in `docs/STYLIZED-RENDER-COHESION.md`; isolate palette, lighting, and geometry normals across whole-island, shoreline, herd-detail, and reef/shore sentinel sheets before combining a candidate. |
-| Deep-time landform | **Candidate** | One-pass weathering, drainage incision, and coastal retreat; four-rung fixed captures; numeric regression test. | Owner verdict on magnitude and plausibility. |
-| Volcanic island history | **Built** | Owner accepted the cumulative fixed-vent lifecycle on 2026-08-13. A fixed player-placed hot spot accretes a bounded shield; persistent surface age and soil development separate recovery climates, active vents leave recent flows, deterministic downhill flows resurface capped terrain, and retained volcanic load drives deep-time subsidence. The `volcanoPhase` fixture replays one vent through fresh, recovered, carved, and drowned states. | Preserve the accepted pacing and flow silhouettes; later volcanic forms require separate evidence. |
-| Atmosphere | **Sky/horizon built; climate integration experimenting** | Owner-accepted world-space sky over a real solar arc and continuous far-water horizon. Climate-driven exponential height fog remains a bounded lower-atmosphere modifier. | Preserve the accepted horizon; judge only climate fog contradictions in the environment fixtures. Add clouds later. |
+| Cross-system visual cohesion | **Direction approved; realigning** | Hybrid stylized-naturalist direction and the Three.js WebGPU/TSL material stack remain. The former broad climate laboratory is superseded as product direction. | Establish one Galápagos grammar across young/old basalt, calderas, arid lowlands, fog-fed highlands, mangroves, reef shelves, and upwelling water. |
+| Deep-time landform | **Rejected; architecture revision planned** | One-pass weathering, drainage incision, and coastal retreat pass numeric tests but failed the owner visual/product verdict. | Prove fixed-hotspot/moving-crust shield history, changing island connectivity, and distinct 1k/100k/1M silhouettes in the two-shield fixture. |
+| Volcanic island history | **Built for one shield; generalization planned** | The accepted fixed-vent lifecycle preserves surface age, lava recovery, downhill flows, load, and subsidence. | Preserve its evidence while making the hotspot world-fixed, shields crust-relative, and emergent islands derived from multiple shield histories. |
+| Atmosphere | **Sky/horizon built; regional identity planned** | Owner-accepted sky, solar arc, horizon, and far-water continuity remain. Broad global climate identities are no longer the target. | Express trade winds, garúa/cloud moisture, elevation zones, and upwelling-linked air/water mood without disturbing the accepted horizon. |
 | Terrain shading | **Candidate** | Persistent geology and derived spatial environment fields drive moisture, exposure, sediment, frost, basalt, ash, carbonate, ground cover, and erosion regimes. Global climate no longer recolors vertex bands directly. | Judge the five environment fixtures without changing accepted sky/horizon composition. |
 | Ocean surface | **Experimenting** | Tessendorf/JONSWAP FFT with fair and storm sea states, multi-directional chop, horizontal crest displacement, slope-gated moving crest foam, Fresnel, analytic sky reflection, shallow transmission, and shoreline foam. A far-water skirt carries the same open-water shading out to aerial extinction, and the displaced patch retires at a world-anchored rim. | Owner verdict on storm scale and crest-foam breakup; replace the slope proxy with the full displacement Jacobian if silhouettes expose the difference. |
 | Reef landing renderer | **Built for the first reef family** | Owner accepted the paired mature-reef integration on 2026-08-13: current-sorted colonies share water optics with the seabed, persistent framework deposits carbonate, and exposed basalt remains legible beside the surviving reef. | Preserve this evidence while iterating; later reef families and major visual changes require their own verdicts. |
 | Shadows | **Experimenting** | One broad 2048² island solar map keeps direct-light shadowing consistent across the authored terrain. | Verify island/shoreline/forest cameras and record the owner verdict; revisit true cascades only if close-range resolution requires them. |
-| Inland water and ice | **Experimenting** | Runoff remains explicit; deterministic downhill tracing now feeds a separate animated stream/creek ribbon renderer alongside freshwater basins. Terrain geometry remains authoritative and uncontaminated. | Validate channel placement and motion, then add waterfall transitions and climate-driven snowfield/glacier surfaces. |
+| Inland water | **Experimenting** | Runoff remains explicit; deterministic downhill tracing feeds animated streams/creeks and freshwater basins while terrain stays authoritative. | Revalidate drainage against shield age, calderas, lava permeability, arid lowlands, and fog-fed highlands. Snow/glacier expansion is deferred. |
 | Post-processing | **Built** as a bounded layer | TSL grading and restrained bloom; optional full-resolution GTAO evaluation path. | Revisit only alongside accepted materials and lighting. |
 | Creature mesh and motion | **Built** for first fauna family | Owner accepted `example-marsh-grazer` after topology-stable export, island showcase, and paired live terrain-aware locomotion evidence. | Preserve the evidence; each later fauna family must pass independently. |
 | Marine creature mesh and motion | **Candidate** for first fish family | `epoch-coastal-forager` replaces the primitive swimmer with one instanced topology, inherited shape traits, resolved water-band placement, energy condition, and tail-driven swim motion. Fixed fixture: `?shot=fish&fixture=mature-warm-reef&fish=candidate&time=42`. | Owner verdict on silhouette, habitat fit, and motion before acceptance. |
@@ -77,17 +84,15 @@ Rung 5 now has a visible foreground diagnostic reading of 60 fps and 15 draws on
 
 ## Planned sequence
 
-1. Run the bounded stylized-cohesion laboratory, isolate palette, lighting, and selective faceting, then select a shared hybrid visual grammar before further isolated effect polish.
-2. Preserve the owner-accepted cumulative fixed-vent lifecycle; keep the open-ocean start as a separate owner decision.
-3. Record the owner verdict on the four-rung milestone and tune geomorphic magnitude if requested.
-4. Preserve the accepted sky/horizon while validating climate-driven fog only where the environment fixtures reveal contradictions; add authored clouds later.
-5. Judge the five state-driven environment fixtures, then add triplanar rock projection only if they expose stretching.
-6. Revisit water composition inside the selected shared grammar: absorption, refraction, choppy displacement, crest foam, and shallow/deep transitions.
-7. Replace island-wide shadow coverage with a close/far strategy.
-8. Validate accepted ecosystem assets in the landing renderer before expanding asset breadth.
-9. Extend freshwater into connected flowing surfaces: drainage-fed streams and creeks, waterfall transitions at steep drops, then persistent snowfield/glacier flow for suitable climates.
-10. Run the bounded creature expression spike, then advance the embodiment ladder in order; placement relative to the existing renderer work remains an owner scheduling decision.
-11. Preserve the accepted `epoch-reef-builder-family` paired evidence while extending reef ecology incrementally.
+1. Build the renderer-independent Galápagos archipelago and two-shield fixture before further deep-time visual tuning.
+2. Preserve the accepted single-shield volcanic evidence while rendering multiple shield ages, calderas, lava mosaics, saddle connections, and derived island groupings.
+3. Replace the rejected independent-rung milestone with a serialized 1k/100k/1M capture sequence that shows geological inheritance and population isolation.
+4. Establish one shared Galápagos visual grammar: young/old basalt, arid lowland, fog-fed highland, mangrove/intertidal, reef shelf, and productive upwelling water.
+5. Revisit water composition and visibility inside that grammar before resuming herd verdicts.
+6. Preserve the accepted sky/horizon while adding only regional atmosphere controls that serve trade winds, garúa, elevation, and ocean state.
+7. Validate existing ecosystem assets for ecological fit; do not expand unrelated fauna or biome breadth.
+8. Render the two descendant populations at overview, mid, and near scales and require the geology→isolation→adaptation story to read without UI labels.
+9. Resume close/far shadows, freshwater transitions, and other polish only where the aligned fixture exposes a need.
 
 ## Maintenance rule
 
