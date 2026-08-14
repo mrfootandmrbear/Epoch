@@ -23,7 +23,6 @@ import {
   texture,
   transformNormalToView,
   uniform,
-  varying,
   vec2,
   vec3,
 } from "three/tsl";
@@ -206,19 +205,42 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
     .toVar("displacement");
   material.positionNode = positionLocal.add(displacement);
 
-  const slopes = slopeField(positionLocal.x, positionLocal.z, distV).toVar("slopes");
-  const vWave = varying(
-    vec3(
-      slopes.x.mul(waveMask),
-      slopes.y.mul(waveMask),
-      // The fold measure masks toward 1 (no compression), not toward 0.
-      // Toward 0 every masked-out vertex would read as maximally folded and
-      // the land edge would foam over.
-      mix(float(1), slopes.z, waveMask),
-    ),
-    "vWave",
+  // Slopes and the fold measure are evaluated PER FRAGMENT, from world
+  // position, not carried from the vertex stage.
+  //
+  // This is the whole reason the cascades are worth having. The mesh has
+  // ~4.7 m cells, so anything shorter than that cannot be displaced — its
+  // energy has to live in the shading normal instead. But a per-vertex normal
+  // is interpolated across those same 4.7 m triangles, which destroys exactly
+  // the detail being moved there: the surface goes glassy and the foam smears
+  // into soft bands. Sampling the cascades in the fragment stage gives the
+  // full spectrum at pixel resolution over coarse geometry, which is the
+  // geometry-to-BRDF transition actually working rather than merely stated.
+  //
+  // Stage budgets: the vertex stage binds 3 storage buffers (one per cascade,
+  // geometry only) and the fragment stage 6 (geometry + fold per cascade).
+  // Both are inside WebGPU's guaranteed 8.
+  const fragDist = vec2(positionWorld.x, positionWorld.z).sub(cameraPosition.xz).length();
+  const fragUv = positionWorld.xz.div(terrainSize).add(0.5);
+  const fragInsideDomain = smoothstep(0, 0.015, fragUv.x)
+    .mul(float(1).sub(smoothstep(0.985, 1, fragUv.x)))
+    .mul(smoothstep(0, 0.015, fragUv.y))
+    .mul(float(1).sub(smoothstep(0.985, 1, fragUv.y)));
+  const fragOceanMask = mix(
+    float(1),
+    texture(options.oceanMaskTexture, fragUv).r,
+    fragInsideDomain,
   );
-  const waveNormal = normalize(vec3(vWave.x.negate(), 1.0, vWave.y.negate()));
+  const fragRim = smoothstep(size * 0.4, size * 0.47, positionWorld.xz.length());
+  const fragWaveMask = fragOceanMask.mul(float(1).sub(fragRim)).toVar("fragWaveMask");
+
+  const slopes = slopeField(positionWorld.x, positionWorld.z, fragDist);
+  const slopeXZ = vec2(slopes.x, slopes.y).mul(fragWaveMask).toVar("slopeXZ");
+  // The fold measure masks toward 1 (no compression), not toward 0. Toward 0
+  // every masked-out fragment would read as maximally folded and the land
+  // edge would foam over.
+  const foldMeasure = mix(float(1), slopes.z, fragWaveMask).toVar("foldMeasure");
+  const waveNormal = normalize(vec3(slopeXZ.x.negate(), 1.0, slopeXZ.y.negate()));
   material.normalNode = transformNormalToView(waveNormal);
 
   const deepColor = color(new Color(0x041c26));
@@ -393,7 +415,7 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
     // crest's edge is. Driving foam from noise alone is what produced the
     // polka-dot open water this replaces — see references/water.md §2.2.
     const crestTurb = foamTurbulence(vec2(positionWorld.x.mul(0.11), positionWorld.z.mul(0.14)));
-    const fold = float(1).sub(vWave.z);
+    const fold = float(1).sub(foldMeasure);
     const whitecap = smoothstep(foamThreshold, foamThreshold + 0.34, fold)
       .mul(smoothstep(0.3, 0.78, crestTurb.add(0.42)))
       .mul(float(1).sub(distFade.mul(0.35)));
