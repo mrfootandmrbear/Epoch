@@ -27,7 +27,7 @@ import {
   vec2,
   vec3,
 } from "three/tsl";
-import { FFTOcean, sampleBilinearVec2 } from "./fft-ocean";
+import { FFTOcean, sampleBilinearVec4 } from "./fft-ocean";
 import type { AtmosphereState } from "./atmosphere";
 
 // The hand-authored wind-chop layers that used to ride on top of a single FFT
@@ -73,8 +73,8 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
   const patch = ocean.patchSize;
   const terrainSize = options.terrainSize ?? 380;
   const sceneTime = ocean.clock;
-  const choppiness = options.choppiness ?? 1.4;
-  const foamThreshold = options.foamThreshold ?? 0.18;
+  const choppiness = options.choppiness ?? 1.0;
+  const foamThreshold = options.foamThreshold ?? 0.35;
 
   const geometry = new PlaneGeometry(size, size, segments, segments);
   geometry.rotateX(-Math.PI / 2);
@@ -101,6 +101,23 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
       ? float(1)
       : float(1).sub(smoothstep(patchSize * 3, patchSize * 9, distV));
 
+  // How much of a cascade the mesh can actually carry as geometry. A band
+  // whose waves are shorter than two grid cells cannot be displaced without
+  // aliasing — it folds into flat plates the size of the triangles. Its
+  // energy belongs in the normals instead, which is the geometry-to-BRDF
+  // transition in references/water.md §2.3.
+  //
+  // This also has to gate the Jacobian. The displacement derivatives scale
+  // with wavenumber (dDx/dx = (kx^2/|k|)h), so the shortest cascade produces
+  // by far the largest folding terms even though its amplitude is tiny.
+  // Ungated, it drives the fold measure negative everywhere and the whole
+  // sea whitecaps.
+  const cellSize = size / segments;
+  const resolvedShare = (patchSize: number) => {
+    const dominantWavelength = patchSize / 6;
+    return Math.min(1, dominantWavelength / (2 * cellSize));
+  };
+
   // Vertical height plus the horizontal (choppy) displacement, summed over
   // every cascade. Returned as vec3(dispX, height, dispZ) so it drops
   // straight into a position offset.
@@ -110,13 +127,13 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
     for (const cascade of ocean.cascades) {
       const u = x.div(cascade.patchSize);
       const v = z.div(cascade.patchSize);
-      const fade = cascadeFade(cascade.patchSize, distV);
+      const fade = cascadeFade(cascade.patchSize, distV).mul(resolvedShare(cascade.patchSize));
 
-      const heightSlopeX = sampleBilinearVec2(cascade.heightSlopeX, n, u, v);
-      const disp = sampleBilinearVec2(cascade.displacement, n, u, v);
+      // geometry = (Dx, Dz, Dy, dDy/dx)
+      const geometry = sampleBilinearVec4(cascade.geometry, n, u, v);
 
       offset.addAssign(
-        vec3(disp.x.mul(choppiness), heightSlopeX.x, disp.y.mul(choppiness)).mul(fade),
+        vec3(geometry.x.mul(choppiness), geometry.z, geometry.y.mul(choppiness)).mul(fade),
       );
     }
 
@@ -143,15 +160,20 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
       const v = z.div(cascade.patchSize);
       const fade = cascadeFade(cascade.patchSize, distV);
 
-      const heightSlopeX = sampleBilinearVec2(cascade.heightSlopeX, n, u, v);
-      const slopeZDxx = sampleBilinearVec2(cascade.slopeZDxx, n, u, v);
-      const dzzDxz = sampleBilinearVec2(cascade.dzzDxz, n, u, v);
+      // geometry = (Dx, Dz, Dy, dDy/dx); fold = (dDy/dz, dDx/dx, dDz/dz, dDx/dz)
+      const geometry = sampleBilinearVec4(cascade.geometry, n, u, v);
+      const foldTerms = sampleBilinearVec4(cascade.fold, n, u, v);
 
-      slopeX.addAssign(heightSlopeX.y.mul(fade));
-      slopeZ.addAssign(slopeZDxx.x.mul(fade));
-      dxx.addAssign(slopeZDxx.y.mul(fade));
-      dzz.addAssign(dzzDxz.x.mul(fade));
-      dxz.addAssign(dzzDxz.y.mul(fade));
+      // Slopes keep their full weight at every scale — carrying short-wave
+      // energy in the shading normal is exactly where it should go once the
+      // mesh can no longer displace it. Only the fold terms are gated.
+      const folded = fade.mul(resolvedShare(cascade.patchSize));
+
+      slopeX.addAssign(geometry.w.mul(fade));
+      slopeZ.addAssign(foldTerms.x.mul(fade));
+      dxx.addAssign(foldTerms.y.mul(folded));
+      dzz.addAssign(foldTerms.z.mul(folded));
+      dxz.addAssign(foldTerms.w.mul(folded));
     }
 
     const jacobian = float(1)

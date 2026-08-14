@@ -14,6 +14,7 @@ import {
   uniform,
   uint,
   vec2,
+  vec4,
 } from "three/tsl";
 
 // 4-tap bilinear lookup into a wrapped NxN float storage buffer, since
@@ -44,11 +45,16 @@ export const sampleBilinearFloat = Fn(
   },
 );
 
-// Same wrapped bilinear tap, but for the packed vec2 cascade outputs. Each
-// cascade output buffer carries two real fields (see the packing note below),
-// so one sample retrieves both.
-export const sampleBilinearVec2 = Fn(
-  ([buf, n, u, v]: [StorageBufferNode<"vec2">, number, Node<"float">, Node<"float">]) => {
+// Same wrapped bilinear tap, but for the packed vec4 cascade outputs. Each
+// cascade output buffer carries four real fields (see the packing note
+// below), so one sample retrieves all four.
+//
+// The width is not just convenience: WebGPU guarantees only 8 storage buffers
+// per shader stage, and three cascades of four vec2 outputs each needed 12 in
+// the vertex stage. Merging pairs into vec4s brings that to 6 and halves the
+// tap count at the same time.
+export const sampleBilinearVec4 = Fn(
+  ([buf, n, u, v]: [StorageBufferNode<"vec4">, number, Node<"float">, Node<"float">]) => {
     const fx = u.mul(n);
     const fy = v.mul(n);
     const x0f = floor(fx).toVar();
@@ -180,14 +186,17 @@ export interface CascadeSpec {
  */
 export interface CascadeBuffers {
   patchSize: number;
-  /** (Dx, Dz) — horizontal "choppy" displacement, before the choppiness gain. */
-  displacement: StorageBufferNode<"vec2">;
-  /** (Dy, dDy/dx) — surface height and its x slope. */
-  heightSlopeX: StorageBufferNode<"vec2">;
-  /** (dDy/dz, dDx/dx) — z slope, and the xx term of the displacement Jacobian. */
-  slopeZDxx: StorageBufferNode<"vec2">;
-  /** (dDz/dz, dDx/dz) — the remaining two Jacobian terms. */
-  dzzDxz: StorageBufferNode<"vec2">;
+  /**
+   * (Dx, Dz, Dy, dDy/dx) — horizontal displacement before the choppiness
+   * gain, surface height, and the x slope. Everything the vertex stage needs
+   * to place a point, in one tap.
+   */
+  geometry: StorageBufferNode<"vec4">;
+  /**
+   * (dDy/dz, dDx/dx, dDz/dz, dDx/dz) — the z slope plus the three terms of
+   * the horizontal displacement Jacobian.
+   */
+  fold: StorageBufferNode<"vec4">;
 }
 
 export interface FFTOceanOptions {
@@ -335,6 +344,21 @@ export class FFTOcean {
         outBuf.element(instanceIndex).assign(complexBuf.element(instanceIndex).mul(amplitudeScale));
       })().compute(n * n, [WORKGROUP_SIZE]);
 
+    // Fuse two transform results into one vec4 so the vertex stage binds two
+    // buffers per cascade instead of four. WebGPU's per-stage storage-buffer
+    // guarantee is 8; three cascades of four would need 12 and the pipeline
+    // fails to build on real hardware.
+    const combinePass = (
+      lo: StorageBufferNode<"vec2">,
+      hi: StorageBufferNode<"vec2">,
+      outBuf: StorageBufferNode<"vec4">,
+    ) =>
+      Fn(() => {
+        const a = lo.element(instanceIndex);
+        const b = hi.element(instanceIndex);
+        outBuf.element(instanceIndex).assign(vec4(a.x, a.y, b.x, b.y));
+      })().compute(n * n, [WORKGROUP_SIZE]);
+
     const buildFieldPipeline = (
       specBuf: StorageBufferNode<"vec2">,
       outBuf: StorageBufferNode<"vec2">,
@@ -412,6 +436,9 @@ export class FFTOcean {
       const outHeightSlopeX = instancedArray(n * n, "vec2");
       const outSlopeZDxx = instancedArray(n * n, "vec2");
       const outDzzDxz = instancedArray(n * n, "vec2");
+
+      const outGeometry = instancedArray(n * n, "vec4");
+      const outFold = instancedArray(n * n, "vec4");
 
       const initSpectrumPass = Fn(() => {
         const y = instanceIndex.div(uint(n));
@@ -500,14 +527,14 @@ export class FFTOcean {
         ...buildFieldPipeline(specHeightSlopeX, outHeightSlopeX),
         ...buildFieldPipeline(specSlopeZDxx, outSlopeZDxx),
         ...buildFieldPipeline(specDzzDxz, outDzzDxz),
+        combinePass(outDisp, outHeightSlopeX, outGeometry),
+        combinePass(outSlopeZDxx, outDzzDxz, outFold),
       );
 
       cascades.push({
         patchSize: patch,
-        displacement: outDisp,
-        heightSlopeX: outHeightSlopeX,
-        slopeZDxx: outSlopeZDxx,
-        dzzDxz: outDzzDxz,
+        geometry: outGeometry,
+        fold: outFold,
       });
     }
 
