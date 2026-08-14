@@ -4,7 +4,6 @@ import {
   cameraPosition,
   clamp,
   color,
-  cos,
   dot,
   faceDirection,
   float,
@@ -28,25 +27,15 @@ import {
   vec2,
   vec3,
 } from "three/tsl";
-import { FFTOcean, sampleBilinearFloat } from "./fft-ocean";
+import { FFTOcean, sampleBilinearVec2 } from "./fft-ocean";
 import type { AtmosphereState } from "./atmosphere";
 
-interface ChopLayer {
-  angleDeg: number;
-  amplitude: number;
-  wavelength: number;
-  speed: number;
-}
+// The hand-authored wind-chop layers that used to ride on top of a single FFT
+// patch are gone: the ocean now synthesizes its own fine scales as cascades
+// (see fft-ocean.ts). A small sum of directional sines reads as a wavy-line
+// texture rather than as water, which is exactly what the second and third
+// cascades exist to replace.
 
-// Fine wind-chop riding on top of the FFT swell — the FFT patch alone gives
-// one dominant scale (big swell OR fine chop depending on tuning); the
-// reference look wants both simultaneously. Cheaper than a second FFT
-// cascade, and a reasonable stand-in for now (see THESIS.md §3).
-const CHOP_LAYERS: ChopLayer[] = [
-  { angleDeg: 100, amplitude: 0.08, wavelength: 7, speed: 2.2 },
-  { angleDeg: 205, amplitude: 0.055, wavelength: 5, speed: 2.7 },
-  { angleDeg: 33, amplitude: 0.035, wavelength: 3.6, speed: 3.1 },
-];
 export interface FFTWaterOptions {
   size?: number;
   segments?: number;
@@ -55,6 +44,20 @@ export interface FFTWaterOptions {
   terrainHeightTexture: DataTexture;
   oceanMaskTexture: DataTexture;
   terrainSize?: number;
+  /**
+   * Horizontal displacement gain. Real gravity waves are not vertically
+   * symmetric — crests sharpen and troughs broaden because water moves
+   * sideways as well as up. This is also what makes whitecaps selectable:
+   * with no horizontal displacement the surface never folds, the Jacobian is
+   * identically 1, and there is nothing physical for foam to key off.
+   */
+  choppiness?: number;
+  /**
+   * How hard the surface must fold before it whitecaps. 0 foams anywhere the
+   * mapping compresses at all; higher values restrict foam to the steepest
+   * crests.
+   */
+  foamThreshold?: number;
 }
 
 export type FFTWaterMesh = Mesh & {
@@ -70,6 +73,8 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
   const patch = ocean.patchSize;
   const terrainSize = options.terrainSize ?? 380;
   const sceneTime = ocean.clock;
+  const choppiness = options.choppiness ?? 1.4;
+  const foamThreshold = options.foamThreshold ?? 0.18;
 
   const geometry = new PlaneGeometry(size, size, segments, segments);
   geometry.rotateX(-Math.PI / 2);
@@ -87,46 +92,77 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
   material.side = DoubleSide;
   const mesh = new Mesh(geometry, material);
 
-  const chopField = Fn(([x, z, distV]: [Node<"float">, Node<"float">, Node<"float">]) => {
-    const h = float(0).toVar();
-    const dHdx = float(0).toVar();
-    const dHdz = float(0).toVar();
+  // How far a cascade survives before it stops being resolvable geometry.
+  // Short cascades must retire with distance or their sub-pixel waves alias
+  // into a shimmering wavy-line texture at grazing angles. The longest
+  // cascade never fades — it carries the silhouette.
+  const cascadeFade = (patchSize: number, distV: Node<"float">) =>
+    patchSize >= patch
+      ? float(1)
+      : float(1).sub(smoothstep(patchSize * 3, patchSize * 9, distV));
 
-    for (const layer of CHOP_LAYERS) {
-      const rad = (layer.angleDeg * Math.PI) / 180;
-      const k = (2 * Math.PI) / layer.wavelength;
-      const kx = Math.cos(rad) * k;
-      const kz = Math.sin(rad) * k;
-      const omega = layer.speed * k;
-      // Tighter than checkpoint-1's water.ts: this camera sits much closer
-      // to the surface (near-wave-height, per the reference), so the
-      // grazing viewing angle compresses many more wave-rows per screen
-      // pixel at a given world-space distance, aliasing sooner.
-      const fadeStart = layer.wavelength * 5;
-      const fadeEnd = layer.wavelength * 13;
+  // Vertical height plus the horizontal (choppy) displacement, summed over
+  // every cascade. Returned as vec3(dispX, height, dispZ) so it drops
+  // straight into a position offset.
+  const displacementField = Fn(([x, z, distV]: [Node<"float">, Node<"float">, Node<"float">]) => {
+    const offset = vec3(0, 0, 0).toVar();
 
-      const layerFade = float(1.0).sub(smoothstep(fadeStart, fadeEnd, distV));
-      const phase = x.mul(kx).add(z.mul(kz)).add(sceneTime.mul(omega));
-      h.addAssign(sin(phase).mul(layer.amplitude).mul(layerFade));
-      dHdx.addAssign(cos(phase).mul(layer.amplitude * kx).mul(layerFade));
-      dHdz.addAssign(cos(phase).mul(layer.amplitude * kz).mul(layerFade));
+    for (const cascade of ocean.cascades) {
+      const u = x.div(cascade.patchSize);
+      const v = z.div(cascade.patchSize);
+      const fade = cascadeFade(cascade.patchSize, distV);
+
+      const heightSlopeX = sampleBilinearVec2(cascade.heightSlopeX, n, u, v);
+      const disp = sampleBilinearVec2(cascade.displacement, n, u, v);
+
+      offset.addAssign(
+        vec3(disp.x.mul(choppiness), heightSlopeX.x, disp.y.mul(choppiness)).mul(fade),
+      );
     }
 
-    return vec3(h, dHdx, dHdz);
+    return offset;
   });
 
-  const swellField = Fn(([x, z]: [Node<"float">, Node<"float">]) => {
-    const u = x.div(patch);
-    const v = z.div(patch);
-    const h = sampleBilinearFloat(ocean.heightBuffer, n, u, v);
-    const dHdx = sampleBilinearFloat(ocean.slopeXBuffer, n, u, v);
-    const dHdz = sampleBilinearFloat(ocean.slopeZBuffer, n, u, v);
-    return vec3(h, dHdx, dHdz);
+  // Surface slopes and the folding measure, summed over every cascade.
+  // Returns vec3(dSlopeX, dSlopeZ, jacobian).
+  //
+  // The Jacobian is the determinant of the horizontal displacement mapping,
+  //   J = (1 + L*dDx/dx)(1 + L*dDz/dz) - (L*dDx/dz)^2,
+  // which drops below 1 exactly where the surface compresses into itself.
+  // That is the physical whitecap selector: foam is permitted where water is
+  // being crowded together, not where a noise texture happens to be bright.
+  const slopeField = Fn(([x, z, distV]: [Node<"float">, Node<"float">, Node<"float">]) => {
+    const slopeX = float(0).toVar();
+    const slopeZ = float(0).toVar();
+    const dxx = float(0).toVar();
+    const dzz = float(0).toVar();
+    const dxz = float(0).toVar();
+
+    for (const cascade of ocean.cascades) {
+      const u = x.div(cascade.patchSize);
+      const v = z.div(cascade.patchSize);
+      const fade = cascadeFade(cascade.patchSize, distV);
+
+      const heightSlopeX = sampleBilinearVec2(cascade.heightSlopeX, n, u, v);
+      const slopeZDxx = sampleBilinearVec2(cascade.slopeZDxx, n, u, v);
+      const dzzDxz = sampleBilinearVec2(cascade.dzzDxz, n, u, v);
+
+      slopeX.addAssign(heightSlopeX.y.mul(fade));
+      slopeZ.addAssign(slopeZDxx.x.mul(fade));
+      dxx.addAssign(slopeZDxx.y.mul(fade));
+      dzz.addAssign(dzzDxz.x.mul(fade));
+      dxz.addAssign(dzzDxz.y.mul(fade));
+    }
+
+    const jacobian = float(1)
+      .add(dxx.mul(choppiness))
+      .mul(float(1).add(dzz.mul(choppiness)))
+      .sub(dxz.mul(choppiness).mul(dxz.mul(choppiness)));
+
+    return vec3(slopeX, slopeZ, jacobian);
   });
 
   const distV = vec2(positionLocal.x, positionLocal.z).sub(cameraPosition.xz).length();
-  const swell = swellField(positionLocal.x, positionLocal.z);
-  const chop = chopField(positionLocal.x, positionLocal.z, distV);
   const waterUv = positionLocal.xz.div(terrainSize).add(0.5);
   const insideWaterDomain = smoothstep(0, 0.015, waterUv.x)
     .mul(float(1).sub(smoothstep(0.985, 1, waterUv.x)))
@@ -137,13 +173,30 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
   // wave shading both retire before the rim so the patch meets the far-water
   // skirt as one flat surface, whatever the camera is doing.
   const patchRim = smoothstep(size * 0.40, size * 0.47, positionLocal.xz.length()).toVar("patchRim");
-  const wave = swell.add(chop).mul(oceanMask).mul(float(1).sub(patchRim)).toVar("wave");
-  // A small horizontal displacement keeps crests directional. Pure vertical
-  // heightfield motion makes broad swells expand and contract like gelatin.
-  material.positionNode = positionLocal.add(vec3(wave.y.mul(-0.12), wave.x, wave.z.mul(-0.12)));
+  const waveMask = oceanMask.mul(float(1).sub(patchRim)).toVar("waveMask");
 
-  const vWave = varying(wave, "vWave");
-  const waveNormal = normalize(vec3(vWave.y.negate(), 1.0, vWave.z.negate()));
+  // Horizontal displacement is now the spectrum's own, not a fraction of the
+  // slope standing in for one: each cascade contributes -i*(k/|k|)*h, which
+  // is what sharpens crests and broadens troughs instead of letting broad
+  // swells expand and contract like gelatin.
+  const displacement = displacementField(positionLocal.x, positionLocal.z, distV)
+    .mul(waveMask)
+    .toVar("displacement");
+  material.positionNode = positionLocal.add(displacement);
+
+  const slopes = slopeField(positionLocal.x, positionLocal.z, distV).toVar("slopes");
+  const vWave = varying(
+    vec3(
+      slopes.x.mul(waveMask),
+      slopes.y.mul(waveMask),
+      // The fold measure masks toward 1 (no compression), not toward 0.
+      // Toward 0 every masked-out vertex would read as maximally folded and
+      // the land edge would foam over.
+      mix(float(1), slopes.z, waveMask),
+    ),
+    "vWave",
+  );
+  const waveNormal = normalize(vec3(vWave.x.negate(), 1.0, vWave.y.negate()));
   material.normalNode = transformNormalToView(waveNormal);
 
   const deepColor = color(new Color(0x041c26));
@@ -313,7 +366,17 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
     const shoreFoam = intersectionBand.mul(shoreBreakup).mul(0.86)
       .mul(float(1).sub(distFade.mul(0.55)));
 
-    return mix(mix(albedo, foamColor, shoreFoam), distantWater, aerial);
+    // Whitecaps, selected by how hard the surface folds into itself. The
+    // Jacobian picks the crest; turbulence only decides how ragged that
+    // crest's edge is. Driving foam from noise alone is what produced the
+    // polka-dot open water this replaces — see references/water.md §2.2.
+    const crestTurb = foamTurbulence(vec2(positionWorld.x.mul(0.11), positionWorld.z.mul(0.14)));
+    const fold = float(1).sub(vWave.z);
+    const whitecap = smoothstep(foamThreshold, foamThreshold + 0.34, fold)
+      .mul(smoothstep(0.3, 0.78, crestTurb.add(0.42)))
+      .mul(float(1).sub(distFade.mul(0.35)));
+
+    return mix(mix(albedo, foamColor, max(shoreFoam, whitecap)), distantWater, aerial);
   })();
 
   // The far-water skirt. The displaced patch is only 1400m across, so its own
