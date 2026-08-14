@@ -1,5 +1,6 @@
 import { Color, DataTexture, MeshStandardNodeMaterial } from "three/webgpu";
 import {
+  abs,
   cameraPosition,
   clamp,
   float,
@@ -7,6 +8,7 @@ import {
   mix,
   mx_noise_float,
   normalWorld,
+  positionLocal,
   positionWorld,
   smoothstep,
   texture,
@@ -28,6 +30,7 @@ export interface TerrainMaterialOptions {
   readonly stateTexture: DataTexture;
   readonly volcanicTexture: DataTexture;
   readonly environmentTexture: DataTexture;
+  readonly renderHeightTexture: DataTexture;
   readonly terrainExtent: number;
   readonly seaLevel: number;
   /**
@@ -50,7 +53,10 @@ export function createTerrainMaterial(options: TerrainMaterialOptions): TerrainM
   // same number is two chances for the waterline and the light net to disagree.
   const seaLevel = options.water.seaLevel;
   seaLevel.value = options.seaLevel;
-  const terrainUv = positionWorld.xz.div(options.terrainExtent).add(0.5);
+  const terrainUv = positionLocal.xz.div(options.terrainExtent).add(0.5);
+  const edgeDistance = float(options.terrainExtent / 2).sub(max(abs(positionLocal.x), abs(positionLocal.z)));
+  const renderHeight = texture(options.renderHeightTexture, terrainUv).r;
+  material.positionNode = vec3(positionLocal.x, renderHeight, positionLocal.z);
   const state = texture(options.stateTexture, terrainUv);
   const volcanic = texture(options.volcanicTexture, terrainUv);
   const environment = texture(options.environmentTexture, terrainUv);
@@ -145,8 +151,11 @@ export function createTerrainMaterial(options: TerrainMaterialOptions): TerrainM
   // untouched.
   const path = opticalPath(options.water.seaLevel);
   const haze = waterHaze(path);
-  material.colorNode = litGround.mul(waterTransmission(path)).mul(float(1).sub(haze));
-  material.emissiveNode = options.water.hazeColor.mul(haze).mul(downwelling(seaLevel));
+  // Render-only boundary bathymetry must not glow as a cyan floor. Retire all
+  // reflected and in-scattered light over the same band that lowers the mesh.
+  const boundaryVisibility = smoothstep(1, 14, edgeDistance);
+  material.colorNode = litGround.mul(waterTransmission(path)).mul(float(1).sub(haze)).mul(boundaryVisibility);
+  material.emissiveNode = options.water.hazeColor.mul(haze).mul(downwelling(seaLevel)).mul(boundaryVisibility);
 
   const bumpHeight = macro.mul(0.32)
     .add(medium.mul(0.24).mul(mediumFade).mul(float(1).sub(rockExposure)))
