@@ -130,6 +130,24 @@ the same feature from the simulation state.
 - Declare the inverse convention explicitly and calibrate amplitudes to it. If
   the implementation uses a normalized inverse, rescale the initial spectrum
   rather than tuning the sea afterward.
+- **Only 8 storage buffers are guaranteed per shader stage.** Three cascades
+  of four `vec2` outputs bind 12 in the vertex stage and the render pipeline
+  fails to build — with a validation error, not a visual artefact. Fuse output
+  pairs into `vec4` buffers with a combine pass; this halves the bilinear tap
+  count as a bonus. Found on real hardware in Epoch, 2026-08-13; `tsc` and the
+  unit tests were both clean beforehand, so only a foreground WebGPU run
+  catches it.
+- **The mesh decides which cascades may displace geometry.** A band whose
+  waves are shorter than about two grid cells cannot be displaced without
+  aliasing into flat plates the size of the triangles. Weight each cascade's
+  geometry contribution by how much of it the grid resolves, and let the rest
+  live in the normals — that is §2.3 stated as an implementation rule.
+- **Gate the Jacobian by the same weight.** The displacement derivatives carry
+  a factor of wavenumber (`dDx/dx = (kx^2/|k|)h`), so the shortest cascade
+  produces by far the largest folding terms even when its amplitude is
+  negligible. Ungated, it drives the fold measure negative everywhere and the
+  entire sea whitecaps. Symptom to recognize: uniform white plates rather than
+  foam on crests.
 
 ## 5. Freshwater, rivers, and falls
 
