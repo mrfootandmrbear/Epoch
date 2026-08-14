@@ -174,6 +174,15 @@ controls.maxDistance = 800;
 controls.maxPolarAngle = Math.PI * 0.49;
 controls.zoomToCursor = true;
 controls.zoomSpeed = 1.25;
+// Keep the camera vocabulary predictable across devices. Terrain tools only
+// borrow the primary gesture; secondary mouse and multi-touch navigation stay
+// in these conventional OrbitControls positions.
+controls.mouseButtons.LEFT = MOUSE.ROTATE;
+controls.mouseButtons.MIDDLE = MOUSE.DOLLY;
+controls.mouseButtons.RIGHT = MOUSE.PAN;
+controls.touches.ONE = TOUCH.ROTATE;
+controls.touches.TWO = TOUCH.DOLLY_PAN;
+renderer.domElement.addEventListener("contextmenu", (event) => event.preventDefault());
 
 const captureParams = new URLSearchParams(window.location.search);
 const captureShot = captureParams.get("shot");
@@ -430,11 +439,13 @@ function setTool(tool: FormTool): void {
   syncCameraGestures();
   syncBrushControls();
   document.querySelectorAll<HTMLButtonElement>("[data-tool]").forEach((button) => {
-    button.classList.toggle("active", button.dataset.tool === tool);
+    const active = button.dataset.tool === tool;
+    button.classList.toggle("active", active);
+    if (button.matches("#camera-dock [data-tool]")) button.setAttribute("aria-pressed", String(active));
   });
   formHintEl.textContent =
     tool === "look"
-      ? "Drag to orbit. Scroll to move closer. Choose a shaping tool when the form calls for it."
+      ? "Explore with left-drag or one finger. Pan with right-drag or two fingers; zoom with the wheel or a pinch."
       : tool === "raise"
         ? "Drag across the land to build ridges and refuges — right-drag or two fingers still move the camera."
         : tool === "carve"

@@ -27,6 +27,66 @@
         pointer-events: none;
         z-index: 10;
       }
+      #camera-dock {
+        position: fixed;
+        top: 18px;
+        left: 50%;
+        z-index: 30;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 7px;
+        border: 1px solid rgba(255,255,255,.2);
+        border-radius: 16px;
+        color: #f7f3e8;
+        background: rgba(5,14,15,.82);
+        box-shadow: 0 12px 42px rgba(0,0,0,.38);
+        backdrop-filter: blur(18px) saturate(1.15);
+        transform: translateX(-50%);
+        font-family: system-ui, sans-serif;
+        transition: opacity 220ms ease, transform 220ms ease;
+      }
+      #camera-dock .camera-mode {
+        appearance: none;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        min-height: 44px;
+        padding: 8px 15px 8px 11px;
+        border: 1px solid rgba(183,207,169,.42);
+        border-radius: 11px;
+        color: #f7f3e8;
+        background: rgba(47,75,48,.82);
+        font: 700 12px/1 system-ui, sans-serif;
+        letter-spacing: .035em;
+        cursor: pointer;
+      }
+      #camera-dock .camera-mode::before {
+        content: "";
+        width: 24px;
+        height: 24px;
+        border: 1px solid currentColor;
+        border-radius: 50%;
+        background:
+          linear-gradient(currentColor,currentColor) 50% 3px/1px 18px no-repeat,
+          linear-gradient(90deg,currentColor,currentColor) 3px 50%/18px 1px no-repeat;
+        opacity: .86;
+      }
+      #camera-dock .camera-mode.active {
+        color: #142018;
+        border-color: #edf5e7;
+        background: #c9ddb9;
+        box-shadow: 0 0 0 3px rgba(191,218,174,.2);
+      }
+      .camera-help { display: flex; gap: 12px; padding-right: 8px; }
+      .camera-help span { display: grid; gap: 3px; white-space: nowrap; }
+      .camera-help kbd {
+        color: rgba(247,243,232,.52);
+        font: 700 8px/1 system-ui, sans-serif;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+      }
+      .camera-help small { color: rgba(247,243,232,.84); font: 500 10px/1.2 system-ui, sans-serif; }
       #lineage-panel {
         position: fixed;
         top: 46px;
@@ -190,10 +250,12 @@
         pointer-events: none;
       }
       body.attract-mode #experience,
+      body.attract-mode #camera-dock,
       body.attract-mode #status,
       body.attract-mode #lineage-panel,
       body.attract-mode #epoch-card,
       body.capture-mode #experience,
+      body.capture-mode #camera-dock,
       body.capture-mode #status,
       body.capture-mode #lineage-panel,
       body.capture-mode #epoch-card {
@@ -201,6 +263,7 @@
         pointer-events: none;
       }
       body.capture-mode #experience,
+      body.capture-mode #camera-dock,
       body.capture-mode #status,
       body.capture-mode #lineage-panel,
       body.capture-mode #epoch-card {
@@ -578,6 +641,10 @@
       #experience.compact { width: 238px !important; height: auto !important; min-width: 0; min-height: 0; resize: none; overflow: hidden; }
       #experience.compact .shell-body, #experience.compact #form-hint { display: none; }
       @media (max-width: 700px) {
+        #camera-dock { top: 10px; width: calc(100vw - 34px); justify-content: space-between; }
+        #camera-dock .camera-mode { min-height: 48px; padding-inline: 12px 15px; }
+        .camera-help { gap: 8px; padding-right: 4px; }
+        .camera-help .mouse-help { display: none; }
         #experience.player-shell { left: 10px; bottom: 10px; width: calc(100vw - 20px); max-width: none; max-height: 58vh; resize: none; }
         #epoch-card { top: 82px; right: 18px; bottom: auto; }
         #epoch-card #landing-summary,
@@ -588,6 +655,13 @@
   <body>
     <div id="app"></div>
     <div id="status">loading…</div>
+    <nav id="camera-dock" aria-label="Camera controls">
+      <button class="camera-mode active" data-tool="look" aria-pressed="true">Explore</button>
+      <div class="camera-help" aria-label="Explore camera gestures">
+        <span class="mouse-help"><kbd>Mouse</kbd><small>Left orbit · Right pan · Wheel zoom</small></span>
+        <span class="touch-help"><kbd>Touch</kbd><small>Drag orbit · Pinch zoom · Two-finger pan</small></span>
+      </div>
+    </nav>
     <aside id="lineage-panel" aria-label="Lineage changes"></aside>
     <div id="jump-veil" aria-live="polite">
       <canvas class="reveal-before" data-reveal-before aria-hidden="true"></canvas>
@@ -607,7 +681,7 @@
         <div id="form-title">Shape the island</div>
         <button id="shell-toggle" class="shell-toggle" aria-expanded="true">Compact</button>
       </div>
-      <p id="form-hint">Drag to orbit. Scroll to move closer. Choose a shaping tool when the form calls for it.</p>
+      <p id="form-hint">Explore with left-drag or one finger. Pan with right-drag or two fingers; zoom with the wheel or a pinch.</p>
       <div class="shell-body">
       <details class="shell-section" open>
         <summary>Starting world</summary>
@@ -679,7 +753,6 @@
       <details class="shell-section" open>
         <summary>Terrain tools</summary>
       <div class="actions tool-actions">
-        <button class="active" data-tool="look">Explore camera</button>
         <button data-tool="raise">Build land</button>
         <button data-tool="carve">Cut channel</button>
         <button data-tool="level">Flatten terrain</button>
