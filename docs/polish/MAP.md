@@ -83,6 +83,12 @@ rendering.** Respect it — `AGENTS.md` calls it out explicitly.
 - `climate.ts` — `DEFAULT_CLIMATE`, `SEA_LEVEL`, whole-island forcings.
 - `terrain-history.ts` — persistent substrate; erosion accumulates across jumps.
 - `volcanism.ts` — hot-spot lifecycle (vigorous → active → waning → extinct).
+- `archipelago-history.ts` — fixed mantle hotspot, drifting crust, the shield
+  chain it leaves. Knows where shields *are*, deliberately not which share land.
+- `island-geography.ts` — that second question, resolved from the heightfield:
+  land components above sea level, and the saddle elevation between every shield
+  pair, from one descending-elevation join tree. Also holds `SeaLevelHistory`,
+  which turns a saddle elevation into the years a land connection existed.
 - `stream-network.ts`, `freshwater-basins.ts`, `water-volume.ts` — hydrology.
 - `population-traits.ts`, `population-archetypes.ts`, `lineage-history.ts`,
   `marine-lineage.ts`, `founder-establishment.ts`, `animal-navigation.ts` —

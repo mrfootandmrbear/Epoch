@@ -692,3 +692,65 @@ extent (with a coarser 201² grid so four jumps stay fast) and its snapshot is
 recommitted at those proportions. 318/318 tests, `tsc --noEmit` and
 `npm run build` clean; the live WebGPU frame reports no console errors in a
 fresh tab.
+
+## 2026-08-15 · Emergent island grouping, saddle connectivity, sea-level history
+
+`docs/EXECUTION.md` order-of-work item 1 asked for island grouping, habitat
+connectivity and gene-flow boundaries on top of the shield chain that landed in
+`5bad7f1`. The shield record knows where every vent *is*; what population
+isolation actually needs is which shields currently share land, and — the harder
+half — *when a connection was lost*.
+
+**One pass answers both.** `src/island-geography.ts` sorts every cell by
+descending elevation and unions each into its already-added neighbours, building
+the classic join tree.
+
+- Every cell above sea level is processed before every cell below it, so the
+  union-find state at the moment the sweep crosses sea level *is* the set of land
+  components. The islands fall out with no second traversal.
+- When adding a cell merges two components, that cell's elevation is exactly the
+  saddle between them. One number per shield pair therefore describes their
+  connectivity at *every* stand, past or future — `connected = saddle > sea`.
+
+That second property is what makes the gene-flow work tractable. A saddle
+elevation is a durable fact about the terrain, so pairing it with the new
+`SeaLevelHistory` yields the dated spans during which two habitats were one
+island, without re-resolving terrain per query. `isolatedSinceYear` reads the
+end of the last such span.
+
+Land is joined **orthogonally, not diagonally**. Eight-connectivity creates the
+standard grid paradox: two land cells touching at a corner would count as
+connected while the two water cells on the other diagonal also connect, so a
+lineage could walk a strait a fish could equally swim.
+
+**Shield zero is the authored island.** `WorldHistory` is version 9 and carries
+`archipelago` and `seaLevelHistory`; both advance inside `landing-state.advance`
+and both validate. The preset's vent seeds `shield-0` at construction 1 —
+recording it as unbuilt would have the first jump grow land the player can
+already see — with the hotspot placed on it, so the chain grows *from* the
+starting island rather than beside it. Presets with no authored vent get an
+empty archipelago rather than an absent one, so the field is never optional
+downstream.
+
+**Verified against the real 2 km world, not only synthetic terrain.** Four
+million-year jumps from `young-volcano`: the chain grows to five shields with
+stages progressing vigorous → waning → extinct, and island area erodes 0.304 →
+0.140 km² while the summit holds at ~44.6 m.
+
+**And that run exposed the honest gap.** Every saddle resolved to bare seafloor
+(−55 m, the basin floor), because accretion is still driven by the static
+`hotSpots` vent — the shield chain has no terrain consequence yet. A throwaway
+spike pointing `resolveVolcanicAccretion` at the shield record instead produced
+the intended behaviour on the first run: shield-0 and shield-1 share one island
+across a **+5.3 m saddle**, which erodes to 5.2 then 4.9 m over successive
+jumps, while shield-2 emerges as its own island and later drowns. The seam is
+proven and the spike was discarded — wiring it changes what the player sees, so
+it belongs to the multi-shield accretion gate with its own before/after evidence
+and an owner verdict.
+
+**Evidence.** 355/355 tests pass (32 new in `island-geography.test.ts`, 7 new in
+`world-history.test.ts`), `npx tsc --noEmit` and `npm run build` clean. No
+renderer change, so there is nothing to capture and no visual gate to record.
+The existing world-history version assertion now reads
+`WORLD_HISTORY_VERSION` instead of a hardcoded 8, so the next bump does not
+need a test edit.

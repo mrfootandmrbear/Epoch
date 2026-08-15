@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { createWorldHistory, validateWorldHistory } from "./world-history";
+import {
+  createWorldHistory,
+  validateWorldHistory,
+  withRecordedSeaLevel,
+  WORLD_HISTORY_VERSION,
+} from "./world-history";
+import { advanceArchipelago, hotspotCrustPosition, shieldDistanceFromHotspot } from "./archipelago-history";
+import { DEFAULT_CLIMATE, SEA_LEVEL } from "./climate";
 
 function validHistory() {
   return createWorldHistory(new Float32Array(9), 3, 300);
@@ -46,7 +53,7 @@ describe("world history validation", () => {
 
   it("rejects state from another schema version", () => {
     expect(() => validateWorldHistory({ ...validHistory(), version: 0 }))
-      .toThrow("world history version must be 8, received 0");
+      .toThrow(`world history version must be ${WORLD_HISTORY_VERSION}, received 0`);
   });
 
   it("rejects terrain arrays that do not match the declared grid", () => {
@@ -83,5 +90,74 @@ describe("world history validation", () => {
         lineages: [{ ...history.lineages.lineages[0], identity: "unknown-grazer" }],
       },
     })).toThrow("world history lineages[0].identity is not recognized");
+  });
+});
+
+describe("shield zero", () => {
+  it("seats the authored vent as shield zero at full construction", () => {
+    const history = createWorldHistory(new Float32Array(9), 3, 300, false, { x: -16, z: 8 });
+
+    expect(history.archipelago.shields).toHaveLength(1);
+    const [shield] = history.archipelago.shields;
+    expect(shield!.id).toBe("shield-0");
+    expect(shield!.crustX).toBe(-16);
+    expect(shield!.crustZ).toBe(8);
+    // The preset already drew this edifice into the heightfield, so recording
+    // it as unbuilt would have the next jump grow land the player can see.
+    expect(shield!.construction).toBe(1);
+    expect(shield!.birthYear).toBe(0);
+    expect(history.archipelago.nextShieldSerial).toBe(1);
+  });
+
+  it("places the hotspot on the starting island, so the chain grows from it", () => {
+    const history = createWorldHistory(new Float32Array(9), 3, 300, false, { x: -16, z: 8 });
+
+    expect(hotspotCrustPosition(history.archipelago)).toEqual({ x: -16, z: 8 });
+    expect(shieldDistanceFromHotspot(history.archipelago, history.archipelago.shields[0]!)).toBe(0);
+  });
+
+  it("gives a ventless preset an empty archipelago rather than no archipelago", () => {
+    const history = createWorldHistory(new Float32Array(9), 3, 300, false);
+
+    expect(history.archipelago.shields).toEqual([]);
+    expect(history.archipelago.nextShieldSerial).toBe(0);
+    expect(() => validateWorldHistory(history)).not.toThrow();
+  });
+
+  it("holds the hotspot until the crust has carried shield zero a full spacing", () => {
+    const seeded = createWorldHistory(new Float32Array(9), 3, 300, false, { x: 0, z: 0 }).archipelago;
+
+    // A thousand years is tectonically silent, so no second vent may appear.
+    expect(advanceArchipelago(seeded, 1000, 0).shields).toHaveLength(1);
+    // A million years carries the crust just past one spacing, which is the
+    // rate DEFAULT_DRIFT_RATE was chosen to produce: exactly one new shield.
+    expect(advanceArchipelago(seeded, 1_000_000, 0).shields).toHaveLength(2);
+  });
+
+  it("keeps a seeded world valid after a jump", () => {
+    const history = createWorldHistory(new Float32Array(9), 3, 300, false, { x: -16, z: 8 });
+    const advanced = withRecordedSeaLevel(
+      { ...history, archipelago: advanceArchipelago(history.archipelago, 1_000_000, 0) },
+      0,
+      1_000_000,
+      DEFAULT_CLIMATE,
+    );
+
+    expect(() => validateWorldHistory(advanced)).not.toThrow();
+    expect(advanced.seaLevelHistory.samples).toEqual([
+      { startYears: 0, endYears: 1_000_000, seaLevel: SEA_LEVEL[DEFAULT_CLIMATE.seaLevel] },
+    ]);
+  });
+
+  it("rejects an archipelago or sea-level record that does not validate", () => {
+    const history = validHistory();
+    expect(() => validateWorldHistory({
+      ...history,
+      archipelago: { ...history.archipelago, driftX: 4, driftZ: 0 },
+    })).toThrow(/unit vector/);
+    expect(() => validateWorldHistory({
+      ...history,
+      seaLevelHistory: { version: 1, samples: [{ startYears: 10, endYears: 5, seaLevel: 0 }] },
+    })).toThrow(/positive span/);
   });
 });

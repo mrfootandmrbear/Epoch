@@ -48,7 +48,8 @@ import { createStreamRenderer } from "./stream-renderer";
 import { createCascadeRenderer } from "./cascade-renderer";
 import { resolveFreshwaterField } from "./freshwater-basins";
 import { captureWorldSnapshot, type WorldSnapshot } from "./world-snapshot";
-import { createInitialWorldState, validateWorldHistory } from "./world-history";
+import { createInitialWorldState, validateWorldHistory, withRecordedSeaLevel } from "./world-history";
+import { advanceArchipelago } from "./archipelago-history";
 import { packEnvironmentField, resolveEnvironmentField } from "./environment";
 import type { MarineLineageChange } from "./marine-lineage";
 import { findTerrainPath, isWalkable } from "./animal-navigation";
@@ -1013,7 +1014,10 @@ export function createLandingState(scene: Scene): WorldExperience {
         positions.setY(index, y);
         elevations[index] = y;
       }
-      worldHistory = createInitialWorldState(elevations, TERRAIN_SIDE, TERRAIN_SIZE).history;
+      // The preset's vent is also shield zero: the island the player starts on
+      // is the current head of the hotspot chain, not a separate landform the
+      // archipelago record knows nothing about.
+      worldHistory = createInitialWorldState(elevations, TERRAIN_SIDE, TERRAIN_SIZE, preset.hotSpot).history;
       if (preset.hotSpot) {
         worldHistory = {
           ...worldHistory,
@@ -1093,17 +1097,27 @@ export function createLandingState(scene: Scene): WorldExperience {
       // owns, so pre-jump undo entries must never be applied to a landing.
       terrainEditHistory.clear();
       validateWorldHistory(worldHistory);
-      worldHistory = {
-        ...worldHistory,
-        // Resolve inherited weathering first. Active vents then leave recent
-        // construction at the landing instead of aging their newest lava by
-        // the entire jump interval.
-        terrain: resolveVolcanicAccretion(
-          resolveTerrainHistory(worldHistory.terrain, years, climate),
-          worldHistory.hotSpots,
-          years,
-        ),
-      };
+      // `totalYears` already includes this jump when advance is called, so the
+      // archipelago and the sea-level record — both of which date their entries
+      // from the start of the interval — need it wound back.
+      const totalYearsBefore = totalYears - years;
+      worldHistory = withRecordedSeaLevel(
+        {
+          ...worldHistory,
+          // Resolve inherited weathering first. Active vents then leave recent
+          // construction at the landing instead of aging their newest lava by
+          // the entire jump interval.
+          terrain: resolveVolcanicAccretion(
+            resolveTerrainHistory(worldHistory.terrain, years, climate),
+            worldHistory.hotSpots,
+            years,
+          ),
+          archipelago: advanceArchipelago(worldHistory.archipelago, years, totalYearsBefore),
+        },
+        totalYearsBefore,
+        years,
+        climate,
+      );
       const positions = terrain.geometry.attributes.position;
       const colors = terrain.geometry.attributes.color;
       const color = new Color();

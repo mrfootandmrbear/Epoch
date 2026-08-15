@@ -6,10 +6,21 @@ import { createMarineLineageHistory, validateMarineLineageHistory, type MarineLi
 import { VOLCANIC_OUTPUTS, type HotSpot } from "./volcanism";
 import { createReefHistory, type ReefHistory } from "./reef-succession";
 import { CORAL_GUILDS } from "./reef-succession";
-import { DEFAULT_CLIMATE, type ClimateForces } from "./climate";
+import { DEFAULT_CLIMATE, SEA_LEVEL, type ClimateForces } from "./climate";
 import { isFounderFoodSource, isFounderOriginClimate, isFounderSizeBand } from "./founder-profile";
+import {
+  createArchipelagoHistory,
+  validateArchipelagoHistory,
+  type ArchipelagoHistory,
+} from "./archipelago-history";
+import {
+  createSeaLevelHistory,
+  recordSeaLevel,
+  validateSeaLevelHistory,
+  type SeaLevelHistory,
+} from "./island-geography";
 
-export const WORLD_HISTORY_VERSION = 8 as const;
+export const WORLD_HISTORY_VERSION = 9 as const;
 
 export interface WorldHistory {
   readonly version: typeof WORLD_HISTORY_VERSION;
@@ -18,6 +29,48 @@ export interface WorldHistory {
   readonly marineLineages: MarineLineageHistory;
   readonly reef: ReefHistory;
   readonly hotSpots: readonly HotSpot[];
+  /**
+   * The hotspot chain this world's islands belong to. Shield zero is the
+   * authored starting island, so the archipelago record is continuous with the
+   * land the player begins on rather than starting empty beside it.
+   */
+  readonly archipelago: ArchipelagoHistory;
+  /**
+   * Every stand the world has been resolved at. Paired with a saddle elevation
+   * from `island-geography.ts` this dates the loss of a land connection, which
+   * is what population isolation is keyed to.
+   */
+  readonly seaLevelHistory: SeaLevelHistory;
+}
+
+/** Position of the authored starting island's vent, in terrain world coordinates. */
+export interface StartingVent {
+  readonly x: number;
+  readonly z: number;
+}
+
+/**
+ * Seat the authored island in the hotspot record as shield zero.
+ *
+ * Two properties matter. The hotspot is placed *on* the vent, so the starting
+ * island is the one currently over the plume and the chain grows from it rather
+ * than beside it. And shield zero is seeded at full construction, because the
+ * preset has already drawn its edifice into the heightfield — a shield recorded
+ * as unbuilt would have the next jump grow land the player can already see.
+ *
+ * A world with no authored vent (the weathered and drowned presets) still gets
+ * an archipelago, just an empty one, so the field is never optional downstream.
+ */
+function seedArchipelago(vent?: StartingVent): ArchipelagoHistory {
+  const history = createArchipelagoHistory({ hotspotX: vent?.x ?? 0, hotspotZ: vent?.z ?? 0 });
+  if (!vent) return history;
+  return {
+    ...history,
+    nextShieldSerial: 1,
+    shields: [
+      { id: "shield-0", birthYear: 0, crustX: vent.x, crustZ: vent.z, construction: 1, dormantYears: 0 },
+    ],
+  };
 }
 
 export interface InitialWorldState {
@@ -31,6 +84,7 @@ export function createWorldHistory(
   side: number,
   extent: number,
   includeTerrestrialFounders = true,
+  vent?: StartingVent,
 ): WorldHistory {
   return {
     version: WORLD_HISTORY_VERSION,
@@ -39,6 +93,8 @@ export function createWorldHistory(
     marineLineages: createMarineLineageHistory(),
     reef: createReefHistory(),
     hotSpots: [],
+    archipelago: seedArchipelago(vent),
+    seaLevelHistory: createSeaLevelHistory(),
   };
 }
 
@@ -47,11 +103,36 @@ export function createInitialWorldState(
   elevations: Float32Array,
   side: number,
   extent: number,
+  vent?: StartingVent,
 ): InitialWorldState {
   return {
     totalYears: 0,
     climate: Object.freeze({ ...DEFAULT_CLIMATE }),
-    history: createWorldHistory(elevations, side, extent, false),
+    history: createWorldHistory(elevations, side, extent, false, vent),
+  };
+}
+
+/**
+ * Record the stand a resolved jump was held at.
+ *
+ * Kept here rather than at the call site so the sea-level record cannot fall
+ * out of step with the jump that produced it: every advance that changes the
+ * world passes through one function.
+ */
+export function withRecordedSeaLevel(
+  history: WorldHistory,
+  totalYearsBefore: number,
+  jumpYears: number,
+  climate: Readonly<ClimateForces>,
+): WorldHistory {
+  return {
+    ...history,
+    seaLevelHistory: recordSeaLevel(
+      history.seaLevelHistory,
+      totalYearsBefore,
+      jumpYears,
+      SEA_LEVEL[climate.seaLevel],
+    ),
   };
 }
 
@@ -210,6 +291,9 @@ export function validateWorldHistory(value: unknown): asserts value is WorldHist
     if (!Number.isFinite(hotSpot.x) || !Number.isFinite(hotSpot.z)) throw new RangeError(`world history hotSpots[${index}] coordinates must be finite`);
     if (!VOLCANIC_OUTPUTS.includes(hotSpot.output as HotSpot["output"])) throw new RangeError(`world history hotSpots[${index}].output is not recognized`);
   });
+  validateArchipelagoHistory(history.archipelago);
+  validateSeaLevelHistory(history.seaLevelHistory);
+
   const terrestrialIds = new Set(validated.map((lineage) => lineage.id));
   for (const [index, marine] of history.marineLineages.lineages.entries()) {
     if (marine.originDomain === "terrestrial-transition"

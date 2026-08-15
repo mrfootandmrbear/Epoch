@@ -65,7 +65,23 @@ without becoming arbitrary or converging on a predetermined bestiary.
    crust-frame terrain, drift-resolved shield positions, birth along the chain,
    integrated construction and dormancy. Scale-free — a resize retunes
    `DEFAULT_DRIFT_RATE`, `SHIELD_SPACING` and `FULL_CONSTRUCTION_YEARS` and
-   changes nothing structural. Island grouping and connectivity are still open.*
+   changes nothing structural.*
+
+   *Grouping and connectivity landed 2026-08-15 in `src/island-geography.ts`:
+   land components and every shield-pair saddle elevation from one
+   descending-elevation join tree, plus `SeaLevelHistory` so a saddle becomes
+   the dated span during which two habitats were one island. Shield zero is the
+   authored starting island — `WorldHistory` is now version 9 and carries both
+   records, advancing them on every jump.*
+
+   **The one thing still missing is the consumer.** Accretion is still driven by
+   the static `hotSpots` vent, so the shield chain has no terrain consequence
+   yet and every saddle resolves to bare seafloor. A spike that pointed
+   `resolveVolcanicAccretion` at the shield record instead produced the intended
+   behaviour immediately — two shields sharing one island across a +5.3 m saddle
+   that then erodes to 4.9 m over three million-year jumps — so the seam is
+   proven, but wiring it changes what the player sees and belongs to the
+   multi-shield accretion gate below, with its own before/after evidence.
 2. Add population variance, founder bottlenecks, drift, path-dependent
    selection, and ancestry records only to the depth required by the sequence;
    express selection through authored trait pressures and tradeoffs.
@@ -131,8 +147,9 @@ members consequences.
 |---|---|---|
 | Form → jump → reveal loop | Implemented | Preserve while replacing isolated duration shots with one inherited sequence. |
 | World scale | **Accepted** 2026-08-15 — 2,000 m extent at 401×401 cells (5.0 m/cell); shield mean flank measured at 6.6° | None. Do not reopen without a demonstrated failure. Prior captures are not a valid A/B. |
-| Multi-shield archipelago record | Implemented renderer-independent in `archipelago-history.ts` with 40 tests | Emergent island grouping, saddle connectivity, sea-level history; then wire the existing island in as shield zero. |
-| Persistent terrain and volcanic change | Implemented for the current island model | Multi-shield accretion and stable derived island grouping. |
+| Multi-shield archipelago record | Implemented renderer-independent in `archipelago-history.ts` with 40 tests; shield zero is the authored island | Preserve. The record advances every jump and validates as part of `WorldHistory` v9. |
+| Emergent island grouping and connectivity | Implemented in `island-geography.ts` with 32 tests — land components, shield-pair saddles, `SeaLevelHistory`, dated connection episodes | Give it a consumer: drive accretion from the shield record so saddles are land rather than seafloor. |
+| Persistent terrain and volcanic change | Implemented for the current island model; the shield chain does not yet drive it | **Multi-shield accretion** — point `resolveVolcanicAccretion` at the shield record. Spike-proven; needs before/after evidence and an owner verdict because it changes what the player sees. |
 | Climate, hydrology, ocean, reef, and shared habitat sampling | Implemented in bounded forms | Reconcile fields with shield age, regional upwelling, and changing connectivity. |
 | Terrestrial population persistence | Implemented with trait means, energy, abundance, Distant Drifter establishment, and bounded branching | Persistent variance, explicit gene flow, drift, and path-dependent authored selection. |
 | Marine lineage and reef succession | Implemented as bounded proofs | Preserve; expand only for an integrated-proof consumer. |
