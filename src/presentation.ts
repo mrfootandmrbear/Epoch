@@ -55,6 +55,26 @@ export const GOLDEN_SHOTS = {
   "w2k-reef-above": { position: [298, 13, 333], target: [280, -6, 313] },
   "w2k-dawn": { position: [760, 230, -680], target: [0, 26, 0] },
   "w2k-storm": { position: [-800, 310, -700], target: [0, 22, 0] },
+
+  // ---------------------------------------------------------------------
+  // Multi-shield chain (`w2k-chain-` prefix), added 2026-08-15 when accretion
+  // was pointed at the archipelago shield record.
+  //
+  // The chain marches along -x at z ≈ 11 m, because the terrain grid is the
+  // crust frame and the hotspot walks backwards through it. Measured shield
+  // positions after three million-year jumps: shield-0 at x = -22, shield-1 at
+  // -403, shield-2 at -784. The plume leaves the 2 km grid at x = -1000, which
+  // is 2.45 Myr of drift, so these cameras frame the whole producible chain.
+  // ---------------------------------------------------------------------
+
+  /** The chain broadside: every island the hotspot has made, oldest at the right. */
+  "w2k-chain": { position: [-380, 420, 1150], target: [-380, 6, 11] },
+  /**
+   * The land bridge between shield-0 and shield-1, at their midpoint. This is
+   * the shot the connectivity work exists for: the saddle rises above sea level
+   * as the two skirts meet, then erodes back under it.
+   */
+  "w2k-chain-saddle": { position: [-212, 96, 430], target: [-212, 5, 20] },
 } as const;
 
 export type GoldenShotName = keyof typeof GOLDEN_SHOTS;

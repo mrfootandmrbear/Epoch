@@ -72,6 +72,28 @@ const SHOT_SETS = {
     { label: "06-vigorous-1myr", query: "shot=w2k-whole-island&years=1000000&time=42&volcano=vigorous" },
     { label: "07-reef-above", query: "shot=w2k-reef-above&fixture=mature-warm-reef&time=42" },
   ],
+  // Multi-shield accretion, added 2026-08-15. The before/after for pointing
+  // `resolveVolcanicAccretion` at the archipelago shield record.
+  //
+  // `plume=dormant` IS the "before": a dormant plume freezes the chain at the
+  // authored island and resolves exactly the terrain the old single-vent path
+  // produced, so 01/02 against 03/04 is a like-for-like A/B of the seam rather
+  // than a comparison against a differently-framed historical capture.
+  //
+  // `jumps=` is required — the chain is a sequence, and one long jump does not
+  // reproduce it (see the note at the `jumps` parameter in `main.ts`).
+  chain2km: [
+    { label: "01-dormant-chain-3myr", query: "shot=w2k-chain&years=1000000&jumps=3&time=42&plume=dormant" },
+    { label: "02-dormant-saddle-3myr", query: "shot=w2k-chain-saddle&years=1000000&jumps=3&time=42&plume=dormant" },
+    { label: "03-active-chain-3myr", query: "shot=w2k-chain&years=1000000&jumps=3&time=42&plume=active" },
+    { label: "04-active-saddle-3myr", query: "shot=w2k-chain-saddle&years=1000000&jumps=3&time=42&plume=active" },
+    { label: "05-active-chain-1myr", query: "shot=w2k-chain&years=1000000&jumps=1&time=42&plume=active" },
+    { label: "06-active-chain-2myr", query: "shot=w2k-chain&years=1000000&jumps=2&time=42&plume=active" },
+    { label: "07-active-saddle-2myr", query: "shot=w2k-chain-saddle&years=1000000&jumps=2&time=42&plume=active" },
+    { label: "08-hyperactive-chain-3myr", query: "shot=w2k-chain&years=1000000&jumps=3&time=42&plume=hyperactive" },
+    { label: "09-hyperactive-saddle-3myr", query: "shot=w2k-chain-saddle&years=1000000&jumps=3&time=42&plume=hyperactive" },
+    { label: "10-active-overview-3myr", query: "shot=w2k-whole-island&years=1000000&jumps=3&time=42&plume=active" },
+  ],
   // Secondary composition set: the remaining golden cameras.
   detail: [
     { label: "01-ridge-silhouette", query: "shot=ridge-silhouette&years=1000&time=42" },

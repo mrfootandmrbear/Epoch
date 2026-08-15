@@ -3,7 +3,7 @@ import { assertPopulationTraits, type PopulationTraits } from "./population-trai
 import { isPopulationIdentity } from "./population-archetypes";
 import { createTerrainHistory, type TerrainHistory } from "./terrain-history";
 import { createMarineLineageHistory, validateMarineLineageHistory, type MarineLineageHistory } from "./marine-lineage";
-import { VOLCANIC_OUTPUTS, type HotSpot } from "./volcanism";
+import type { PlumeVigor } from "./volcanism";
 import { createReefHistory, type ReefHistory } from "./reef-succession";
 import { CORAL_GUILDS } from "./reef-succession";
 import { DEFAULT_CLIMATE, SEA_LEVEL, type ClimateForces } from "./climate";
@@ -20,7 +20,14 @@ import {
   type SeaLevelHistory,
 } from "./island-geography";
 
-export const WORLD_HISTORY_VERSION = 9 as const;
+/**
+ * Bumped to 10 on 2026-08-15 when `hotSpots` was retired. Accretion now runs off
+ * the archipelago shield chain, so the plume's position, drift bearing and vigor
+ * all live in `archipelago`, and a parallel authored vent list had no remaining
+ * owner — keeping it would have been two records able to disagree about where
+ * the volcano is.
+ */
+export const WORLD_HISTORY_VERSION = 10 as const;
 
 export interface WorldHistory {
   readonly version: typeof WORLD_HISTORY_VERSION;
@@ -28,7 +35,6 @@ export interface WorldHistory {
   readonly lineages: LineageHistory;
   readonly marineLineages: MarineLineageHistory;
   readonly reef: ReefHistory;
-  readonly hotSpots: readonly HotSpot[];
   /**
    * The hotspot chain this world's islands belong to. Shield zero is the
    * authored starting island, so the archipelago record is continuous with the
@@ -43,10 +49,26 @@ export interface WorldHistory {
   readonly seaLevelHistory: SeaLevelHistory;
 }
 
-/** Position of the authored starting island's vent, in terrain world coordinates. */
+/**
+ * The plume the world is formed around, in terrain world coordinates.
+ *
+ * The player fixes all of this before the first jump — where the hotspot sits
+ * and which way the crust carries its shields — and thereafter holds only
+ * `vigor`. Presets supply their own as a starting point.
+ */
 export interface StartingVent {
   readonly x: number;
   readonly z: number;
+  /** Drift bearing. Normalized on construction; defaults to +x. */
+  readonly driftX?: number;
+  readonly driftZ?: number;
+  readonly vigor?: PlumeVigor;
+  /**
+   * Whether this vent's edifice is already drawn into the heightfield. True for
+   * a preset's authored island; false when the player drops the plume onto open
+   * water, where there is no shield yet and the chain has to build one.
+   */
+  readonly built?: boolean;
 }
 
 /**
@@ -54,21 +76,39 @@ export interface StartingVent {
  *
  * Two properties matter. The hotspot is placed *on* the vent, so the starting
  * island is the one currently over the plume and the chain grows from it rather
- * than beside it. And shield zero is seeded at full construction, because the
- * preset has already drawn its edifice into the heightfield — a shield recorded
- * as unbuilt would have the next jump grow land the player can already see.
+ * than beside it. And a shield over an edifice the preset already drew is seeded
+ * at full construction — recording it as unbuilt would have the next jump grow
+ * land the player can already see, and now that accretion scales its target by
+ * `construction` that would be visible as the island inflating on jump one.
  *
- * A world with no authored vent (the weathered and drowned presets) still gets
- * an archipelago, just an empty one, so the field is never optional downstream.
+ * A vent dropped on open water is the mirror case: nothing is drawn there yet,
+ * so it starts at construction 0 and the chain genuinely builds it.
+ *
+ * A world with no vent at all (the weathered and drowned presets, until the
+ * player places one) still gets an archipelago, just an empty one, so the field
+ * is never optional downstream.
  */
-function seedArchipelago(vent?: StartingVent): ArchipelagoHistory {
-  const history = createArchipelagoHistory({ hotspotX: vent?.x ?? 0, hotspotZ: vent?.z ?? 0 });
+export function seedStartingPlume(vent?: StartingVent): ArchipelagoHistory {
+  const history = createArchipelagoHistory({
+    hotspotX: vent?.x ?? 0,
+    hotspotZ: vent?.z ?? 0,
+    driftX: vent?.driftX,
+    driftZ: vent?.driftZ,
+    plume: vent?.vigor,
+  });
   if (!vent) return history;
   return {
     ...history,
     nextShieldSerial: 1,
     shields: [
-      { id: "shield-0", birthYear: 0, crustX: vent.x, crustZ: vent.z, construction: 1, dormantYears: 0 },
+      {
+        id: "shield-0",
+        birthYear: 0,
+        crustX: vent.x,
+        crustZ: vent.z,
+        construction: vent.built === false ? 0 : 1,
+        dormantYears: 0,
+      },
     ],
   };
 }
@@ -92,8 +132,7 @@ export function createWorldHistory(
     lineages: includeTerrestrialFounders ? createLineageHistory() : { lineages: [] },
     marineLineages: createMarineLineageHistory(),
     reef: createReefHistory(),
-    hotSpots: [],
-    archipelago: seedArchipelago(vent),
+    archipelago: seedStartingPlume(vent),
     seaLevelHistory: createSeaLevelHistory(),
   };
 }
@@ -280,16 +319,6 @@ export function validateWorldHistory(value: unknown): asserts value is WorldHist
         throw new RangeError(`world history reef.sites[${index}].composition.${guild} must be finite and within [0, 1]`);
       }
     }
-  });
-  if (!Array.isArray(history.hotSpots)) throw new TypeError("world history hotSpots must be an array");
-  const hotSpotIds = new Set<string>();
-  history.hotSpots.forEach((value, index) => {
-    const hotSpot = requireRecord(value, `world history hotSpots[${index}]`);
-    if (typeof hotSpot.id !== "string" || hotSpot.id.length === 0) throw new TypeError(`world history hotSpots[${index}].id must be a non-empty string`);
-    if (hotSpotIds.has(hotSpot.id)) throw new RangeError(`world history hotSpots[${index}].id duplicates ${hotSpot.id}`);
-    hotSpotIds.add(hotSpot.id);
-    if (!Number.isFinite(hotSpot.x) || !Number.isFinite(hotSpot.z)) throw new RangeError(`world history hotSpots[${index}] coordinates must be finite`);
-    if (!VOLCANIC_OUTPUTS.includes(hotSpot.output as HotSpot["output"])) throw new RangeError(`world history hotSpots[${index}].output is not recognized`);
   });
   validateArchipelagoHistory(history.archipelago);
   validateSeaLevelHistory(history.seaLevelHistory);

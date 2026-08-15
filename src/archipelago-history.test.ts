@@ -414,6 +414,21 @@ describe("archipelago validation", () => {
     expect(() => validateArchipelagoHistory({ ...createArchipelagoHistory(), version: 99 })).toThrow(RangeError);
   });
 
+  it("rejects an unrecognized plume setting", () => {
+    // The player's one volcanic control is persisted state, so a world restored
+    // with a stale four-way vent output must fail here rather than silently
+    // resolving as `active` and quietly building an archipelago nobody chose.
+    expect(() => validateArchipelagoHistory({ ...createArchipelagoHistory(), plume: "vigorous" }))
+      .toThrow(RangeError);
+    expect(() => validateArchipelagoHistory({ ...createArchipelagoHistory(), plume: undefined }))
+      .toThrow(RangeError);
+  });
+
+  it("defaults a fresh world to an active plume", () => {
+    expect(createArchipelagoHistory().plume).toBe("active");
+    expect(createArchipelagoHistory({ plume: "hyperactive" }).plume).toBe("hyperactive");
+  });
+
   it("rejects a serial that would mint an id the world already uses", () => {
     // Left unchecked this validates clean and then throws a jump later, far
     // from the corruption that caused it.

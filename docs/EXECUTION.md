@@ -1,7 +1,7 @@
 # Epoch execution direction
 
 > **Class:** Contract. **Authority:** Canonical source for current state and
-> priority. **Updated:** 2026-08-14. Update whenever a listed capability,
+> priority. **Updated:** 2026-08-15. Update whenever a listed capability,
 > priority, or verdict changes.
 
 ## Current objective
@@ -74,14 +74,15 @@ without becoming arbitrary or converging on a predetermined bestiary.
    authored starting island — `WorldHistory` is now version 9 and carries both
    records, advancing them on every jump.*
 
-   **The one thing still missing is the consumer.** Accretion is still driven by
-   the static `hotSpots` vent, so the shield chain has no terrain consequence
-   yet and every saddle resolves to bare seafloor. A spike that pointed
-   `resolveVolcanicAccretion` at the shield record instead produced the intended
-   behaviour immediately — two shields sharing one island across a +5.3 m saddle
-   that then erodes to 4.9 m over three million-year jumps — so the seam is
-   proven, but wiring it changes what the player sees and belongs to the
-   multi-shield accretion gate below, with its own before/after evidence.
+   *The terrain consumer landed 2026-08-15: `resolveVolcanicAccretion` now runs
+   off `resolveShieldVents`, so the chain builds real land and saddles are ground
+   rather than bare basin floor. Two shields merge across a +5.3 m saddle that
+   erodes to 4.9 m, and a third emerges as its own island. `hotSpots` is retired;
+   `WorldHistory` is version 10 and `ArchipelagoHistory` version 2.*
+
+   **What is still missing is the population consumer.** `resolveIslandGeography`
+   has no shipping-path caller yet — nothing reads island membership to decide
+   gene flow. That is item 2.
 2. Add population variance, founder bottlenecks, drift, path-dependent
    selection, and ancestry records only to the depth required by the sequence;
    express selection through authored trait pressures and tradeoffs.
@@ -110,7 +111,17 @@ blocks the owner verdict on scale itself.
 - **A deep-time jump costs ~0.41 s** of renderer-independent resolve at
   401×401, against ~0.33 s at the old 380 m world and 3.6 s if the ocean
   current solve had been left on the terrain grid. The pressure projection is
-  still three quarters of it.
+  still three quarters of it. Multi-shield accretion adds 4–11 ms and stays flat
+  as the world ages, so the chain is not a cost concern.
+- **The plume leaves the terrain grid after 2.45 Myr.** The heightfield is the
+  crust frame, so the hotspot walks backwards through it and exits at x = -1000 m;
+  shields born after that never make land. The full geology → isolation arc fits
+  inside that window, so it does not block the current objective, but the chain
+  tops out at about three on-grid islands.
+- **Terrain accretion is not additive over sub-intervals.** Growth is an
+  exponential approach capped per jump, so one 3 Myr click and three 1 Myr clicks
+  give different islands. `construction` *is* additive; terrain is not. Captures
+  of the chain must use `jumps=` to replay a rung cumulatively.
 - **Scale constants hide in files a resize never opens.** Four were missed on
   the first pass and caught by review: the ocean shader's terrain UV divisor,
   the pathfinding search box, the drifter's arrival point, and migration reach.
@@ -148,8 +159,8 @@ members consequences.
 | Form → jump → reveal loop | Implemented | Preserve while replacing isolated duration shots with one inherited sequence. |
 | World scale | **Accepted** 2026-08-15 — 2,000 m extent at 401×401 cells (5.0 m/cell); shield mean flank measured at 6.6° | None. Do not reopen without a demonstrated failure. Prior captures are not a valid A/B. |
 | Multi-shield archipelago record | Implemented renderer-independent in `archipelago-history.ts` with 40 tests; shield zero is the authored island | Preserve. The record advances every jump and validates as part of `WorldHistory` v9. |
-| Emergent island grouping and connectivity | Implemented in `island-geography.ts` with 32 tests — land components, shield-pair saddles, `SeaLevelHistory`, dated connection episodes | Give it a consumer: drive accretion from the shield record so saddles are land rather than seafloor. |
-| Persistent terrain and volcanic change | Implemented for the current island model; the shield chain does not yet drive it | **Multi-shield accretion** — point `resolveVolcanicAccretion` at the shield record. Spike-proven; needs before/after evidence and an owner verdict because it changes what the player sees. |
+| Emergent island grouping and connectivity | Implemented in `island-geography.ts` with 32 tests — land components, shield-pair saddles, `SeaLevelHistory`, dated connection episodes | Terrain consumer done. Still needs a *population* consumer: nothing reads island membership to decide gene flow. |
+| Persistent terrain and volcanic change | **Implemented and driven by the shield chain** since 2026-08-15. Accretion runs off `resolveShieldVents`; the player fixes hotspot position and drift bearing at world formation and thereafter holds one three-way plume setting | **Ready for owner verdict** on `docs/polish/evidence/chain2km/` (fallback-backend). Then item 2. |
 | Climate, hydrology, ocean, reef, and shared habitat sampling | Implemented in bounded forms | Reconcile fields with shield age, regional upwelling, and changing connectivity. |
 | Terrestrial population persistence | Implemented with trait means, energy, abundance, Distant Drifter establishment, and bounded branching | Persistent variance, explicit gene flow, drift, and path-dependent authored selection. |
 | Marine lineage and reef succession | Implemented as bounded proofs | Preserve; expand only for an integrated-proof consumer. |

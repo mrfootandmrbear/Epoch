@@ -29,6 +29,9 @@ describe("golden shots", () => {
       "w2k-reef-above",
       "w2k-dawn",
       "w2k-storm",
+      // The multi-shield chain.
+      "w2k-chain",
+      "w2k-chain-saddle",
     ]);
   });
 

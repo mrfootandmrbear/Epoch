@@ -1,0 +1,83 @@
+{
+  "set": "chain2km",
+  "capturedAt": "2026-08-15T20:35:48.390Z",
+  "viewport": {
+    "width": 1600,
+    "height": 900
+  },
+  "settleMs": 2500,
+  "contactSheet": "contact-sheet.png",
+  "consoleErrors": [],
+  "shots": [
+    {
+      "label": "01-dormant-chain-3myr",
+      "url": "http://localhost:5178/?shot=w2k-chain&years=1000000&jumps=3&time=42&plume=dormant",
+      "backend": "backend: WebGL2 · 0 fps · 15 draws",
+      "ms": 56192,
+      "frame": "frames/01-dormant-chain-3myr.png"
+    },
+    {
+      "label": "02-dormant-saddle-3myr",
+      "url": "http://localhost:5178/?shot=w2k-chain-saddle&years=1000000&jumps=3&time=42&plume=dormant",
+      "backend": "backend: WebGL2 · 0 fps · 15 draws",
+      "ms": 61989,
+      "frame": "frames/02-dormant-saddle-3myr.png"
+    },
+    {
+      "label": "03-active-chain-3myr",
+      "url": "http://localhost:5178/?shot=w2k-chain&years=1000000&jumps=3&time=42&plume=active",
+      "backend": "backend: WebGL2 · 0 fps · 15 draws",
+      "ms": 61422,
+      "frame": "frames/03-active-chain-3myr.png"
+    },
+    {
+      "label": "04-active-saddle-3myr",
+      "url": "http://localhost:5178/?shot=w2k-chain-saddle&years=1000000&jumps=3&time=42&plume=active",
+      "backend": "backend: WebGL2 · 0 fps · 15 draws",
+      "ms": 63058,
+      "frame": "frames/04-active-saddle-3myr.png"
+    },
+    {
+      "label": "05-active-chain-1myr",
+      "url": "http://localhost:5178/?shot=w2k-chain&years=1000000&jumps=1&time=42&plume=active",
+      "backend": "backend: WebGL2 · 0 fps · 15 draws",
+      "ms": 62746,
+      "frame": "frames/05-active-chain-1myr.png"
+    },
+    {
+      "label": "06-active-chain-2myr",
+      "url": "http://localhost:5178/?shot=w2k-chain&years=1000000&jumps=2&time=42&plume=active",
+      "backend": "backend: WebGL2 · 0 fps · 15 draws",
+      "ms": 62508,
+      "frame": "frames/06-active-chain-2myr.png"
+    },
+    {
+      "label": "07-active-saddle-2myr",
+      "url": "http://localhost:5178/?shot=w2k-chain-saddle&years=1000000&jumps=2&time=42&plume=active",
+      "backend": "backend: WebGL2 · 0 fps · 15 draws",
+      "ms": 57566,
+      "frame": "frames/07-active-saddle-2myr.png"
+    },
+    {
+      "label": "08-hyperactive-chain-3myr",
+      "url": "http://localhost:5178/?shot=w2k-chain&years=1000000&jumps=3&time=42&plume=hyperactive",
+      "backend": "backend: WebGL2 · 0 fps · 15 draws",
+      "ms": 56765,
+      "frame": "frames/08-hyperactive-chain-3myr.png"
+    },
+    {
+      "label": "09-hyperactive-saddle-3myr",
+      "url": "http://localhost:5178/?shot=w2k-chain-saddle&years=1000000&jumps=3&time=42&plume=hyperactive",
+      "backend": "backend: WebGL2 · 0 fps · 15 draws",
+      "ms": 54538,
+      "frame": "frames/09-hyperactive-saddle-3myr.png"
+    },
+    {
+      "label": "10-active-overview-3myr",
+      "url": "http://localhost:5178/?shot=w2k-whole-island&years=1000000&jumps=3&time=42&plume=active",
+      "backend": "backend: WebGL2 · 0 fps · 15 draws",
+      "ms": 59469,
+      "frame": "frames/10-active-overview-3myr.png"
+    }
+  ]
+}

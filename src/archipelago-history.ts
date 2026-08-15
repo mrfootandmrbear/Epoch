@@ -19,13 +19,14 @@
  * morphology across the deep-time ladder rather than taken from measurement.
  */
 
-import { SHIELD_GEOMETRY } from "./volcanism";
+import { isPlumeVigor, SHIELD_GEOMETRY, type HotSpot, type PlumeVigor } from "./volcanism";
 
 /** Volcanic construction stage. Emergence is geography, resolved from terrain, not from this. */
 export const SHIELD_STAGES = ["nascent", "shield-building", "waning", "extinct"] as const;
 export type ShieldStage = typeof SHIELD_STAGES[number];
 
-export const ARCHIPELAGO_HISTORY_VERSION = 1 as const;
+/** Bumped to 2 on 2026-08-15 when the plume gained a player-set vigor. */
+export const ARCHIPELAGO_HISTORY_VERSION = 2 as const;
 
 /**
  * Metres of crust travel per year.
@@ -108,6 +109,14 @@ export interface ArchipelagoHistory {
   readonly driftZ: number;
   /** Metres of crust travel per year. */
   readonly driftRate: number;
+  /**
+   * How hard the plume is erupting. The player's only volcanic control once the
+   * world is running: the hotspot's position and drift bearing are fixed when
+   * the world is formed, and after that this is the whole lever. A dormant
+   * plume neither feeds its shields nor erupts new ones, but the crust keeps
+   * drifting — tectonics do not stop because the plume went quiet.
+   */
+  readonly plume: PlumeVigor;
   /** Metres the crust has travelled across the mantle since the world began. */
   readonly crustOffset: number;
   /** Serial for the next shield id, so ids stay unique and stable across loads. */
@@ -131,6 +140,7 @@ export interface ArchipelagoOptions {
   readonly driftX?: number;
   readonly driftZ?: number;
   readonly driftRate?: number;
+  readonly plume?: PlumeVigor;
 }
 
 /**
@@ -155,6 +165,7 @@ export function createArchipelagoHistory(options: ArchipelagoOptions = {}): Arch
     driftX: rawX / length,
     driftZ: rawZ / length,
     driftRate,
+    plume: options.plume ?? "active",
     crustOffset: 0,
     nextShieldSerial: 0,
     shields: [],
@@ -221,6 +232,50 @@ export function shieldVolcanicOutput(stage: ShieldStage): "vigorous" | "active" 
     case "waning": return "waning";
     case "extinct": return "extinct";
   }
+}
+
+/**
+ * The shield chain as vents the accretion pass in `volcanism.ts` can build from.
+ *
+ * This is the seam the archipelago record was written for. Before it existed,
+ * accretion ran off a single authored vent, so no shield except the starting
+ * island ever made land and every shield-pair saddle in `island-geography.ts`
+ * resolved to bare basin floor. Each shield reports its crust position (which is
+ * terrain-grid coordinates by construction), the stage its distance from the
+ * plume puts it in, and how much of its edifice it has built.
+ *
+ * A dormant plume returns no vents at all rather than extinct ones — the caller
+ * skips extinct vents anyway, and returning nothing makes the intent legible at
+ * the call site.
+ */
+export function resolveShieldVents(
+  history: ArchipelagoHistory,
+  before?: ArchipelagoHistory,
+): readonly HotSpot[] {
+  if (history.plume === "dormant") return [];
+  // A vent erupts at the strongest stage it held *during* the jump, not at the
+  // instant the jump ends. Sampling only the landing charges a shield the slow
+  // waning rate for a million years it spent building over the plume, and on
+  // the deep-time rungs a shield can cross two whole stages inside one click.
+  // How much it built is still bounded by `construction`, which is integrated.
+  const priorStage = new Map<string, ShieldStage>();
+  if (before) {
+    for (const shield of before.shields) priorStage.set(shield.id, shieldStage(before, shield));
+  }
+  return history.shields.map((shield) => {
+    const landing = shieldStage(history, shield);
+    const prior = priorStage.get(shield.id);
+    const stage = prior !== undefined && SHIELD_STAGES.indexOf(prior) < SHIELD_STAGES.indexOf(landing)
+      ? prior
+      : landing;
+    return {
+      id: shield.id,
+      x: shield.crustX,
+      z: shield.crustZ,
+      output: shieldVolcanicOutput(stage),
+      construction: shield.construction,
+    };
+  });
 }
 
 /** Distance from a crust position to the nearest existing shield, or Infinity if there are none. */
@@ -363,6 +418,22 @@ export function advanceArchipelago(
   const shields = [...history.shields];
   let serial = history.nextShieldSerial;
 
+  // A dormant plume erupts nothing and feeds nothing, but the crust keeps
+  // moving: the existing chain still drifts, ages and weathers, it just stops
+  // gaining rock. Suppressing this here rather than at the accretion call is
+  // what stops a quiet plume from silently accumulating construction that would
+  // appear as a fully grown island the moment the player reactivates it.
+  if (history.plume === "dormant") {
+    return {
+      ...history,
+      crustOffset: endOffset,
+      shields: shields.map((shield) => ({
+        ...shield,
+        dormantYears: shield.dormantYears + jumpYears,
+      })),
+    };
+  }
+
   // Walk the jump, erupting a shield each time the hotspot has cleared a full
   // spacing from whatever land is nearest to it.
   let offset = history.crustOffset;
@@ -451,6 +522,9 @@ export function validateArchipelagoHistory(value: unknown): asserts value is Arc
     if (!Number.isFinite(entry) || (entry as number) < 0) {
       throw new RangeError(`archipelago history.${field} must be a non-negative finite number`);
     }
+  }
+  if (!isPlumeVigor(history.plume)) {
+    throw new RangeError(`archipelago history.plume is not recognized, received ${String(history.plume)}`);
   }
   if (!Number.isInteger(history.nextShieldSerial) || (history.nextShieldSerial as number) < 0) {
     throw new RangeError("archipelago history.nextShieldSerial must be a non-negative integer");

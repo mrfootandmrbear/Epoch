@@ -55,7 +55,7 @@ import {
 } from "./climate";
 import { RENDER_SCALE } from "./render-scale";
 import { resolveOceanSeaState } from "./ocean-sea-state";
-import type { VolcanicOutput } from "./volcanism";
+import { isPlumeVigor, type PlumeVigor, type VolcanicOutput } from "./volcanism";
 import { isVolcanicLifecyclePhase, volcanicLifecyclePrefix } from "./volcanic-lifecycle";
 import { ENVIRONMENT_FIXTURES, isEnvironmentFixtureName } from "./environment-fixtures";
 import { STARTING_WORLD_PRESETS, startingWorldPreset } from "./starting-world-presets";
@@ -91,7 +91,7 @@ const rainfallEl = document.getElementById("rainfall") as HTMLSelectElement;
 const temperatureEl = document.getElementById("temperature") as HTMLSelectElement;
 const windEl = document.getElementById("wind") as HTMLSelectElement;
 const seaLevelEl = document.getElementById("sea-level") as HTMLSelectElement;
-const volcanicOutputEl = document.getElementById("volcanic-output") as HTMLSelectElement;
+const plumeVigorEl = document.getElementById("plume-vigor") as HTMLSelectElement;
 const brushControlsEl = document.getElementById("brush-controls")!;
 const brushSizeEl = document.getElementById("brush-size") as HTMLInputElement;
 const brushStrengthEl = document.getElementById("brush-strength") as HTMLInputElement;
@@ -350,15 +350,45 @@ const cliffPreview = new Line(
 cliffPreview.renderOrder = 101;
 cliffPreview.visible = false;
 scene.add(cliffPreview);
-const captureVolcanism = (
-  captureParams.get("volcano")
-  ?? (captureFixture && "volcano" in captureFixture ? captureFixture.volcano : null)
-) as VolcanicOutput | null;
-if (captureMode && captureVolcanism && ["vigorous", "active", "waning", "extinct"].includes(captureVolcanism)) {
+// The drift bearing the plume will carry its shields along. Drawn in the vent's
+// own warm colour rather than the cliff tool's yellow, because the two drags
+// look identical and mean completely different things.
+const plumePreview = new Line(
+  new BufferGeometry(),
+  new LineBasicMaterial({ color: 0xff9d5c, transparent: true, opacity: 0.95, depthTest: false }),
+);
+plumePreview.renderOrder = 101;
+plumePreview.visible = false;
+scene.add(plumePreview);
+/**
+ * Legacy `volcano=` fixtures named a single vent's output, which is no longer a
+ * player control. They are mapped onto the nearest plume vigor so every shot set
+ * captured before the plume existed still runs — with one honest consequence:
+ * `waning` and `active` now resolve to the same setting, because a shield wanes
+ * by drifting off the plume rather than by being told to.
+ */
+const LEGACY_VOLCANO_VIGOR: Readonly<Record<VolcanicOutput, PlumeVigor>> = {
+  vigorous: "hyperactive",
+  active: "active",
+  waning: "active",
+  extinct: "dormant",
+};
+
+const capturePlume: PlumeVigor | null = (() => {
+  const plume = captureParams.get("plume");
+  if (isPlumeVigor(plume)) return plume;
+  const legacy = (
+    captureParams.get("volcano")
+    ?? (captureFixture && "volcano" in captureFixture ? captureFixture.volcano : null)
+  ) as VolcanicOutput | null;
+  if (legacy && legacy in LEGACY_VOLCANO_VIGOR) return LEGACY_VOLCANO_VIGOR[legacy];
+  return null;
+})();
+if (captureMode && capturePlume) {
   const hotSpot = captureFixture && "hotSpot" in captureFixture
     ? captureFixture.hotSpot
     : { x: 0, z: 0 };
-  landingState.placeHotSpot(new Vector3(hotSpot.x, 0, hotSpot.z), captureVolcanism);
+  landingState.placePlume(new Vector3(hotSpot.x, 0, hotSpot.z), { x: 1, z: 0 }, capturePlume);
 }
 const raycaster = new Raycaster();
 const pointer = new Vector2();
@@ -391,6 +421,8 @@ let strokePointerId: number | null = null;
 let lastSculptPoint: Vector3 | null = null;
 let cliffStart: Vector3 | null = null;
 let cliffEnd: Vector3 | null = null;
+let plumeStart: Vector3 | null = null;
+let plumeEnd: Vector3 | null = null;
 // Where a stroke started, held until we know it is a stroke and not the first
 // finger of a pinch. Flushed on the first move (drag) or on release (tap).
 let strokeOrigin: { x: number; y: number } | null = null;
@@ -468,7 +500,7 @@ function setTool(tool: FormTool): void {
             ? "Brush across rough ground to form shelves, plains, and level valley floors."
             : tool === "cliff"
               ? "Drag along the cliff edge. The terrain on the left side of the stroke rises on release."
-              : "Tap once to place the island's fixed volcanic source.";
+              : "Press where the hot spot sits, then drag to aim the drift. Both are fixed for the whole world once you jump.";
 }
 
 function terrainHit(clientX: number, clientY: number) {
@@ -491,12 +523,6 @@ function sculptAt(clientX: number, clientY: number): void {
   if (jumped || formTool === "look") return;
   const hit = terrainHit(clientX, clientY);
   if (!hit) return;
-  if (formTool === "hotspot") {
-    landingState.placeHotSpot(hit.point, volcanicOutputEl.value as VolcanicOutput);
-    setTool("look");
-    formHintEl.textContent = "The hot spot is fixed here. Jump time to let its shield grow.";
-    return;
-  }
   const settings = brushSettings();
   const direction = formTool === "raise" ? 1 : -1;
   const applyDab = (point: Vector3) => {
@@ -544,7 +570,32 @@ function endStroke(): void {
   cliffStart = null;
   cliffEnd = null;
   cliffPreview.visible = false;
+  plumeStart = null;
+  plumeEnd = null;
+  plumePreview.visible = false;
   syncBrushControls();
+}
+
+/** Both drag tools share one shape: press to fix a point, drag to fix a direction. */
+function isDragTool(tool: FormTool): boolean {
+  return tool === "cliff" || tool === "hotspot";
+}
+
+/**
+ * Commit the plume. A press with no drag still places it — the bearing then
+ * keeps whatever the world already had, so a player who taps gets a hotspot on
+ * the preset's drift line rather than an error.
+ */
+function commitPlume(): void {
+  if (!plumeStart) return;
+  const drift = plumeEnd
+    ? { x: plumeEnd.x - plumeStart.x, z: plumeEnd.z - plumeStart.z }
+    : { x: 0, z: 0 };
+  landingState.placePlume(plumeStart, drift, plumeVigorEl.value as PlumeVigor);
+  setTool("look");
+  formHintEl.textContent = Math.hypot(drift.x, drift.z) >= 1
+    ? "Hot spot and drift are fixed. Jump time and the crust will carry each shield off the plume, building the chain along that line."
+    : "Hot spot fixed on the existing drift line. Jump time to let its shield grow.";
 }
 
 renderer.domElement.addEventListener("pointerdown", (event) => {
@@ -559,10 +610,16 @@ renderer.domElement.addEventListener("pointerdown", (event) => {
   strokePointerId = event.pointerId;
   strokeOrigin = { x: event.clientX, y: event.clientY };
   landingState.beginSculpt();
-  if (formTool === "cliff") {
+  if (isDragTool(formTool)) {
     const hit = terrainHit(event.clientX, event.clientY);
-    cliffStart = hit?.point.clone() ?? null;
-    cliffEnd = cliffStart?.clone() ?? null;
+    const anchor = hit?.point.clone() ?? null;
+    if (formTool === "cliff") {
+      cliffStart = anchor;
+      cliffEnd = anchor?.clone() ?? null;
+    } else {
+      plumeStart = anchor;
+      plumeEnd = anchor?.clone() ?? null;
+    }
   }
   renderer.domElement.setPointerCapture(event.pointerId);
 });
@@ -574,15 +631,19 @@ renderer.domElement.addEventListener("pointermove", (event) => {
     endStroke();
     return;
   }
-  if (formTool === "cliff") {
+  if (isDragTool(formTool)) {
     const hit = terrainHit(event.clientX, event.clientY);
-    if (!cliffStart || !hit) return;
-    cliffEnd = hit.point.clone();
-    cliffPreview.geometry.setFromPoints([
-      new Vector3(cliffStart.x, cliffStart.y + 0.35, cliffStart.z),
-      new Vector3(cliffEnd.x, cliffEnd.y + 0.35, cliffEnd.z),
+    const start = formTool === "cliff" ? cliffStart : plumeStart;
+    if (!start || !hit) return;
+    const end = hit.point.clone();
+    const preview = formTool === "cliff" ? cliffPreview : plumePreview;
+    if (formTool === "cliff") cliffEnd = end;
+    else plumeEnd = end;
+    preview.geometry.setFromPoints([
+      new Vector3(start.x, start.y + 0.35, start.z),
+      new Vector3(end.x, end.y + 0.35, end.z),
     ]);
-    cliffPreview.visible = cliffStart.distanceTo(cliffEnd) >= 1;
+    preview.visible = start.distanceTo(end) >= 1;
     strokeOrigin = null;
     return;
   }
@@ -596,9 +657,10 @@ function finishPointer(event: PointerEvent): void {
   if (formTool === "cliff" && event.type === "pointerup" && cliffStart && cliffEnd) {
     landingState.cliff(cliffStart, cliffEnd, brushSettings());
   }
+  if (formTool === "hotspot" && event.type === "pointerup") commitPlume();
   // A press with no movement is still a deliberate dab — apply it on release,
   // once we know no second finger arrived.
-  if (formTool !== "cliff" && strokeOrigin && event.type === "pointerup") sculptAt(strokeOrigin.x, strokeOrigin.y);
+  if (!isDragTool(formTool) && strokeOrigin && event.type === "pointerup") sculptAt(strokeOrigin.x, strokeOrigin.y);
   endStroke();
 }
 
@@ -639,7 +701,7 @@ startingWorldEl.addEventListener("change", () => {
   setTool("look");
   landingState.resetStartingWorld(preset);
   writeClimate(preset.climate);
-  volcanicOutputEl.value = preset.volcanicOutput;
+  plumeVigorEl.value = preset.plumeVigor;
   committedClimate = { ...preset.climate };
   applyCommittedHeightFog();
   applyOceanForces(preset.climate);
@@ -688,13 +750,14 @@ for (const select of [rainfallEl, temperatureEl, windEl, seaLevelEl]) {
   });
 }
 
-volcanicOutputEl.addEventListener("change", () => {
-  const output = volcanicOutputEl.value as VolcanicOutput;
-  const outputLabel = volcanicOutputEl.selectedOptions[0]?.textContent?.replace(/^Volcano:\s*/, "") ?? output;
-  landingState.setVolcanicOutput(output);
-  formHintEl.textContent = output === "extinct"
-    ? "The island stops growing; erosion and subsidence will take over."
-    : `${outputLabel} volcanic output will act across the next jump.`;
+plumeVigorEl.addEventListener("change", () => {
+  const vigor = plumeVigorEl.value as PlumeVigor;
+  landingState.setPlumeVigor(vigor);
+  formHintEl.textContent = vigor === "dormant"
+    ? "The hot spot goes quiet. Its islands keep drifting, but nothing new is built \u2014 erosion and subsidence take over."
+    : vigor === "hyperactive"
+      ? "The hot spot floods the chain with lava. Shields grow larger and faster along the drift line."
+      : "Gal\u00e1pagos-scale output. Each shield builds while it sits over the hot spot, then wanes as the crust carries it away.";
 });
 
 jumpButtonEl.addEventListener("click", () => {
@@ -825,7 +888,7 @@ async function start() {
       let lifecycleAge = 0;
       for (const step of volcanicLifecyclePrefix(captureVolcanicPhase)) {
         lifecycleAge += step.years;
-        landingState.setVolcanicOutput(step.output);
+        landingState.setPlumeVigor(step.vigor);
         landingState.advance(step.years, lifecycleAge, step.climate);
         committedClimate = { ...step.climate };
       }
@@ -834,7 +897,16 @@ async function start() {
     } else {
       committedClimate = captureClimate;
       applyCommittedHeightFog();
-      landingState.advance(captureYears, captureYears, captureClimate);
+      // `jumps` replays the same rung cumulatively. It exists because terrain
+      // accretion is *not* additive over sub-intervals the way the archipelago's
+      // construction record is: growth is an exponential approach whose rate is
+      // capped per jump, so one 3 Myr click and three 1 Myr clicks land on
+      // different islands. The shield chain is a sequence, so evidence for it
+      // has to be captured as one.
+      const captureJumps = Math.max(1, Math.min(16, Number(captureParams.get("jumps") ?? 1)));
+      for (let jump = 1; jump <= captureJumps; jump++) {
+        landingState.advance(captureYears, captureYears * jump, captureClimate);
+      }
     }
     if (captureParams.get("herd") === "candidate") landingState.showcaseGrazerHerd();
     if (captureParams.get("herd") === "contrast") landingState.showcaseHerdContrast();

@@ -14,10 +14,10 @@ describe("volcanic lifecycle capture sequence", () => {
     }
   });
 
-  it("moves from construction to extinction and ends at high sea level", () => {
+  it("moves from construction to a quiet plume and ends at high sea level", () => {
     const sequence = volcanicLifecyclePrefix("drowned");
-    expect(sequence[0]?.output).toBe("vigorous");
-    expect(sequence.slice(1).every((step) => step.output === "extinct")).toBe(true);
+    expect(sequence[0]?.vigor).toBe("hyperactive");
+    expect(sequence.slice(1).every((step) => step.vigor === "dormant")).toBe(true);
     expect(sequence.at(-1)?.climate.seaLevel).toBe("high");
   });
 

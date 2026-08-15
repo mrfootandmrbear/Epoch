@@ -48,8 +48,19 @@ import { createStreamRenderer } from "./stream-renderer";
 import { createCascadeRenderer } from "./cascade-renderer";
 import { resolveFreshwaterField } from "./freshwater-basins";
 import { captureWorldSnapshot, type WorldSnapshot } from "./world-snapshot";
-import { createInitialWorldState, validateWorldHistory, withRecordedSeaLevel } from "./world-history";
-import { advanceArchipelago } from "./archipelago-history";
+import {
+  createInitialWorldState,
+  seedStartingPlume,
+  validateWorldHistory,
+  withRecordedSeaLevel,
+} from "./world-history";
+import {
+  advanceArchipelago,
+  hotspotCrustPosition,
+  resolveShieldVents,
+  shieldStage,
+  shieldVolcanicOutput,
+} from "./archipelago-history";
 import { packEnvironmentField, resolveEnvironmentField } from "./environment";
 import type { MarineLineageChange } from "./marine-lineage";
 import { findTerrainPath, isWalkable } from "./animal-navigation";
@@ -62,7 +73,7 @@ import {
 } from "./climate";
 import { RENDER_SCALE, creaturePoseInterval } from "./render-scale";
 import { resolveVolcanicAccretion } from "./volcanism";
-import type { VolcanicOutput } from "./volcanism";
+import { VOLCANIC_OUTPUTS, type PlumeVigor, type VolcanicOutput } from "./volcanism";
 import { createVolcanicHotSpotMarker } from "./volcanic-hotspot-marker";
 import { startingWorldPreset, type StartingWorldPreset } from "./starting-world-presets";
 import { createFishRenderer } from "./fish-renderer";
@@ -450,8 +461,14 @@ export interface WorldExperience {
   sculpt: (point: Vector3, direction: 1 | -1, settings: Readonly<TerrainBrushSettings>) => void;
   level: (point: Vector3, settings: Readonly<TerrainBrushSettings>) => void;
   cliff: (start: Vector3, end: Vector3, settings: Readonly<TerrainBrushSettings>) => void;
-  placeHotSpot: (point: Vector3, output: VolcanicOutput) => void;
-  setVolcanicOutput: (output: VolcanicOutput) => void;
+  /**
+   * Fix the plume for the whole run: where it sits, and which way the crust
+   * carries the shields it builds. Form-phase only — once time has jumped, the
+   * hotspot is part of the world's history and cannot be moved.
+   */
+  placePlume: (point: Vector3, drift: Readonly<{ x: number; z: number }>, vigor: PlumeVigor) => void;
+  /** The one volcanic control that survives into the running world. */
+  setPlumeVigor: (vigor: PlumeVigor) => void;
   finishSculpt: () => void;
   undoSculpt: () => boolean;
   redoSculpt: () => boolean;
@@ -566,10 +583,40 @@ export function createLandingState(scene: Scene): WorldExperience {
     return (a + (b - a) * tx) + ((c + (d - c) * tx) - (a + (b - a) * tx)) * tz;
   }
 
+  /**
+   * Seat the marker on the plume itself, in crust coordinates.
+   *
+   * The plume is fixed in *mantle* space, so as the crust drifts the marker
+   * walks backwards across the terrain grid — which is the point: the player
+   * watches the source stay put while the island they built rides away from it.
+   */
   function syncHotSpotMarkerHeight(): void {
-    const hotSpot = worldHistory.hotSpots[0];
-    if (!hotSpot || !hotSpotMarker.group.visible) return;
-    hotSpotMarker.group.position.set(hotSpot.x, heightAt(hotSpot.x, hotSpot.z) + 0.12, hotSpot.z);
+    if (!hotSpotMarker.group.visible) return;
+    const plume = hotspotCrustPosition(worldHistory.archipelago);
+    hotSpotMarker.group.position.set(plume.x, heightAt(plume.x, plume.z) + 0.12, plume.z);
+  }
+
+  /**
+   * What the marker should show: the strongest thing the plume is currently
+   * driving. A dormant plume reads extinct however built its shields are.
+   */
+  function plumeMarkerOutput(): VolcanicOutput {
+    const archipelago = worldHistory.archipelago;
+    if (archipelago.plume === "dormant") return "extinct";
+    let strongest: VolcanicOutput = "extinct";
+    for (const shield of archipelago.shields) {
+      const output = shieldVolcanicOutput(shieldStage(archipelago, shield));
+      if (VOLCANIC_OUTPUTS.indexOf(output) < VOLCANIC_OUTPUTS.indexOf(strongest)) strongest = output;
+    }
+    return strongest;
+  }
+
+  function syncHotSpotMarker(): void {
+    const archipelago = worldHistory.archipelago;
+    hotSpotMarker.group.visible = archipelago.shields.length > 0;
+    if (!hotSpotMarker.group.visible) return;
+    hotSpotMarker.setOutput(plumeMarkerOutput());
+    syncHotSpotMarkerHeight();
   }
 
   /**
@@ -944,29 +991,33 @@ export function createLandingState(scene: Scene): WorldExperience {
       })) return;
       syncTerrainGeometryFromHistory();
     },
-    placeHotSpot(point: Vector3, output: VolcanicOutput) {
+    placePlume(point: Vector3, drift: Readonly<{ x: number; z: number }>, vigor: PlumeVigor) {
       const margin = 72;
       const x = Math.max(-TERRAIN_HALF + margin, Math.min(TERRAIN_HALF - margin, point.x));
       const z = Math.max(-TERRAIN_HALF + margin, Math.min(TERRAIN_HALF - margin, point.z));
+      // A degenerate drag leaves the bearing alone rather than throwing: the
+      // archipelago rejects a zero-length drift vector, and a player who taps
+      // without dragging has expressed a position, not a direction.
+      const length = Math.hypot(drift.x, drift.z);
+      const existing = worldHistory.archipelago;
+      const driftX = length > 1e-6 ? drift.x / length : existing.driftX;
+      const driftZ = length > 1e-6 ? drift.z / length : existing.driftZ;
+      // Seeded as already built only where there is land to be built: dropping
+      // the plume on open water is a submarine vent, and the chain has to raise
+      // its island from the seafloor rather than inheriting one.
+      const built = heightAt(x, z) > SEA_LEVEL[activeClimate.seaLevel];
       worldHistory = {
         ...worldHistory,
-        hotSpots: [{
-          id: "island-vent",
-          x,
-          z,
-          output,
-        }],
+        archipelago: seedStartingPlume({ x, z, driftX, driftZ, vigor, built }),
       };
-      hotSpotMarker.group.position.set(x, heightAt(x, z) + 0.12, z);
-      hotSpotMarker.setOutput(output);
-      hotSpotMarker.group.visible = true;
+      syncHotSpotMarker();
     },
-    setVolcanicOutput(output: VolcanicOutput) {
+    setPlumeVigor(vigor: PlumeVigor) {
       worldHistory = {
         ...worldHistory,
-        hotSpots: worldHistory.hotSpots.map((hotSpot) => ({ ...hotSpot, output })),
+        archipelago: { ...worldHistory.archipelago, plume: vigor },
       };
-      hotSpotMarker.setOutput(output);
+      syncHotSpotMarker();
     },
     finishSculpt() {
       flushTerrainChanges();
@@ -1017,22 +1068,21 @@ export function createLandingState(scene: Scene): WorldExperience {
       // The preset's vent is also shield zero: the island the player starts on
       // is the current head of the hotspot chain, not a separate landform the
       // archipelago record knows nothing about.
-      worldHistory = createInitialWorldState(elevations, TERRAIN_SIDE, TERRAIN_SIZE, preset.hotSpot).history;
-      if (preset.hotSpot) {
+      worldHistory = createInitialWorldState(
+        elevations,
+        TERRAIN_SIDE,
+        TERRAIN_SIZE,
+        preset.plume ? { ...preset.plume, vigor: preset.plumeVigor } : undefined,
+      ).history;
+      if (!preset.plume) {
+        // No authored hotspot, but the plume setting still has to be the one the
+        // panel is showing, so placing a vent later erupts at the chosen vigor.
         worldHistory = {
           ...worldHistory,
-          hotSpots: [{ id: "island-vent", ...preset.hotSpot, output: preset.volcanicOutput }],
+          archipelago: { ...worldHistory.archipelago, plume: preset.plumeVigor },
         };
-        hotSpotMarker.group.position.set(
-          preset.hotSpot.x,
-          preset.heightAt(preset.hotSpot.x, preset.hotSpot.z) + 0.12,
-          preset.hotSpot.z,
-        );
-        hotSpotMarker.setOutput(preset.volcanicOutput);
-        hotSpotMarker.group.visible = true;
-      } else {
-        hotSpotMarker.group.visible = false;
       }
+      syncHotSpotMarker();
       syncTerrainGeometryFromHistory();
       flushTerrainChanges();
       syncTerrainDetails();
@@ -1101,6 +1151,13 @@ export function createLandingState(scene: Scene): WorldExperience {
       // archipelago and the sea-level record — both of which date their entries
       // from the start of the interval — need it wound back.
       const totalYearsBefore = totalYears - years;
+      // Advance the chain *before* accreting from it, so a shield born partway
+      // through this jump raises its island at this landing rather than a jump
+      // later. The record it produces is also the authority on how much each
+      // vent has built: `construction` is integrated across the jump, so the
+      // accretion pass scales each edifice by it instead of treating a stage
+      // sampled at the landing as if it had held for the whole interval.
+      const archipelago = advanceArchipelago(worldHistory.archipelago, years, totalYearsBefore);
       worldHistory = withRecordedSeaLevel(
         {
           ...worldHistory,
@@ -1109,10 +1166,11 @@ export function createLandingState(scene: Scene): WorldExperience {
           // the entire jump interval.
           terrain: resolveVolcanicAccretion(
             resolveTerrainHistory(worldHistory.terrain, years, climate),
-            worldHistory.hotSpots,
+            resolveShieldVents(archipelago, worldHistory.archipelago),
             years,
+            archipelago.plume,
           ),
-          archipelago: advanceArchipelago(worldHistory.archipelago, years, totalYearsBefore),
+          archipelago,
         },
         totalYearsBefore,
         years,

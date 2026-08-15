@@ -754,3 +754,107 @@ renderer change, so there is nothing to capture and no visual gate to record.
 The existing world-history version assertion now reads
 `WORLD_HISTORY_VERSION` instead of a hardcoded 8, so the next bump does not
 need a test edit.
+
+## 2026-08-15 · Multi-shield accretion: the chain builds terrain
+
+`docs/EXECUTION.md`'s "Persistent terrain and volcanic change" gate asked for one
+substitution: point `resolveVolcanicAccretion` at the archipelago shield record
+instead of the static `hotSpots` vent. **The owner reshaped the unit before it
+started**, and that turned out to be the more important half.
+
+**What the owner decided.** The volcanic control is no longer a four-way vent
+output. At world formation the player fixes *where the hotspot sits and which way
+the crust drifts*; both lock for the run. Thereafter they hold one three-way
+plume setting — **hyperactive** (lots of ejecta, fast growth), **active**
+(regular Galápagos scale), **dormant** (no growth). The old
+`vigorous/active/waning/extinct` enum survives internally as the *derived*
+per-shield stage, which is a shield's distance from the plume and was never
+something a player should have been setting.
+
+`active` is exactly 1 on both mechanical axes, so it reproduces the constants the
+owner accepted on 2026-08-15 rather than approximating them; a test asserts that
+so the verdict cannot drift silently.
+
+**The naive substitution does not work, and the spike hid why.** Pointing
+accretion at the chain and scaling each edifice by the shield's integrated
+`construction` produced a chain that never made islands — shield-1 peaked at
+0.001 km². Two defects compounding:
+
+1. **Stage was picking the edifice size.** A shield reaches full construction
+   only *after* drifting far enough to read as `waning`, whose 76 m table entry
+   describes a small lone cone. Every shield was handed a target smaller than the
+   island it had just built, growth clamped to zero, and nothing emerged. Stage
+   now sets the *rate*; `construction` sets the *size*. Radius and cap scale
+   together, so a part-built shield is a low seamount rather than a steep spike
+   and the flank angle is identical at every size.
+2. **Stage was sampled at the landing.** On a million-year rung a shield crosses
+   two whole stages inside one click, so a vent that spent most of the jump
+   building over the plume was charged the slow waning rate. `resolveShieldVents`
+   now takes the before and after records and erupts each vent at the strongest
+   stage it held during the interval.
+
+A waning vent's *activity* still retreats to its summit — it tops up near the
+vent but stops extending its skirt — which preserves the locality
+`volcanism.test.ts` was already guarding.
+
+**Measured on the real 2 km world**, five 1-Myr jumps from `young-volcano`
+(`scripts/shield-chain-readout.ts`): shield-1 is born as a 0.001 km² islet across
+a −5.0 m saddle, then shield-0 and shield-1 **merge into one island across a
++5.3 m saddle** which erodes to 5.2 then 4.9 m, while shield-2 emerges as its own
+0.031 km² island. That reproduces the previous session's spike figures exactly.
+Under `dormant` the chain freezes at the authored island and erodes 0.304 →
+0.140 km², which is precisely the old single-vent behaviour — so dormant *is* the
+"before" in the A/B. Under `hyperactive` three shields merge into one 0.65 km²
+island with 16–19 m saddles.
+
+**Cost is a non-issue and the brief's worry was unfounded.** 4–11 ms per jump
+against a ~410 ms resolve, flat across a 20 Myr world, because extinct shields
+are skipped before any grid work and geometry bounds the live set to two or
+three. No capping or culling needed.
+
+**`hotSpots` is gone.** `WORLD_HISTORY_VERSION` 9 → 10,
+`ARCHIPELAGO_HISTORY_VERSION` 1 → 2 (the plume setting is persisted state).
+Position, bearing and vigor all live in `archipelago`, so there is no second
+record able to disagree about where the volcano is.
+
+**Two limits found, neither blocking, both worth not rediscovering.**
+
+- **The plume leaves the grid after 2.45 Myr.** The terrain heightfield is the
+  *crust* frame, so the hotspot walks backwards through it and exits at
+  x = −1000 m. Shields born after that sit off-world at −52 m forever. The whole
+  geology → isolation arc lands inside that window, so the current objective is
+  unaffected, but the chain cannot grow past about three on-grid islands.
+- **Terrain accretion is not additive over sub-intervals.** Growth is an
+  exponential approach whose rate is capped per jump, so one 3 Myr click and
+  three 1 Myr clicks land on different islands — unlike `construction`, which the
+  archipelago work deliberately made additive. Captures therefore need the new
+  `jumps=` parameter to replay a rung cumulatively.
+
+**The determinism snapshot did not move, and the brief was wrong to expect it
+to.** `determinism.test.ts` calls `resolveLanding` on a synthetic heightfield and
+never touches `WorldHistory`, accretion or the archipelago, so it is structurally
+incapable of seeing this change — the same blind spot the 2 km resize hit on the
+scale axis, one axis over. New `src/shield-accretion.test.ts` closes it with 9
+tests that run the actual jump pipeline and assert player-visible behaviour (does
+a second island appear, does a land bridge form and then erode) rather than
+elevations, with the dormant case as a built-in negative control.
+
+**Evidence.** 366/366 tests (11 new), `npx tsc --noEmit` and `npm run build`
+clean. New `chain2km` capture set, 10 frames, WebGL fallback backend —
+`plume=dormant` versus `plume=active` at the same camera is a like-for-like A/B
+of the seam. Golden shots `w2k-chain` and `w2k-chain-saddle` were **added**;
+no existing shot or set was edited. Legacy `volcano=` fixtures still run via a
+documented mapping, with one honest collapse: `waning` and `active` now resolve
+to the same plume, because a shield wanes by drifting rather than by being told
+to.
+
+**Not done here.** `resolveIslandGeography` still has no shipping-path caller —
+this unit gives the grouping work its *terrain* consumer, so saddles are real
+land instead of bare basin floor, but nothing yet reads island membership to
+decide gene flow. That is order-of-work item 2. Also worth an eye on real
+hardware: in the fallback captures the newest shield reads as a very dark flat
+ellipse, which may be fresh-basalt shading working as intended or may not —
+per BACKLOG P0-2 that is not a call to make from a headless WebGL frame.
+
+**Ready for owner verdict** on `docs/polish/evidence/chain2km/`. This changes
+what the player sees and cannot self-certify.

@@ -31,13 +31,56 @@ export const SHIELD_GEOMETRY = {
 const ROUGHNESS_WAVELENGTH = 34;
 
 export const VOLCANIC_OUTPUTS = ["vigorous", "active", "waning", "extinct"] as const;
+/**
+ * How hard a *single vent* is erupting right now. Derived from the vent's
+ * distance to the plume by `archipelago-history.ts`, never chosen by the player
+ * — the player sets `PlumeVigor` below, which is a property of the whole
+ * hotspot rather than of any one shield.
+ */
 export type VolcanicOutput = typeof VOLCANIC_OUTPUTS[number];
+
+export const PLUME_VIGORS = ["hyperactive", "active", "dormant"] as const;
+/** The one volcanic control the player holds once the world is running. */
+export type PlumeVigor = typeof PLUME_VIGORS[number];
+
+/**
+ * What the three plume settings mean mechanically: how much rock an eruption
+ * lays down, and how often eruptions happen.
+ *
+ * `ejecta` scales the edifice a vent is building *towards*, so it moves the
+ * shield's radius and cap together and therefore leaves the mean flank angle
+ * untouched — a hyperactive plume builds a bigger Galápagos shield, not a
+ * steeper one, which is what THESIS §6 asks for. `frequency` scales how fast a
+ * vent closes on that target and how many lava flows resurface it.
+ *
+ * `active` is deliberately exactly 1 on both axes: it is the Galápagos-scale
+ * calibration the owner accepted on 2026-08-15 (a 6.6° mean flank measured on
+ * the starting island), so selecting it reproduces the accepted constants
+ * rather than approximating them.
+ */
+export const PLUME_VIGOR: Readonly<Record<PlumeVigor, { readonly ejecta: number; readonly frequency: number }>> = {
+  hyperactive: { ejecta: 1.5, frequency: 1.75 },
+  active: { ejecta: 1, frequency: 1 },
+  dormant: { ejecta: 0, frequency: 0 },
+};
+
+export function isPlumeVigor(value: unknown): value is PlumeVigor {
+  return typeof value === "string" && PLUME_VIGORS.includes(value as PlumeVigor);
+}
 
 export interface HotSpot {
   readonly id: string;
   readonly x: number;
   readonly z: number;
   readonly output: VolcanicOutput;
+  /**
+   * How much of its shield this vent has built, 0..1. Scales the edifice the
+   * vent is building *towards*, so terrain follows the integrated construction
+   * record in `archipelago-history.ts` instead of jumping to a full shield the
+   * moment a vent's stage is sampled as active. Defaults to 1 — a lone authored
+   * vent is a finished volcano, which is what every pre-archipelago caller means.
+   */
+  readonly construction?: number;
 }
 
 function clamp01(value: number): number {
@@ -92,13 +135,18 @@ function routeLavaFlows(
   strength: number,
   duration: number,
   salt: number,
+  frequency: number,
+  cap: number,
 ): void {
   if (vent.output === "waning" || strength * duration < 0.08) return;
   const step = terrain.extent / (terrain.side - 1);
   const half = terrain.extent / 2;
   const ventX = Math.max(1, Math.min(terrain.side - 2, Math.round((vent.x + half) / step)));
   const ventZ = Math.max(1, Math.min(terrain.side - 2, Math.round((vent.z + half) / step)));
-  const flowCount = vent.output === "vigorous" ? 7 : 4;
+  // Flow count is the "how often it erupts" half of plume vigor: a hyperactive
+  // plume resurfaces its flanks with more separate flows, an active one keeps
+  // the authored counts exactly.
+  const flowCount = Math.max(1, Math.round((vent.output === "vigorous" ? 7 : 4) * frequency));
   for (let flow = 0; flow < flowCount; flow++) {
     const direction = FLOW_DIRECTIONS[Math.floor(hash(flow, salt, 19) * FLOW_DIRECTIONS.length)]!;
     const sourceX = Math.max(1, Math.min(terrain.side - 2, ventX + direction[0] * 2));
@@ -116,7 +164,11 @@ function routeLavaFlows(
       const z = Math.floor(current / terrain.side);
       const deposit = Math.min(0.32, budget * 0.035) * strength;
       const previousElevation = elevations[current]!;
-      elevations[current] = Math.max(previousElevation, Math.min(55, previousElevation + deposit * 0.24));
+      // The 55 m ceiling is authored against the active shield's 43 m cap. A
+      // hyperactive plume builds past it, so the ceiling has to follow the
+      // edifice or flows would silently clip the summit they are resurfacing.
+      const ceiling = Math.max(55, cap);
+      elevations[current] = Math.max(previousElevation, Math.min(ceiling, previousElevation + deposit * 0.24));
       volcanicLoad[current] = clamp01(volcanicLoad[current]! + Math.max(0, elevations[current]! - previousElevation) / 45);
       basalt[current] = Math.max(basalt[current]!, clamp01(0.58 + deposit));
       disturbance[current] = Math.max(disturbance[current]!, 0.78);
@@ -144,13 +196,22 @@ function routeLavaFlows(
   }
 }
 
-/** Accrete a bounded broad shield before the existing weathering pass. */
+/**
+ * Accrete bounded broad shields before the existing weathering pass.
+ *
+ * `vigor` is the plume setting the player holds — one value for the whole
+ * hotspot, because there is one plume. It defaults to `active`, which is
+ * identity on both axes, so every caller that predates the plume control
+ * resolves exactly the terrain it always did.
+ */
 export function resolveVolcanicAccretion(
   previous: TerrainHistory,
   hotSpots: readonly HotSpot[],
   jumpYears: number,
+  vigor: PlumeVigor = "active",
 ): TerrainHistory {
-  if (hotSpots.length === 0 || jumpYears <= 0) return previous;
+  const { ejecta, frequency } = PLUME_VIGOR[vigor];
+  if (hotSpots.length === 0 || jumpYears <= 0 || ejecta <= 0) return previous;
   const elevations = previous.elevations.slice();
   const basalt = previous.basalt.slice();
   const ash = previous.ash.slice();
@@ -170,15 +231,35 @@ export function resolveVolcanicAccretion(
 
   for (const vent of hotSpots) {
     if (vent.output === "extinct") continue;
-    const strength = vent.output === "vigorous" ? 1 : vent.output === "active" ? 0.72 : 0.2;
-    const { radius, cap } = SHIELD_GEOMETRY[vent.output];
+    const strength = (vent.output === "vigorous" ? 1 : vent.output === "active" ? 0.72 : 0.2) * frequency;
+    // Stage sets the *rate* a vent builds at; `construction` sets the size of
+    // the edifice it is building towards. Keeping those separate matters. When
+    // stage picked the size too, a shield that reached full construction had by
+    // then also drifted far enough to read as `waning`, whose 76 m table entry
+    // describes a small lone cone — so every shield in the chain was handed a
+    // target smaller than the island it had just built, growth clamped to zero,
+    // and nothing past the starting island ever broke the surface.
+    //
+    // Radius and cap scale together, so a part-built shield is a low seamount
+    // rather than a steep spike, and the flank angle is the same at every size.
+    const built = Math.min(1, Math.max(0, vent.construction ?? 1));
+    if (built <= 0) continue;
+    const scale = ejecta * built;
+    const radius = SHIELD_GEOMETRY.vigorous.radius * scale;
+    const cap = SHIELD_GEOMETRY.vigorous.cap * scale;
+    if (radius < step) continue;
+    // How far *new* rock reaches is a property of how hard the vent is erupting
+    // now, not of the edifice under it. A waning vent still tops up near its
+    // summit but stops extending its skirt, so its activity retreats inwards
+    // while the shield it already built stays exactly where it is.
+    const activeRadius = Math.min(radius, SHIELD_GEOMETRY[vent.output].radius * ejecta);
     const salt = [...vent.id].reduce((sum, character) => sum + character.charCodeAt(0), 0);
     for (let z = 1; z < previous.side - 1; z++) {
       const worldZ = z * step - half;
       for (let x = 1; x < previous.side - 1; x++) {
         const worldX = x * step - half;
         const distance = Math.hypot(worldX - vent.x, worldZ - vent.z);
-        if (distance >= radius) continue;
+        if (distance >= activeRadius) continue;
         const index = z * previous.side + x;
         const radial = 1 - distance / radius;
         const roughness = 0.91 + flankRoughness(worldX, worldZ, salt) * 0.18;
@@ -205,7 +286,7 @@ export function resolveVolcanicAccretion(
     routeLavaFlows(
       previous, elevations, basalt, volcanicLoad, disturbance, nutrients, forage,
       vegetationProtection, substrateAge, surfaceAgeYears, soilDevelopment, sediment, carbonate,
-      vent, radius, strength, duration, salt,
+      vent, activeRadius, strength, duration, salt, frequency, cap,
     );
   }
 

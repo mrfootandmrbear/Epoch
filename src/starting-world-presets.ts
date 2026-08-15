@@ -1,6 +1,6 @@
 import type { ClimateForces } from "./climate";
 import { AUTHORED_SCALE, RENDER_SCALE } from "./render-scale";
-import type { VolcanicOutput } from "./volcanism";
+import type { PlumeVigor } from "./volcanism";
 
 export type StartingWorldPresetId = "weathered-island" | "young-volcano" | "drowned-ridges";
 
@@ -9,8 +9,18 @@ export interface StartingWorldPreset {
   readonly name: string;
   readonly description: string;
   readonly climate: Readonly<ClimateForces>;
-  readonly volcanicOutput: VolcanicOutput;
-  readonly hotSpot?: Readonly<{ x: number; z: number }>;
+  /**
+   * The plume setting this world opens on — the one volcanic control the player
+   * keeps once the world is running.
+   */
+  readonly plumeVigor: PlumeVigor;
+  /**
+   * Where the plume sits and which way it carries its shields, when the preset
+   * authors one. Absent means the world opens with no hotspot at all and the
+   * player places it; that is the case for both worlds whose islands are older
+   * than their volcanism.
+   */
+  readonly plume?: Readonly<{ x: number; z: number; driftX: number; driftZ: number }>;
   heightAt(x: number, z: number): number;
 }
 
@@ -106,7 +116,7 @@ export const STARTING_WORLD_PRESETS: readonly StartingWorldPreset[] = [
     name: "Weathered island",
     description: "An old, varied island with a high spine and established drainage.",
     climate: { rainfall: "temperate", temperature: "mild", wind: "westerly", seaLevel: "present" },
-    volcanicOutput: "active",
+    plumeVigor: "active",
     heightAt: weatheredIsland,
   },
   {
@@ -114,8 +124,12 @@ export const STARTING_WORLD_PRESETS: readonly StartingWorldPreset[] = [
     name: "Young volcano",
     description: "A steep basalt shield, active source, and little inherited relief.",
     climate: { rainfall: "wet", temperature: "warm", wind: "easterly", seaLevel: "present" },
-    volcanicOutput: "vigorous",
-    hotSpot: { x: -span(8), z: span(4) },
+    // The cone's own centre, drifting +x — so the chain marches away from the
+    // starting island along the axis `archipelago-history.ts` defaults to,
+    // which is the bearing every prior spacing and drift-rate figure was
+    // measured against.
+    plumeVigor: "active",
+    plume: { x: -span(8), z: span(4), driftX: 1, driftZ: 0 },
     heightAt: youngVolcano,
   },
   {
@@ -123,7 +137,7 @@ export const STARTING_WORLD_PRESETS: readonly StartingWorldPreset[] = [
     name: "Drowned ridges",
     description: "Two exposed uplands divided by a flooded central passage.",
     climate: { rainfall: "wet", temperature: "mild", wind: "westerly", seaLevel: "high" },
-    volcanicOutput: "extinct",
+    plumeVigor: "dormant",
     heightAt: drownedRidges,
   },
 ] as const;
