@@ -858,3 +858,18 @@ per BACKLOG P0-2 that is not a call to make from a headless WebGL frame.
 
 **Ready for owner verdict** on `docs/polish/evidence/chain2km/`. This changes
 what the player sees and cannot self-certify.
+
+**Owner verdict, 2026-08-15: passes — "good initial first, it passes."** The
+multi-shield accretion gate is cleared. Recorded against the live WebGPU frame
+at `?shot=w2k-chain&years=1000000&jumps=3&plume=active`, not only the
+fallback-backend `chain2km` contact sheet, so this is a verdict on the target
+pipeline rather than on a workaround capture.
+
+**Scope.** The verdict covers the geology reading: a legible chain of islands
+from one hotspot, a land bridge that forms between two shields and then erodes,
+and three visibly distinct plume settings. It is *not* a verdict on regional
+cohesion, reef-edge composition, organism quality, motion, or descendant
+readability — those remain unrecorded in "Definition of done". Nor does it clear
+the flat dark newest shield, which was present in the frame that passed and is
+now filed under "Open defects" in `docs/EXECUTION.md`. The owner's own "initial
+first" is preserved verbatim in both places so the qualifier cannot be lost.

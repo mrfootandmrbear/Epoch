@@ -94,6 +94,36 @@ without becoming arbitrary or converging on a predetermined bestiary.
 6. Resume water composition, herd embodiment verdicts, freshwater transitions,
    and broader ecology only where the integrated proof exposes a need.
 
+## Recorded owner verdicts
+
+- **World scale, 2026-08-15** — "the scale is much better." Covers world scale
+  and the shield silhouette only. See order-of-work item 0.
+- **Multi-shield accretion, 2026-08-15** — "good initial first, it passes."
+
+  **Scope.** This verdict covers the *geology reading*: that the hotspot chain
+  produces a legible sequence of islands, that a land bridge forms between two
+  shields and then erodes, and that the three plume settings are visibly
+  distinct. It was recorded against the live WebGPU frame, not only the
+  fallback `chain2km` captures.
+
+  **It is explicitly not** a verdict on regional cohesion, reef-edge
+  composition, organism quality, motion, or descendant readability — those
+  remain the separate, unrecorded visual gates in "Definition of done". It is
+  also not a verdict on the newest shield rendering as a flat dark disc, which
+  is a known open defect recorded below and was visible in the frame that
+  passed. "Initial first" is the owner's own qualifier and should be read as
+  approving the direction, not closing the surface.
+
+## Open defects
+
+- **The newest shield renders flat and unlit.** On real WebGPU as well as the
+  fallback, the youngest shield in the chain draws as a dark disc with no
+  relief, while `scripts/shield-chain-readout.ts` says that shield should carry
+  a ~32 m summit. Unresolved: shading versus the live pipeline actually sinking
+  it. Isolate by comparing the shipping landing's elevations against the
+  readout's at that shield's cell — the two run slightly different
+  post-accretion steps.
+
 ## What the resize left open
 
 Named here so the next unit does not have to rediscover them. None of these
@@ -160,7 +190,7 @@ members consequences.
 | World scale | **Accepted** 2026-08-15 — 2,000 m extent at 401×401 cells (5.0 m/cell); shield mean flank measured at 6.6° | None. Do not reopen without a demonstrated failure. Prior captures are not a valid A/B. |
 | Multi-shield archipelago record | Implemented renderer-independent in `archipelago-history.ts` with 40 tests; shield zero is the authored island | Preserve. The record advances every jump and validates as part of `WorldHistory` v9. |
 | Emergent island grouping and connectivity | Implemented in `island-geography.ts` with 32 tests — land components, shield-pair saddles, `SeaLevelHistory`, dated connection episodes | Terrain consumer done. Still needs a *population* consumer: nothing reads island membership to decide gene flow. |
-| Persistent terrain and volcanic change | **Implemented and driven by the shield chain** since 2026-08-15. Accretion runs off `resolveShieldVents`; the player fixes hotspot position and drift bearing at world formation and thereafter holds one three-way plume setting | **Ready for owner verdict** on `docs/polish/evidence/chain2km/` (fallback-backend). Then item 2. |
+| Persistent terrain and volcanic change | **Accepted** 2026-08-15 — "good initial first, it passes." Accretion runs off `resolveShieldVents`; the player fixes hotspot position and drift bearing at world formation and thereafter holds one three-way plume setting | None. See the verdict's scope below before treating any other gate as satisfied. |
 | Climate, hydrology, ocean, reef, and shared habitat sampling | Implemented in bounded forms | Reconcile fields with shield age, regional upwelling, and changing connectivity. |
 | Terrestrial population persistence | Implemented with trait means, energy, abundance, Distant Drifter establishment, and bounded branching | Persistent variance, explicit gene flow, drift, and path-dependent authored selection. |
 | Marine lineage and reef succession | Implemented as bounded proofs | Preserve; expand only for an integrated-proof consumer. |
