@@ -17,9 +17,29 @@ without becoming arbitrary or converging on a predetermined bestiary.
 
 ## Order of work
 
+0. **Resolve world scale before building further on `RENDER_SCALE.islandExtent`.**
+   The 380 m extent is a render-proof-of-concept inheritance and is too small
+   for the shield forms this direction requires. At the radius and cap
+   `volcanism.ts` currently builds (68 m / 52 m) a vigorous vent produces a
+   ~49° upper flank — a cinder cone, not the broad shield the visual contract
+   calls for. A 48 m summit at a credible 10° shield slope needs a 272 m base
+   radius, so a single plausible shield is wider than the whole present grid,
+   and a two-shield saddle wants roughly 1.2 km. Owner independently reports a
+   "weird sense of scale" in playthroughs, which this explains: every other
+   dimension in the world is honest in metres, so the island reads as a model.
+   The change is cross-cutting — camera clamps, LOD bands, ocean extent,
+   terrain segment count, sculpt brush radii, and the erosion tuning calibrated
+   at 2.11 m/cell — and it invalidates every existing golden-shot comparison.
+   Treat it as its own Work Unit with an owner before/after verdict.
+   *Adopted 2026-08-15.*
 1. Establish renderer-independent multi-shield history, emergent island groups,
    habitat connectivity, and gene-flow boundaries using the bounded geological
-   process grammar in `PRODUCT.md`.
+   process grammar in `PRODUCT.md`. *`ArchipelagoHistory` / `ShieldHistory`
+   landed 2026-08-15 in `src/archipelago-history.ts`: fixed mantle hotspot,
+   crust-frame terrain, drift-resolved shield positions, birth along the chain,
+   integrated construction and dormancy. Scale-free — a resize retunes
+   `DEFAULT_DRIFT_RATE`, `SHIELD_SPACING` and `FULL_CONSTRUCTION_YEARS` and
+   changes nothing structural. Island grouping and connectivity are still open.*
 2. Add population variance, founder bottlenecks, drift, path-dependent
    selection, and ancestry records only to the depth required by the sequence;
    express selection through authored trait pressures and tradeoffs.
@@ -56,6 +76,8 @@ members consequences.
 | Area | Current state | Next gate |
 |---|---|---|
 | Form → jump → reveal loop | Implemented | Preserve while replacing isolated duration shots with one inherited sequence. |
+| World scale | 380 m island extent at 181×181 cells (2.11 m/cell), inherited from the render proof of concept | Resolve the extent; current geometry cannot express a shield silhouette. See order of work item 0. |
+| Multi-shield archipelago record | Implemented renderer-independent in `archipelago-history.ts` with 40 tests | Emergent island grouping, saddle connectivity, sea-level history; then wire the existing island in as shield zero. |
 | Persistent terrain and volcanic change | Implemented for the current island model | Multi-shield accretion and stable derived island grouping. |
 | Climate, hydrology, ocean, reef, and shared habitat sampling | Implemented in bounded forms | Reconcile fields with shield age, regional upwelling, and changing connectivity. |
 | Terrestrial population persistence | Implemented with trait means, energy, abundance, Distant Drifter establishment, and bounded branching | Persistent variance, explicit gene flow, drift, and path-dependent authored selection. |

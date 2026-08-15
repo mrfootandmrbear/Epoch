@@ -1,5 +1,19 @@
 # Backlog
 
+> **SUPERSEDED SNAPSHOT — 2026-08-15. Preserved as evidence; sets no priority.**
+> This file is a record of the render-presentation phase, when Epoch was scoped
+> as a renderer proof of concept. Current priority lives only in
+> `docs/EXECUTION.md`.
+>
+> In particular, the `LW-#` items below marked "FIXED (ready for owner verdict)"
+> are **not** awaiting a rubber stamp. The owner reviewed them on 2026-08-15 and
+> judged them still below bar; they were deliberately *not* given per-item
+> verdicts, because the integrated proof's visual gate in `docs/EXECUTION.md`
+> re-asks the same questions in a better frame (reef-edge composition, regional
+> cohesion, organism quality, descendant readability). Do not read any status
+> line in this file as a gate satisfied, and do not reopen these items without a
+> demonstrated failure in the integrated sequence.
+
 > **Updated:** 2026-08-13 (Phase 1, live-world slice).
 > Ranked by **impact ÷ (cost × risk)**. Impact 1–5 = how much a new player
 > notices in the first 60 seconds. Cost 1–5 = token/session cost to fix
