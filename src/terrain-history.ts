@@ -144,6 +144,44 @@ export function createTerrainHistory(
   };
 }
 
+/**
+ * Cell size, in metres, that every geomorphic coefficient below was originally
+ * tuned at — the 181×181 grid over the old 380 m extent.
+ *
+ * The coefficients are written in *cell* units: `relief` is the drop to an
+ * adjacent cell, `catchment` counts cells, the diffusion term is a bare
+ * Laplacian weight. All three change meaning when the grid does, so widening
+ * the world would silently retune erosion unless they are converted back to
+ * this reference. See `docs/EXECUTION.md` order of work item 0.
+ */
+export const REFERENCE_CELL_METRES = 380 / 180;
+
+interface CellMetrics {
+  /** Metres per cell on this grid. */
+  readonly metres: number;
+  /** Cell size relative to `REFERENCE_CELL_METRES`. 1 on the original grid. */
+  readonly scale: number;
+  /**
+   * Converts an adjacent-cell elevation drop into the drop the reference grid
+   * would have seen across the same physical gradient.
+   */
+  readonly gradient: number;
+  /**
+   * Cell *area* relative to the reference cell — the square of `scale`.
+   *
+   * Used only by the hillslope diffusion weight, which carries a discrete
+   * Laplacian's 1/cellSize². Deliberately not applied to the drainage
+   * thresholds; see the note at the channel field.
+   */
+  readonly area: number;
+}
+
+export function cellMetrics(extent: number, side: number): CellMetrics {
+  const metres = extent / Math.max(1, side - 1);
+  const scale = metres / REFERENCE_CELL_METRES;
+  return { metres, scale, gradient: 1 / scale, area: scale * scale };
+}
+
 /** Apply one bounded, duration-scaled geomorphic pass to the previous landing. */
 export function resolveTerrainHistory(
   previous: TerrainHistory,
@@ -151,6 +189,7 @@ export function resolveTerrainHistory(
   climate: Readonly<ClimateForces>,
 ): TerrainHistory {
   const { side, extent } = previous;
+  const cell = cellMetrics(extent, side);
   const nextElevations = previous.elevations.slice();
   const nextDisturbance = new Float32Array(previous.disturbance.length);
   const nextForage = previous.forage.slice();
@@ -188,12 +227,20 @@ export function resolveTerrainHistory(
         previous.runoff[index - 1]! + previous.runoff[index + 1]!
         + previous.runoff[index - side]! + previous.runoff[index + side]!
       ) * 0.125;
-      nextRunoff[index] = clamp01(rainSupply * (0.16 + downhill * 0.08) + inheritedFlow * 0.58);
+      nextRunoff[index] = clamp01(rainSupply * (0.16 + downhill * cell.gradient * 0.08) + inheritedFlow * 0.58);
     }
   }
   const drainage = resolveDrainageField(previous.elevations, nextRunoff, side);
   let channelField = new Float32Array(previous.elevations.length);
   for (let index = 0; index < channelField.length; index++) {
+    // Both signals count upslope cells, so an area correction looks obviously
+    // required here — and measurement says otherwise. A D8 network does not
+    // hold its catchments fixed and merely sample them more finely: it
+    // reorganises, and the cell counts feeding these thresholds stay close to
+    // resolution-invariant on their own. Applying the analytic (cell/reference)²
+    // correction overshot inland incision by ~2.9× at 5 m cells against the
+    // same physical island resolved at 2.11 m; leaving it off lands at 0.82×.
+    // See the cell-size invariance case in `epoch-scale-terrain.test.ts`.
     const catchmentSignal = clamp01((Math.sqrt(drainage.catchment[index]!) - 2.5) / 8);
     const dischargeSignal = clamp01(Math.sqrt(drainage.accumulation[index]!) / 5.5);
     channelField[index] = catchmentSignal * dischargeSignal;
@@ -201,7 +248,13 @@ export function resolveTerrainHistory(
   // A mature river is a valley, not a one-vertex scratch. Expand the connected
   // centerline laterally as deep time increases; max propagation preserves the
   // drainage silhouette instead of turning it into uniform smoothing.
-  const wideningPasses = deepTime >= 0.85 ? 4 : deepTime >= 0.3 ? 1 : 0;
+  //
+  // A pass widens by one cell, so the count buys a fixed number of *metres*
+  // only if it shrinks as cells grow.
+  const referenceWidening = deepTime >= 0.85 ? 4 : deepTime >= 0.3 ? 1 : 0;
+  const wideningPasses = referenceWidening === 0
+    ? 0
+    : Math.max(1, Math.round(referenceWidening * cell.gradient));
   for (let pass = 0; pass < wideningPasses; pass++) {
     const widened = channelField.slice();
     const falloff = [0.7, 0.56, 0.42, 0.3][pass] ?? 0.3;
@@ -226,7 +279,8 @@ export function resolveTerrainHistory(
         previous.elevations[index - 1]! + previous.elevations[index + 1]!
         + previous.elevations[index - side]! + previous.elevations[index + side]!
       ) * 0.25;
-      const relief = Math.abs(neighborhood - elevation);
+      // Cell-unit relief is not a slope until it is divided by cell size.
+      const relief = Math.abs(neighborhood - elevation) * cell.gradient;
       const protection = previous.vegetationProtection[index]!;
       const exposed = 1 - protection * 0.78;
       const transport = duration * erosion * exposed * (0.055 + relief * 0.012)
@@ -239,7 +293,7 @@ export function resolveTerrainHistory(
       const downhill = Math.max(0, elevation - Math.min(
         previous.elevations[index - 1]!, previous.elevations[index + 1]!,
         previous.elevations[index - side]!, previous.elevations[index + side]!,
-      ));
+      )) * cell.gradient;
       const channelStrength = channelField[index]!;
       const channelTime = clamp01((Math.log10(Math.max(1, jumpYears)) - 2) / 4);
       // Roots protect slopes, but concentrated flow can breach a mature canopy.
@@ -257,9 +311,14 @@ export function resolveTerrainHistory(
       // slowly, so extinct edifices still cross the shoreline in deep time.
       const subsidence = deepTime * previous.volcanicLoad[index]!
         * (1.15 + previous.volcanicLoad[index]! * 1.85);
+      // Hillslope diffusion. The Laplacian carries a 1/cellSize², so holding
+      // the weight fixed across a resize would smooth a proportionally wider
+      // strip of ground per jump and quietly melt the shield silhouette the
+      // 2 km extent was adopted to express.
+      const diffusion = Math.min(0.42, transport / cell.area);
       nextElevations[index] = Math.max(
         -55,
-        elevation + (neighborhood - elevation) * Math.min(0.42, transport)
+        elevation + (neighborhood - elevation) * diffusion
           - coastal - drainageIncision - subsidence + alluvialDeposition,
       );
 

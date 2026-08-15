@@ -23,7 +23,11 @@ import {
 import { seagrassGeometry, type SeagrassGeometryLevel } from "./seagrass-geometry-assets";
 import { RENDER_SCALE } from "./render-scale";
 
-const MAX_TUFTS = 900;
+/**
+ * Instance capacity for one seagrass LOD band. Matches the resolver's per-area
+ * meadow cap on the 2,000 m world; see `RENDER_SCALE.islandLandRadius`.
+ */
+const MAX_TUFTS = 8000;
 const NEAR_DISTANCE = RENDER_SCALE.lod.seagrassNear;
 const LOD_REPARTITION_DISTANCE = RENDER_SCALE.lod.seagrassRepartition;
 const UP = new Vector3(0, 1, 0);

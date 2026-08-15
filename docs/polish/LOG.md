@@ -562,3 +562,133 @@ gene flow. The geomorphic code remains exploratory groundwork; its generic
 four-rung candidate is no longer awaiting acceptance. The replacement gate is
 the serialized two-shield evolutionary proof in
 `docs/GALAPAGOS-HOTSPOT-PLAN.md`.
+
+---
+
+## WU-006 · World scale resolved at 2 km (2026-08-15)
+
+**Decision first.** `scripts/world-scale-comparison.ts` drew three candidate
+extents at one shared scale, in plan and in true 1:1 side elevation, against
+three silhouettes: the island a player actually starts on, the cone
+`volcanism.ts` really builds (measured by running the accretion pass, not by
+re-deriving its algebra), and a plausible 10° Galápagos shield. The measured
+"before" was worse than item 0's estimate: a vigorous vent broke the surface as
+an island **97 m wide and 45 m tall — a 43° mean flank**, with single-cell steps
+to 75°. The owner chose **option C, 2,000 m**.
+
+**Implemented.** `islandExtent` 380 → 2,000 m, `terrainSegments` 180 → 400
+(5.0 m/cell). Shield radii 68/61/19 → 272/244/76 m with the caps unchanged, so
+the same summit now stands on a base that can carry it. Two measurements, both
+by running the shipping accretion pass, because they answer different questions:
+on **bare seafloor** — the like-for-like comparison with the 43°/97 m "before" —
+a vigorous vent emerges **390 m wide at a 13.2° mean flank**; on the **starting
+island**, which is the gameplay case, the same vent gives a **790 m landmass at
+6.6° under a 45.6 m summit**, steepest single cell 28°. Flank
+roughness moved from per-cell white noise to a 34 m metric lattice, which is
+what produced the old 75° steps. Lava-flow reach is now derived from the shield
+radius instead of a cell count.
+
+**Everything keyed to the old extent.** Starting-world landforms are stretched
+horizontally only — heights untouched — which is what turns a 13° island into a
+5–6° one. Offshore bathymetry gained a shelf break into a −52 m basin; the old
+single constant would have made nine tenths of the 2 km world a flat
+waist-deep plateau. Vegetation scatter moved off a hardcoded 150 m disc and now
+carries authored *density* rather than authored *count*. Camera clamps, default
+framing, shadow frustum, ocean extent and sculpt brush radii all follow the
+extent. Archipelago drift rate 1e-4 → 4e-4 and spacing 96 → 381 m, both
+re-derived from the ratios the 380 m world was tuned to, so residence time over
+the hotspot is unchanged and a million-year click still exposes exactly one new
+shield.
+
+**Erosion re-checked, not assumed.** The geomorphic coefficients are written in
+cell units, so `terrain-history.ts` now normalizes them against cell size.
+`gradient` turns an adjacent-cell drop back into a slope; `area` divides the
+hillslope diffusion weight, which carries a Laplacian's 1/cellSize². The
+drainage catchment and accumulation thresholds are deliberately **not**
+area-corrected: the analytic correction looked obviously required and
+overshot inland incision by 2.9× at 5 m cells against the same physical island
+resolved at 2.11 m, because a D8 network reorganises rather than subdividing.
+Leaving it off lands at 0.82×. Measured, not reasoned. New cases in
+`epoch-scale-terrain.test.ts` hold land loss within ±15% and the summit within
+1 m across a 4.7× change in cell size.
+
+**Cost.** The ocean-current pressure solve is side³ and would have made a
+deep-time jump cost 3.6 s on its own. It is now decoupled from the terrain grid
+at `CURRENT_FIELD_MAX_SIDE = 161` — it is a basin-scale field every consumer
+reads through a world-space bilinear filter — and the wake range follows the
+extent instead of a fixed 110 m. A jump's renderer-independent resolve is
+**0.41 s** at 401×401, against 0.33 s on the old 380 m world. The overview
+frame draws **15 calls** on the real WebGPU backend. No fps claim: the pane
+throttles `requestAnimationFrame`.
+
+**`archipelago-history.ts` birth stepping.** The conservative sphere trace
+stepped by `SPACING − gap`, which collapses towards zero for a shield sitting
+almost exactly one spacing off the drift axis. The number of steps grows with
+the spacing being traced, so widening the world took a previously-passing case
+past the 8,192 iteration guard. Replaced with the closed-form quadratic: the
+hotspot walks a straight line, so "clear of a shield" is "outside a circle" and
+the answer is the furthest exit root.
+
+**Evidence.** 317/317 tests pass, `npx tsc --noEmit` and `npm run build` clean.
+Live WebGPU frames for the new `w2k-` cameras report no console warnings or
+errors. Prior captures are **not** comparable — the existing `GOLDEN_SHOTS` are
+retained unedited but frame a fifth of the world; `w2k-` cameras and the
+`baseline2km` / `shield2km` sets are a fresh baseline.
+
+**Owner verdict, 2026-08-15: accepted — "the scale is much better."** This
+clears order-of-work item 0. The verdict covers world scale and the shield
+silhouette; it is not a verdict on the other visual gates. Open items are
+recorded under "What the resize left open" in `docs/EXECUTION.md`: no caldera
+on the shield, reef-edge composition, and the untouched fog/lighting/sea-state
+tuning.
+
+**Independent review pass and four scale misses.** A hostile subagent review of
+the diff found four constants authored against the old 380 m world that the
+resize had not touched, all of them in files the change never opened — which is
+exactly where this class of defect hides. All four are fixed, and the shared
+factor now lives in `RENDER_SCALE.AUTHORED_SCALE` so the next resize has one
+place to look.
+
+1. **`fft-water.ts` — the ocean shader was still dividing by 380.**
+   `terrainSize` defaulted to a hardcoded `380` and `main.ts` never passed it,
+   so the UVs that sample the terrain-height and ocean-mask textures were
+   wrong everywhere beyond ±190 m of the origin: shoreline foam, shallow-water
+   transmission and the land/water mask silently fell back to "deep water, no
+   land" across most of the coast. The caller now passes it and the default is
+   keyed to the contract.
+2. **`animal-navigation.ts` — wildlife could not move.** The A* search box was
+   a bare `LIMIT = 150` metres, so every animal beyond 150 m of the origin
+   clamped to the same boundary cell and `findTerrainPath` returned an empty
+   path. Verified before the fix: two individually-walkable points at (300,300)
+   and (340,340) returned a zero-length path. `LIMIT` and `CELL` now follow
+   `islandLandRadius` (the box stays ~83 cells across rather than growing with
+   the square of the world); `landing-state.ts`'s matching `< 148` wander bound
+   follows it too. After the fix, 46 of 47 far-to-far path attempts across
+   walkable ground beyond 150 m succeed, the one failure being genuinely across
+   water.
+3. **`distant-drifter-renderer.ts` — the founder raft arrived inside a hill.**
+   Its `basePosition` of (92, 0, 86) was open water off a 165 m island; after
+   the stretch it is 7–17 m of solid land in all three starting worlds, with the
+   raft still drawn at sea level. The authored bearing is kept; the distance is
+   now `islandLandRadius * 1.25`, which clears every preset's shore into 5–7 m
+   of water.
+4. **`lineage-history.ts` — migration reach was penned in.** `migrationRadius`
+   capped at 70 m, which was 42% of the old land radius and would have been
+   16% of the new one, leaving populations unable to track a coastline or
+   habitat band across the larger island. The authored curve is preserved and
+   scaled.
+
+The review separately cleared `nextClearOffset`, `bathymetrySampler` and the
+cell-size normalization, the first by running a 50M-year archipelago sequence
+and checking pairwise spacing.
+
+**Determinism baseline re-based.** Fixing (4) moved
+`determinism.test.ts`'s committed ecological snapshot — and that exposed a
+weakness worth naming: the fixture ran at `captureWorldSnapshot`'s 300 m
+defaults with a 145 m island, so it passed unchanged straight through the
+entire 2 km resize. A determinism baseline taken at proportions the game never
+runs at cannot notice a world-scale change. The fixture now uses the real
+extent (with a coarser 201² grid so four jumps stay fast) and its snapshot is
+recommitted at those proportions. 318/318 tests, `tsc --noEmit` and
+`npm run build` clean; the live WebGPU frame reports no console errors in a
+fresh tab.

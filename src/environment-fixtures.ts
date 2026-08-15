@@ -1,5 +1,41 @@
 import type { ClimateForces } from "./climate";
-import type { VolcanicOutput } from "./volcanism";
+import { AUTHORED_SCALE } from "./render-scale";
+import { SHIELD_GEOMETRY, type VolcanicOutput } from "./volcanism";
+
+/**
+ * Centre of the reviewed reef shelf, in metres.
+ *
+ * The shelf was authored at (104, 116) against a 165 m island — just past its
+ * shore, on shallow substrate. It is re-seated by the same factor the starting
+ * worlds were stretched by, so it lands just past the *new* shore for the same
+ * reason. Scaling it by the grid ratio instead would put it 837 m out, in open
+ * ocean too deep for a reef, which is exactly what a first attempt did.
+ */
+export const REEF_REVIEW_SHELF = Object.freeze({
+  x: Math.round(104 * AUTHORED_SCALE),
+  z: Math.round(116 * AUTHORED_SCALE),
+});
+
+/**
+ * Where the reef fixture's vent sits, derived rather than typed.
+ *
+ * The composition that mattered was geometric, not numeric: the vent sat just
+ * *outside* its own shield's skirt as seen from the shelf, so fresh basalt
+ * reaches the paired cameras while the outer reef stays on old substrate.
+ * With the shield radius now 244 m instead of 61 m, a hand-typed offset that
+ * used to clear the skirt would sit deep inside it, and `withReefDeposition`
+ * would suppress every gram of carbonate under it. Deriving the offset keeps
+ * the intent through any future change to shield geometry.
+ */
+function reefVent(): Readonly<{ x: number; z: number }> {
+  const clearance = SHIELD_GEOMETRY.active.radius * 1.06;
+  // Inland of the shelf along the shelf's own bearing from the world centre.
+  const bearing = Math.atan2(REEF_REVIEW_SHELF.z, REEF_REVIEW_SHELF.x);
+  return Object.freeze({
+    x: Math.round(REEF_REVIEW_SHELF.x - Math.cos(bearing) * clearance),
+    z: Math.round(REEF_REVIEW_SHELF.z - Math.sin(bearing) * clearance),
+  });
+}
 
 export const ENVIRONMENT_FIXTURES = {
   "cold-wet-calm-present": {
@@ -30,7 +66,7 @@ export const ENVIRONMENT_FIXTURES = {
     volcano: "active",
     // On the inner edge of the reviewed reef shelf: close enough for basalt
     // to enter the paired cameras, far enough that the outer reef survives.
-    hotSpot: { x: 60, z: 70 },
+    hotSpot: reefVent(),
   },
 } as const satisfies Record<string, {
   climate: ClimateForces;

@@ -78,9 +78,17 @@ import {
 
 const TERRAIN_SIZE = RENDER_SCALE.islandExtent;
 const TERRAIN_HALF = TERRAIN_SIZE / 2;
-const TERRAIN_SEGMENTS = 180;
+const TERRAIN_SEGMENTS = RENDER_SCALE.terrainSegments;
 const TERRAIN_SIDE = TERRAIN_SEGMENTS + 1;
 const TERRAIN_STEP = TERRAIN_SIZE / TERRAIN_SEGMENTS;
+/**
+ * Furthest from the origin a wander destination may be picked, in metres.
+ *
+ * Must stay inside `animal-navigation`'s own search box, or the destination is
+ * chosen and then no path to it can be found. Keyed to the land radius for the
+ * same reason that box is.
+ */
+const WANDER_LIMIT = RENDER_SCALE.islandLandRadius * 1.06;
 
 function hash(x: number, z: number): number {
   const n = Math.sin(x * 127.1 + z * 311.7) * 43758.5453;
@@ -1268,7 +1276,7 @@ export function createLandingState(scene: Scene): WorldExperience {
             const radius = 18 + hash(index + attempt, state.journey + 44) * 35;
             const x = animal.position.x + Math.cos(angle) * radius;
             const z = animal.position.z + Math.sin(angle) * radius;
-            if (Math.hypot(x, z) < 148 && isWalkable(heightAt, x, z, activeClimate)) {
+            if (Math.hypot(x, z) < WANDER_LIMIT && isWalkable(heightAt, x, z, activeClimate)) {
               destination = new Vector3(x, heightAt(x, z), z);
             }
           }

@@ -760,7 +760,10 @@
         <button data-tool="hotspot">Add volcanic hot spot</button>
       </div>
       <div class="actions brush-controls" id="brush-controls" hidden>
-        <label>Size <input id="brush-size" type="range" min="6" max="60" step="1" value="18"><output id="brush-size-value">18 m</output></label>
+        <!-- Radii in metres against the 2,000 m world. The floor is three
+             terrain cells wide (5 m each); anything narrower moves one vertex
+             and reads as a spike rather than a landform. -->
+        <label>Size <input id="brush-size" type="range" min="15" max="200" step="5" value="55"><output id="brush-size-value">55 m</output></label>
         <label>Strength <input id="brush-strength" type="range" min="0.25" max="4" step="0.25" value="1.25"><output id="brush-strength-value">1.25</output></label>
         <button id="undo-sculpt" disabled aria-label="Undo terrain stroke">Undo</button>
         <button id="redo-sculpt" disabled aria-label="Redo terrain stroke">Redo</button>

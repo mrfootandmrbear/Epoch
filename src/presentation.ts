@@ -24,6 +24,37 @@ export const GOLDEN_SHOTS = {
   "coat-detail": { position: [64, 30, 30], target: [42, 12, -10] },
   dawn: { position: [142, 43, -126], target: [0, 15, 0] },
   storm: { position: [-150, 58, -132], target: [0, 12, 0] },
+
+  // ---------------------------------------------------------------------
+  // 2 km world (`w2k-` prefix), added 2026-08-15 with the `islandExtent`
+  // change in `docs/EXECUTION.md` order of work item 0.
+  //
+  // The cameras above are kept exactly as they were because they are the
+  // comparison basis for every capture taken before the resize. They are
+  // also, as of that change, **no longer meaningful**: each of them frames a
+  // volume roughly a fifth of the world across, so on the 2,000 m grid they
+  // sit inside the island or stare at open water. Do not A/B a new capture
+  // against a pre-resize one taken through them — the subject moved, not the
+  // renderer. Use these instead, and treat them as a fresh baseline.
+  // ---------------------------------------------------------------------
+
+  /** The island group with sea around it — the regional-cohesion framing. */
+  "w2k-whole-island": { position: [560, 250, 640], target: [0, 22, 0] },
+  /** Low and seaward: shield profile against the sky, which is the whole point of the resize. */
+  "w2k-shield-profile": { position: [1180, 96, 210], target: [-40, 46, 30] },
+  /** Across the saddle between two shields, where connectivity is won and lost. */
+  "w2k-saddle": { position: [-560, 168, 700], target: [60, 30, 60] },
+  /** Just off the beach, at wave height — the shore has to read as walkable ground. */
+  "w2k-shoreline": { position: [372, 9, 384], target: [232, 3, 244] },
+  /**
+   * Over the re-seated review shelf in `environment-fixtures.ts`, at the same
+   * short range and down-angle the pre-resize `reef-above` used. Pulling back
+   * to a "wide" distance on the 2 km world simply frames the fixture's young
+   * basalt shield instead of the reef.
+   */
+  "w2k-reef-above": { position: [298, 13, 333], target: [280, -6, 313] },
+  "w2k-dawn": { position: [760, 230, -680], target: [0, 26, 0] },
+  "w2k-storm": { position: [-800, 310, -700], target: [0, 22, 0] },
 } as const;
 
 export type GoldenShotName = keyof typeof GOLDEN_SHOTS;
@@ -32,14 +63,19 @@ export function isGoldenShotName(value: string | null): value is GoldenShotName 
   return value !== null && value in GOLDEN_SHOTS;
 }
 
+/**
+ * The attract tour. Re-pointed at the `w2k-` cameras when the world widened:
+ * the pre-resize framings still exist for evidence comparison, but a tour
+ * built from them would fly the player through the inside of the island.
+ */
 export const SCREENSAVER_SHOTS: readonly GoldenShotName[] = [
-  "whole-island",
-  "ridge-silhouette",
-  "shoreline",
-  "reef-above",
-  "herd-contrast",
-  "dawn",
-  "storm",
+  "w2k-whole-island",
+  "w2k-shield-profile",
+  "w2k-saddle",
+  "w2k-shoreline",
+  "w2k-reef-above",
+  "w2k-dawn",
+  "w2k-storm",
 ];
 
 export function screensaverCameraHeight(

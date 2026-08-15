@@ -29,6 +29,7 @@ import {
   vec3,
 } from "three/tsl";
 import { FFTOcean, sampleBilinearFloat } from "./fft-ocean";
+import { RENDER_SCALE } from "./render-scale";
 import type { ResolvedAtmosphere, AtmosphereState } from "./atmosphere";
 import type { OceanSeaState } from "./ocean-sea-state";
 
@@ -64,13 +65,20 @@ export type FFTWaterMesh = Mesh & {
 };
 
 export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): FFTWaterMesh {
-  const size = options.size ?? 1400;
+  const size = options.size ?? RENDER_SCALE.oceanExtent;
   const segments = options.segments ?? 300;
   const sunColorNode = uniform(options.atmosphere.sunColor.clone());
   const sunDir = uniform(options.sunDirection);
   const n = ocean.size;
   const patch = ocean.patchSize;
-  const terrainSize = options.terrainSize ?? 380;
+  // Divides the world position that samples `terrainHeightTexture` and
+  // `oceanMaskTexture`, so it must be the extent those textures actually span.
+  // It defaulted to a hardcoded 380 while the caller never passed it, which
+  // survived the 2 km resize silently: shoreline foam, shallow transmission and
+  // the land mask kept working only within ±190 m of the origin and the rest of
+  // the coast fell back to "deep water, no land". Keyed to the contract now, and
+  // the caller passes it explicitly as well.
+  const terrainSize = options.terrainSize ?? RENDER_SCALE.islandExtent;
   const sceneTime = ocean.clock;
   const chopScale = options.seaState?.chopScale ?? 1;
   const crestFoamStrength = options.seaState?.crestFoamStrength ?? 0;

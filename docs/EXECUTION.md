@@ -17,21 +17,47 @@ without becoming arbitrary or converging on a predetermined bestiary.
 
 ## Order of work
 
-0. **Resolve world scale before building further on `RENDER_SCALE.islandExtent`.**
-   The 380 m extent is a render-proof-of-concept inheritance and is too small
-   for the shield forms this direction requires. At the radius and cap
-   `volcanism.ts` currently builds (68 m / 52 m) a vigorous vent produces a
-   ~49° upper flank — a cinder cone, not the broad shield the visual contract
-   calls for. A 48 m summit at a credible 10° shield slope needs a 272 m base
-   radius, so a single plausible shield is wider than the whole present grid,
-   and a two-shield saddle wants roughly 1.2 km. Owner independently reports a
-   "weird sense of scale" in playthroughs, which this explains: every other
-   dimension in the world is honest in metres, so the island reads as a model.
-   The change is cross-cutting — camera clamps, LOD bands, ocean extent,
-   terrain segment count, sculpt brush radii, and the erosion tuning calibrated
-   at 2.11 m/cell — and it invalidates every existing golden-shot comparison.
-   Treat it as its own Work Unit with an owner before/after verdict.
-   *Adopted 2026-08-15.*
+0. ~~**Resolve world scale.**~~ **Done. Owner verdict recorded 2026-08-15:
+   "the scale is much better."** The owner chose a **2,000 m extent** from a
+   three-option comparison (`evidence/world-scale/world-scale-comparison.svg`,
+   regenerate with `scripts/world-scale-comparison.ts`) and accepted the
+   resized world on sight.
+
+   **Scope of that verdict:** world scale and the shield silhouette only. It is
+   not a verdict on regional cohesion, reef-edge composition, organism quality,
+   motion, or descendant readability — those remain the separate visual gates
+   in "Definition of done" below, and none of them has been recorded.
+
+   `RENDER_SCALE.islandExtent` is 2,000 m on a 401×401 grid (5.0 m/cell, from
+   380 m at 181×181 / 2.11 m/cell). Shield radii moved to the 272 m item 0
+   specified; the caps did not move. Two measurements, both by running the
+   shipping accretion pass:
+
+   - **A vigorous vent on bare seafloor** — the like-for-like comparison with
+     item 0's original figure — breaks the surface as an island **390 m wide at
+     a 13.2° mean flank**, from **97 m at 43°**.
+   - **The same vent on the starting island**, which is the gameplay case,
+     gives a **790 m wide landmass at a 6.6° mean flank** under a 45.6 m
+     summit, because the shield is building onto existing land.
+
+   Also changed because it was keyed to the old extent: starting-world
+   landforms (stretched horizontally only — heights are unchanged, which is
+   what turns a 13° island into a 5–6° one), offshore bathymetry (a shelf that
+   breaks into a −52 m basin, replacing a flat few-metre plateau that would
+   otherwise have been nine tenths of the world), vegetation scatter and
+   density, camera clamps and default framing, shadow frustum, sculpt brush
+   radii, ocean extent, and the archipelago drift rate and shield spacing.
+
+   `terrain-history.ts` now normalizes its geomorphic coefficients against cell
+   size, so the grid can move again without silently retuning erosion;
+   `epoch-scale-terrain.test.ts` holds that contract. The ocean-current
+   pressure solve was decoupled from the terrain grid — it is side³ and would
+   otherwise have made a deep-time jump cost 3.6 s.
+
+   **Prior captures are not comparable.** Existing `GOLDEN_SHOTS` are retained
+   unedited as the basis for pre-resize evidence but now frame a fifth of the
+   world; new `w2k-` cameras and the `baseline2km` / `shield2km` capture sets
+   are a fresh baseline. See "What the resize left open" below.
 1. Establish renderer-independent multi-shield history, emergent island groups,
    habitat connectivity, and gene-flow boundaries using the bounded geological
    process grammar in `PRODUCT.md`. *`ArchipelagoHistory` / `ShieldHistory`
@@ -50,6 +76,34 @@ without becoming arbitrary or converging on a predetermined bestiary.
    verdicts.
 6. Resume water composition, herd embodiment verdicts, freshwater transitions,
    and broader ecology only where the integrated proof exposes a need.
+
+## What the resize left open
+
+Named here so the next unit does not have to rediscover them. None of these
+blocks the owner verdict on scale itself.
+
+- **The shield has no caldera.** The accretion target is a smooth `radial²`
+  dome, so a vigorous vent still peaks rather than being summit-truncated. The
+  mean flank is now right (6.6°) and the upper flank (~17°) is inside the
+  Galápagos range, but "overturned soup bowl" is shape work that belongs to
+  `volcanism.ts`, not to the extent.
+- **Reef-edge composition needs its own pass.** The review shelf and its vent
+  were re-seated by the island stretch factor and the reef band now sits at a
+  real distance offshore, but a 244 m active shield dominates any wide framing
+  the old fixture implied. `w2k-reef-above` is a near shot for that reason.
+- **A deep-time jump costs ~0.41 s** of renderer-independent resolve at
+  401×401, against ~0.33 s at the old 380 m world and 3.6 s if the ocean
+  current solve had been left on the terrain grid. The pressure projection is
+  still three quarters of it.
+- **Scale constants hide in files a resize never opens.** Four were missed on
+  the first pass and caught by review: the ocean shader's terrain UV divisor,
+  the pathfinding search box, the drifter's arrival point, and migration reach.
+  All now key to `RENDER_SCALE.AUTHORED_SCALE` or `islandLandRadius`. Before
+  the next resize, grep `src/` for bare numeric literals used as metres rather
+  than trusting the diff.
+- **Fog, lighting and sea state were not retuned for the new distances.** They
+  are the open `LW-6` / `LW-7` items; the resize makes them more visible
+  because there is now a horizon to see.
 
 ## Ecosystem expansion rule
 
@@ -76,7 +130,7 @@ members consequences.
 | Area | Current state | Next gate |
 |---|---|---|
 | Form → jump → reveal loop | Implemented | Preserve while replacing isolated duration shots with one inherited sequence. |
-| World scale | 380 m island extent at 181×181 cells (2.11 m/cell), inherited from the render proof of concept | Resolve the extent; current geometry cannot express a shield silhouette. See order of work item 0. |
+| World scale | **Accepted** 2026-08-15 — 2,000 m extent at 401×401 cells (5.0 m/cell); shield mean flank measured at 6.6° | None. Do not reopen without a demonstrated failure. Prior captures are not a valid A/B. |
 | Multi-shield archipelago record | Implemented renderer-independent in `archipelago-history.ts` with 40 tests | Emergent island grouping, saddle connectivity, sea-level history; then wire the existing island in as shield zero. |
 | Persistent terrain and volcanic change | Implemented for the current island model | Multi-shield accretion and stable derived island grouping. |
 | Climate, hydrology, ocean, reef, and shared habitat sampling | Implemented in bounded forms | Reconcile fields with shield age, regional upwelling, and changing connectivity. |

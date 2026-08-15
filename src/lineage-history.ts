@@ -1,3 +1,4 @@
+import { AUTHORED_SCALE } from "./render-scale";
 import {
   clampPopulationTraits,
   POPULATION_TRAIT_KEYS,
@@ -124,11 +125,23 @@ export function traitAdaptationRate(jumpYears: number): number {
   return Math.min(0.75, 0.025 * Math.min(logYears, 2) + 0.175 * Math.max(0, logYears - 2));
 }
 
-/** 1 year = 2m, 100 = 10m, 10,000 = 40m, 1,000,000 = 70m. */
+/**
+ * How far a population may re-anchor its site in one jump, in metres.
+ *
+ * The curve is the authored one — on the old 165 m island it read 2 m at a
+ * single year, 10 m at a century, 40 m at ten thousand years and 70 m at a
+ * million. Those are *fractions of an island*, not absolute distances: 70 m
+ * was 42% of the old land radius, and left unscaled on the 2 km world it would
+ * be 16%, penning every lineage into a disc too small to track a coastline or
+ * a habitat band as it moves. Scaled so the reach stays the same share of the
+ * island it always was.
+ */
 export function migrationRadius(jumpYears: number): number {
   const logYears = Math.max(0, Math.log10(Math.max(1, jumpYears)));
-  if (logYears <= 2) return 2 + logYears * 4;
-  return Math.min(70, 10 + (logYears - 2) * 15);
+  const authored = logYears <= 2
+    ? 2 + logYears * 4
+    : Math.min(70, 10 + (logYears - 2) * 15);
+  return authored * AUTHORED_SCALE;
 }
 
 export function blendPopulationTraits(

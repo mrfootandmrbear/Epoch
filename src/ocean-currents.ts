@@ -58,8 +58,34 @@ export const SPEED_CEILING = 2.5;
 const FRICTION_DEPTH = 0.9;
 /** Depth over which transport saturates; deeper water carries no extra flux. */
 const TRANSPORT_DEPTH = 22;
-/** How far downstream an obstacle keeps a recognisable wake, in metres. */
-const WAKE_RANGE = 110;
+/**
+ * How far downstream an obstacle keeps a recognisable wake, as a fraction of
+ * the world extent.
+ *
+ * A wake belongs to the island that makes it, so this cannot be a fixed number
+ * of metres: the authored 110 m was tuned against the old 380 m world, and
+ * keeping it at 2,000 m would have left every island trailing a wake shorter
+ * than its own shore. The ratio is what was actually authored.
+ */
+const WAKE_RANGE_FRACTION = 110 / 380;
+
+/**
+ * Largest grid the flow solve runs on, regardless of how fine the terrain is.
+ *
+ * The pressure projection converges in sweeps proportional to the grid width
+ * and costs a full grid pass each, so the solve is side³ — it dominated a deep
+ * time jump the moment the world widened (3.6 s of a 3.6 s resolve at 401²).
+ * The flow field does not need terrain resolution: it is a basin-scale field
+ * that every consumer reads through `sampleCurrent`'s bilinear filter in world
+ * coordinates, so solving it coarsely and sampling it smoothly is invisible
+ * downstream. At the 2,000 m extent this is about 12.5 m per cell, which still
+ * resolves an island wake across roughly forty-five cells.
+ *
+ * Measured on the shipping 401² terrain: the two projections cost 580 ms at
+ * 193, 170 ms at this value, against 3.55 s uncapped. The wake trace is a
+ * further 80 ms and is not the term that scales badly.
+ */
+export const CURRENT_FIELD_MAX_SIDE = 161;
 /**
  * Sweeps of the pressure solve, scaled to the grid.
  *
@@ -83,6 +109,40 @@ function clamp01(value: number): number {
  */
 export function prevailingCurrentSpeed(climate: ClimateForces): number {
   return 0.08 + WIND[climate.wind].speed * 0.021;
+}
+
+/**
+ * Read the snapshot's bathymetry onto the solve grid.
+ *
+ * When the solve grid is the snapshot's own the read is exact. When it is
+ * coarser, each solve cell takes the *shallowest* snapshot cell in its
+ * footprint rather than an average: a rock that breaks the surface has to keep
+ * deflecting the flow, and averaging would drown small islets and let the
+ * current run straight through them.
+ */
+function bathymetrySampler(
+  snapshot: WorldSnapshot,
+  side: number,
+): (x: number, z: number) => number {
+  const source = snapshot.gridSize;
+  if (side >= source) {
+    return (x, z) => snapshot.elevations[z * source + x]!;
+  }
+  const ratio = (source - 1) / (side - 1);
+  return (x, z) => {
+    const x0 = Math.round(x * ratio);
+    const z0 = Math.round(z * ratio);
+    const x1 = Math.min(source - 1, Math.round((x + 1) * ratio) - 1);
+    const z1 = Math.min(source - 1, Math.round((z + 1) * ratio) - 1);
+    let shallowest = -Infinity;
+    for (let sz = z0; sz <= Math.max(z0, z1); sz++) {
+      for (let sx = x0; sx <= Math.max(x0, x1); sx++) {
+        const value = snapshot.elevations[sz * source + sx]!;
+        if (value > shallowest) shallowest = value;
+      }
+    }
+    return shallowest;
+  };
 }
 
 /** Solve ∇²φ = divergence with no-flux walls, then subtract the gradient. */
@@ -217,13 +277,14 @@ function smoothWaterField(
 function traceWakeShadow(
   side: number,
   step: number,
+  wakeRange: number,
   water: Uint8Array,
   prevailX: number,
   prevailZ: number,
   shadow: Float32Array,
   scratch: Float32Array,
 ): void {
-  const reachCells = WAKE_RANGE / step;
+  const reachCells = wakeRange / step;
   const perpX = -prevailZ;
   const perpZ = prevailX;
   shadow.fill(0);
@@ -233,7 +294,7 @@ function traceWakeShadow(
       if (!water[i]) continue;
       let strongest = 0;
       for (let march = SHADOW_MARCH_STEP; march <= reachCells; march += SHADOW_MARCH_STEP) {
-        const falloff = 1 - (march * step) / WAKE_RANGE;
+        const falloff = 1 - (march * step) / wakeRange;
         if (falloff <= 0) break;
         // Nearer land shadows harder, so once the remaining falloff can no
         // longer beat what has already been found the march is finished.
@@ -258,9 +319,11 @@ function traceWakeShadow(
 /** Build the prevailing flow field for one landing from bathymetry and climate. */
 export function buildCurrentField(snapshot: WorldSnapshot, climate?: ClimateForces): CurrentField {
   const forces = (climate ?? snapshot.climate) as ClimateForces;
-  const side = snapshot.gridSize;
   const extent = snapshot.extent;
+  const side = Math.min(snapshot.gridSize, CURRENT_FIELD_MAX_SIDE);
   const step = extent / (side - 1);
+  const wakeRange = extent * WAKE_RANGE_FRACTION;
+  const elevationAt = bathymetrySampler(snapshot, side);
   const seaLevel = SEA_LEVEL[forces.seaLevel];
   const referenceSpeed = prevailingCurrentSpeed(forces);
   const wind = WIND[forces.wind];
@@ -277,7 +340,7 @@ export function buildCurrentField(snapshot: WorldSnapshot, climate?: ClimateForc
   const fluxX = new Float32Array(cells);
   const fluxZ = new Float32Array(cells);
   for (let i = 0; i < cells; i++) {
-    const submerged = seaLevel - snapshot.elevations[i]!;
+    const submerged = seaLevel - elevationAt(i % side, Math.floor(i / side));
     depth[i] = Math.max(0, submerged);
     if (submerged <= 0) continue;
     water[i] = 1;
@@ -295,7 +358,7 @@ export function buildCurrentField(snapshot: WorldSnapshot, climate?: ClimateForc
   project(side, step, water, fluxX, fluxZ, potential, divergence);
 
   const shadow = new Float32Array(cells);
-  traceWakeShadow(side, step, water, prevailing.x, prevailing.z, shadow, divergence);
+  traceWakeShadow(side, step, wakeRange, water, prevailing.x, prevailing.z, shadow, divergence);
   const perpX = -prevailing.z;
   const perpZ = prevailing.x;
   for (let z = 1; z < side - 1; z++) {

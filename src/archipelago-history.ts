@@ -14,10 +14,12 @@
  *
  * **Compressed rates.** `PRODUCT.md` calls the playable island a compressed
  * representative landscape. Real plate motion would carry a shield tens of
- * kilometres per million years, which is two orders of magnitude past the
- * 380 m playable extent, so `DEFAULT_DRIFT_RATE` is authored for legible
+ * kilometres per million years, which is still an order of magnitude past the
+ * 2,000 m playable extent, so `DEFAULT_DRIFT_RATE` is authored for legible
  * morphology across the deep-time ladder rather than taken from measurement.
  */
+
+import { SHIELD_GEOMETRY } from "./volcanism";
 
 /** Volcanic construction stage. Emergence is geography, resolved from terrain, not from this. */
 export const SHIELD_STAGES = ["nascent", "shield-building", "waning", "extinct"] as const;
@@ -28,36 +30,41 @@ export const ARCHIPELAGO_HISTORY_VERSION = 1 as const;
 /**
  * Metres of crust travel per year.
  *
- * Chosen so the deep-time ladder divides its work legibly:
- * - 1,000 years moves the crust 0.1 m — tectonically silent, which is correct
+ * Chosen so the deep-time ladder divides its work legibly, and re-derived for
+ * the 2,000 m extent adopted on 2026-08-15. Every ratio below is the one the
+ * 380 m world was tuned to; only the metres changed.
+ * - 1,000 years moves the crust 0.4 m — tectonically silent, which is correct
  *   for a rung whose subject is soil, drainage and vegetation.
- * - 100,000 years moves it 10 m — far less than a shield radius, so a saddle
+ * - 100,000 years moves it 40 m — far less than a shield radius, so a saddle
  *   between neighbours is broken by sea level and erosion rather than by drift.
- * - 1,000,000 years moves it 100 m — just past `SHIELD_SPACING`, so a
+ * - 1,000,000 years moves it 400 m — just past `SHIELD_SPACING`, so a
  *   million-year click reliably exposes *one* new shield at the hotspot rather
  *   than a whole chain at once.
  *
- * The upper bound comes from the 380 m playable extent: at this rate the first
- * island needs roughly three million-year jumps to be carried to the edge of
- * the grid, so departure and inheritance read as an arc across several clicks
- * instead of happening in one. An earlier 3e-4 consumed 87% of the grid in a
- * single jump, which the schematic in `scripts/archipelago-schematic.ts` made
- * obvious.
+ * The upper bound comes from the playable extent: at this rate the first island
+ * needs roughly three million-year jumps to be carried from the hotspot to the
+ * edge of the grid, so departure and inheritance read as an arc across several
+ * clicks instead of happening in one. Verify a retune with the schematic in
+ * `scripts/archipelago-schematic.ts`, which draws the chain against the grid.
  */
-export const DEFAULT_DRIFT_RATE = 1e-4;
+export const DEFAULT_DRIFT_RATE = 4e-4;
 
 /**
  * Crust travel between successive shields, in metres. At ~1.4 shield radii the
  * summits read as separate volcanoes while their skirts still overlap into the
- * low saddle the first vertical slice needs.
+ * low saddle the first vertical slice needs. Derived from the shield geometry
+ * in `volcanism.ts` so the two cannot drift apart.
  */
-export const SHIELD_SPACING = 96;
+export const SHIELD_SPACING = Math.round(SHIELD_GEOMETRY.vigorous.radius * 1.4);
 
 /** Iteration ceiling for birth stepping. Two iterations are spent per birth. */
 const BIRTH_STEP_LIMIT = 8192;
 
-/** Distance from the hotspot, in metres, past which a shield receives no further construction. */
-export const HOTSPOT_REACH = 120;
+/**
+ * Distance from the hotspot, in metres, past which a shield receives no further
+ * construction. Held at the authored ~1.76 shield radii.
+ */
+export const HOTSPOT_REACH = Math.round(SHIELD_GEOMETRY.vigorous.radius * 1.76);
 
 /**
  * Years of undiminished hotspot feeding needed to build a shield out fully.
@@ -217,6 +224,49 @@ export function shieldVolcanicOutput(stage: ShieldStage): "vigorous" | "active" 
 }
 
 /** Distance from a crust position to the nearest existing shield, or Infinity if there are none. */
+/**
+ * The offset at which the travelling hotspot next stands a full `SHIELD_SPACING`
+ * clear of every existing shield, solved rather than traced.
+ *
+ * The hotspot walks a straight line through the crust frame, so "clear of
+ * shield i" is exactly "outside the circle of radius `SHIELD_SPACING` centred
+ * on shield i", and the exit offset is the far root of a quadratic. The answer
+ * for the whole chain is the furthest of those exits.
+ *
+ * This replaces a conservative sphere trace that stepped by `SPACING - gap`.
+ * That step collapses towards zero for a shield sitting almost exactly one
+ * spacing off the drift axis — the geometry is near-tangential, so each step
+ * buys almost nothing — and the loop could exhaust its iteration guard on a
+ * perfectly ordinary jump. Widening the world made that reachable, because the
+ * number of steps grows with the spacing being traced.
+ *
+ * Returns `from` when the hotspot is already clear.
+ */
+function nextClearOffset(
+  history: ArchipelagoHistory,
+  shields: readonly ShieldHistory[],
+  from: number,
+): number {
+  // Direction of travel of the hotspot *through the crust frame*.
+  const dx = -history.driftX;
+  const dz = -history.driftZ;
+  const origin = hotspotCrustPosition(history, from);
+  let latest = from;
+  for (const shield of shields) {
+    const ox = origin.x - shield.crustX;
+    const oz = origin.z - shield.crustZ;
+    // |origin + t·d - centre|² = SPACING², with |d| = 1 so the leading term is t².
+    const b = ox * dx + oz * dz;
+    const c = ox * ox + oz * oz - SHIELD_SPACING * SHIELD_SPACING;
+    if (c >= 0) continue; // already outside this shield's circle
+    // c < 0 puts the origin strictly inside, so the discriminant is positive
+    // and the far root is the exit.
+    const exit = -b + Math.sqrt(b * b - c);
+    if (from + exit > latest) latest = from + exit;
+  }
+  return latest;
+}
+
 function distanceToNearestShield(shields: readonly ShieldHistory[], point: Point2): number {
   let nearest = Number.POSITIVE_INFINITY;
   for (const shield of shields) {
@@ -343,11 +393,11 @@ export function advanceArchipelago(
       });
       continue;
     }
-    // Advance to the offset at which the hotspot would next be a full spacing
-    // clear of the nearest shield, or stop if that lies past this jump.
-    const advance = SHIELD_SPACING - gap;
-    if (offset + advance > endOffset) break;
-    offset += advance;
+    // Advance to the offset at which the hotspot next stands a full spacing
+    // clear of every shield, or stop if that lies past this jump.
+    const next = nextClearOffset(history, shields, offset);
+    if (next > endOffset || next <= offset) break;
+    offset = next;
   }
 
   const advanced: ArchipelagoHistory = { ...history, crustOffset: endOffset, nextShieldSerial: serial, shields };

@@ -1,6 +1,6 @@
 import { Vector3 } from "three/webgpu";
 import { describe, expect, it } from "vitest";
-import { findTerrainPath, isWalkable } from "./animal-navigation";
+import { findTerrainPath, isWalkable, NAVIGATION_CELL } from "./animal-navigation";
 import { DEFAULT_CLIMATE, SEA_LEVEL } from "./climate";
 
 const SEA = SEA_LEVEL[DEFAULT_CLIMATE.seaLevel];
@@ -45,7 +45,8 @@ describe("terrain pathfinding", () => {
     for (let i = 1; i < path.length; i++) {
       const previous = path[i - 1]!;
       const step = Math.hypot(path[i]!.x - previous.x, path[i]!.z - previous.z);
-      expect(step).toBeCloseTo(6, 5);
+      // The grid's own cell size, not a literal: it follows the island radius.
+      expect(step).toBeCloseTo(NAVIGATION_CELL, 5);
     }
   });
 

@@ -1,5 +1,35 @@
 import type { TerrainHistory } from "./terrain-history";
 
+/**
+ * Shield geometry, in metres.
+ *
+ * A Galápagos shield has a ~10° mean flank: broad, low, caldera-topped. The
+ * previous 68 m radius against a 52 m cap built a 43° cone that broke the
+ * surface as a 97 m wide spike — a cinder cone, not a shield. These radii are
+ * the reason `RENDER_SCALE.islandExtent` moved to 2,000 m: a 48 m summit at
+ * 10° needs a 272 m base, which the old 380 m grid could not contain.
+ *
+ * Caps are unchanged; only the radii grew. `target` falls off as radial², so
+ * the mean flank is `atan(cap / radius)` and the profile is gentle at the
+ * skirt, steepest at mid-flank, and rounded at the summit.
+ */
+export const SHIELD_GEOMETRY = {
+  vigorous: { radius: 272, cap: 52 },
+  active: { radius: 244, cap: 43 },
+  waning: { radius: 76, cap: 15 },
+} as const;
+
+/**
+ * Flank roughness wavelength, in metres.
+ *
+ * Per-cell white noise put ±9% of the cap between neighbouring cells, which at
+ * the old 2.11 m grid meant single steps of up to 75° on a shield whose whole
+ * point is a 10° silhouette. Sampling the same hash on a fixed metric lattice
+ * and interpolating keeps the texture while making it a property of the
+ * volcano rather than of the grid resolution.
+ */
+const ROUGHNESS_WAVELENGTH = 34;
+
 export const VOLCANIC_OUTPUTS = ["vigorous", "active", "waning", "extinct"] as const;
 export type VolcanicOutput = typeof VOLCANIC_OUTPUTS[number];
 
@@ -17,6 +47,26 @@ function clamp01(value: number): number {
 function hash(x: number, z: number, salt: number): number {
   const value = Math.sin(x * 127.1 + z * 311.7 + salt * 74.7) * 43758.5453;
   return value - Math.floor(value);
+}
+
+/**
+ * Smooth value noise on a fixed metric lattice, so flank texture has a real
+ * wavelength in metres instead of inheriting whatever the cell size is.
+ */
+function flankRoughness(worldX: number, worldZ: number, salt: number): number {
+  const gx = worldX / ROUGHNESS_WAVELENGTH;
+  const gz = worldZ / ROUGHNESS_WAVELENGTH;
+  const x0 = Math.floor(gx);
+  const z0 = Math.floor(gz);
+  const tx = gx - x0;
+  const tz = gz - z0;
+  const sx = tx * tx * (3 - 2 * tx);
+  const sz = tz * tz * (3 - 2 * tz);
+  const a = hash(x0, z0, salt);
+  const b = hash(x0 + 1, z0, salt);
+  const c = hash(x0, z0 + 1, salt);
+  const d = hash(x0 + 1, z0 + 1, salt);
+  return (a + (b - a) * sx) + ((c + (d - c) * sx) - (a + (b - a) * sx)) * sz;
 }
 
 const FLOW_DIRECTIONS = [
@@ -38,6 +88,7 @@ function routeLavaFlows(
   sediment: Float32Array,
   carbonate: Float32Array,
   vent: HotSpot,
+  radius: number,
   strength: number,
   duration: number,
   salt: number,
@@ -54,7 +105,11 @@ function routeLavaFlows(
     const sourceZ = Math.max(1, Math.min(terrain.side - 2, ventZ + direction[1] * 2));
     let current = sourceZ * terrain.side + sourceX;
     const visited = new Set<number>();
-    let budget = (vent.output === "vigorous" ? 34 : 23) * duration;
+    // A flow's reach belongs to the volcano, not to the grid: budget is spent
+    // one cell per step, so it has to be derived from how far down the shield
+    // the lava should actually run. A vigorous flow crosses its own flank.
+    const reachMetres = radius * (vent.output === "vigorous" ? 1.05 : 0.72);
+    let budget = (reachMetres / step) * duration;
     while (budget > 0.2 && !visited.has(current)) {
       visited.add(current);
       const x = current % terrain.side;
@@ -116,8 +171,7 @@ export function resolveVolcanicAccretion(
   for (const vent of hotSpots) {
     if (vent.output === "extinct") continue;
     const strength = vent.output === "vigorous" ? 1 : vent.output === "active" ? 0.72 : 0.2;
-    const radius = vent.output === "waning" ? 19 : vent.output === "vigorous" ? 68 : 61;
-    const cap = vent.output === "vigorous" ? 52 : vent.output === "active" ? 43 : 15;
+    const { radius, cap } = SHIELD_GEOMETRY[vent.output];
     const salt = [...vent.id].reduce((sum, character) => sum + character.charCodeAt(0), 0);
     for (let z = 1; z < previous.side - 1; z++) {
       const worldZ = z * step - half;
@@ -127,7 +181,7 @@ export function resolveVolcanicAccretion(
         if (distance >= radius) continue;
         const index = z * previous.side + x;
         const radial = 1 - distance / radius;
-        const roughness = 0.91 + hash(x, z, salt) * 0.18;
+        const roughness = 0.91 + flankRoughness(worldX, worldZ, salt) * 0.18;
         const target = -4 + cap * radial * radial * roughness;
         const growth = Math.max(0, target - elevations[index]!) * duration * strength;
         const resurfacing = radial * radial * duration * strength * 0.68;
@@ -151,7 +205,7 @@ export function resolveVolcanicAccretion(
     routeLavaFlows(
       previous, elevations, basalt, volcanicLoad, disturbance, nutrients, forage,
       vegetationProtection, substrateAge, surfaceAgeYears, soilDevelopment, sediment, carbonate,
-      vent, strength, duration, salt,
+      vent, radius, strength, duration, salt,
     );
   }
 

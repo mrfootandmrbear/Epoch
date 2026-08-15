@@ -1,13 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { createTerrainHistory } from "./terrain-history";
-import { resolveVolcanicAccretion, type HotSpot } from "./volcanism";
+import { resolveVolcanicAccretion, SHIELD_GEOMETRY, type HotSpot } from "./volcanism";
 import { resolveTerrainHistory } from "./terrain-history";
 import { DEFAULT_CLIMATE } from "./climate";
 
 const activeVent: HotSpot = { id: "central-vent", x: 0, z: 0, output: "active" };
 
+/**
+ * Bare seafloor at the world's real scale. The extent is what makes the
+ * assertions below mean anything: a shield is 244–272 m across, so a fixture
+ * narrower than that would have every cell inside every cone.
+ */
 function seafloor(side = 61) {
-  return { side, terrain: createTerrainHistory(new Float32Array(side * side).fill(-40), side, 180) };
+  return { side, terrain: createTerrainHistory(new Float32Array(side * side).fill(-40), side, 800) };
 }
 
 describe("volcanic accretion", () => {
@@ -33,7 +38,11 @@ describe("volcanic accretion", () => {
     const { side, terrain } = seafloor();
     const waning = resolveVolcanicAccretion(terrain, [{ ...activeVent, output: "waning" }], 1_000);
     const center = Math.floor(side / 2) * side + Math.floor(side / 2);
-    const shoulder = center + 10;
+    // Beyond the waning cone's own radius: a late vent must not resurface
+    // ground a full shield-building vent would have reached.
+    const step = terrain.extent / (terrain.side - 1);
+    const shoulder = center + Math.ceil((SHIELD_GEOMETRY.waning.radius * 1.2) / step);
+    expect(shoulder % side).toBeGreaterThan(Math.floor(side / 2));
     expect(waning.elevations[center]).toBeGreaterThan(terrain.elevations[center]!);
     expect(waning.elevations[shoulder]).toBe(terrain.elevations[shoulder]);
   });

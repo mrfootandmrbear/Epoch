@@ -141,3 +141,82 @@ describe("epoch-scale terrain milestone", () => {
     expect(channelLowering / samples).toBeGreaterThan(shoulderLowering / samples + 0.2);
   });
 });
+
+/**
+ * One fixed *physical* island, sampled at whatever grid resolution is asked
+ * for. Every other fixture in this file authors elevations per cell, which
+ * makes them silent about cell size; this one is the opposite by design.
+ */
+function physicalIsland(side: number, extent: number): Float32Array {
+  const elevations = new Float32Array(side * side);
+  const step = extent / (side - 1);
+  const half = extent / 2;
+  for (let z = 0; z < side; z++) {
+    for (let x = 0; x < side; x++) {
+      const worldX = x * step - half;
+      const worldZ = z * step - half;
+      const distance = Math.hypot(worldX * 0.92, worldZ * 1.08);
+      const island = Math.max(0, 1 - Math.pow(distance / (extent * 0.39), 2.25));
+      const ridge = 20 * Math.exp(-Math.pow((worldX + extent * 0.06 + worldZ * 0.16) / (extent * 0.095), 2));
+      elevations[z * side + x] = island * (7 + ridge + Math.sin(worldX * 0.034) * Math.cos(worldZ * 0.026) * 3.5) - 3.2;
+    }
+  }
+  return elevations;
+}
+
+describe("geomorphic response is a property of the world, not of the grid", () => {
+  /**
+   * The coefficients in `terrain-history.ts` are written in cell units, so a
+   * change to `RENDER_SCALE.terrainSegments` or `islandExtent` would silently
+   * retune erosion unless they are normalized against cell size. This is the
+   * contract that keeps a resize from being a stealth balance change; the
+   * shipping grid is 401² over 2,000 m, so 5 m is the case that must hold.
+   */
+  const EXTENT = 2_000;
+  const JUMP = 1_000_000;
+
+  function resolveAt(side: number) {
+    const initial = physicalIsland(side, EXTENT);
+    const after = resolveTerrainHistory(createTerrainHistory(initial, side, EXTENT), JUMP, DEFAULT_CLIMATE);
+    const cellArea = Math.pow(EXTENT / (side - 1), 2) / 1e6;
+    let landBefore = 0;
+    let landAfter = 0;
+    let summit = -Infinity;
+    for (let index = 0; index < initial.length; index++) {
+      if (initial[index]! > 0) landBefore += cellArea;
+      if (after.elevations[index]! > 0) landAfter += cellArea;
+      summit = Math.max(summit, after.elevations[index]!);
+    }
+    return { landLost: landBefore - landAfter, summit };
+  }
+
+  it("erodes the same physical island by the same amount at 5 m and at 2.1 m cells", () => {
+    const shipping = resolveAt(401);
+    const reference = resolveAt(949);
+
+    // Coastal retreat is the dominant land-area term, and it must not change
+    // when the same coastline is merely sampled more coarsely.
+    expect(shipping.landLost).toBeGreaterThan(reference.landLost * 0.85);
+    expect(shipping.landLost).toBeLessThan(reference.landLost * 1.15);
+  });
+
+  it("leaves the summit where it was regardless of cell size", () => {
+    // Hillslope diffusion carries a 1/cellSize², so an unnormalized weight
+    // would plane the high ground down faster on the coarser grid and quietly
+    // flatten the shield silhouette the 2 km extent exists to express.
+    const shipping = resolveAt(401);
+    const reference = resolveAt(949);
+    expect(shipping.summit).toBeCloseTo(reference.summit, 0);
+  });
+
+  it("keeps the rung ladder ordered at the shipping cell size", () => {
+    const initial = physicalIsland(401, EXTENT);
+    const history = createTerrainHistory(initial, 401, EXTENT);
+    const change = (years: number) =>
+      totalElevationChange(initial, resolveTerrainHistory(history, years, DEFAULT_CLIMATE).elevations);
+
+    expect(change(1)).toBeLessThan(change(1_000));
+    expect(change(1_000)).toBeLessThan(change(100_000));
+    expect(change(100_000)).toBeLessThan(change(1_000_000));
+  });
+});

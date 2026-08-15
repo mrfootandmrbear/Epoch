@@ -8,6 +8,7 @@ import {
   Quaternion,
   Vector3,
 } from "three/webgpu";
+import { RENDER_SCALE } from "./render-scale";
 import type { FounderProfile } from "./founder-profile";
 import { founderTraits } from "./founder-profile";
 import { POPULATION_TRAIT_BOUNDS, type PopulationTraits } from "./population-traits";
@@ -93,7 +94,16 @@ export function createDistantDrifterRenderer(): DistantDrifterRenderer {
   let seed: number | undefined;
   // The default camera approaches from the south-east. Keep the reveal in
   // clear foreground water instead of behind the arrival panel or island.
-  const basePosition = new Vector3(92, 0, 86);
+  //
+  // The bearing is the authored one; the distance is not. The original (92, 86)
+  // was open water off a 165 m island, but this file was not touched by the
+  // 2 km resize, so the same point ended up 7-17 m up the hillside in all three
+  // starting worlds — a raft rendered at sea level inside a hill. Keyed to the
+  // land radius now: 1.25x clears every preset's shore into 5-7 m of water,
+  // which is offshore without being out over the basin drop.
+  const arrivalBearing = new Vector3(92, 0, 86).normalize();
+  const basePosition = arrivalBearing.clone()
+    .multiplyScalar(RENDER_SCALE.islandLandRadius * 1.25);
   const cohortMatrix = new Matrix4();
   const cohortRotation = new Quaternion();
   const cohortScale = new Vector3();

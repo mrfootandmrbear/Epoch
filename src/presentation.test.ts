@@ -4,6 +4,9 @@ import { GOLDEN_SHOTS, SCREENSAVER_SHOTS, isGoldenShotName, screensaverCameraHei
 describe("golden shots", () => {
   it("provides the canonical visual review set", () => {
     expect(Object.keys(GOLDEN_SHOTS)).toEqual([
+      // Pre-resize cameras. Retained unedited as the comparison basis for
+      // every capture taken before the 2 km world; see the note in
+      // `presentation.ts` about why they must not be A/B'd against new ones.
       "whole-island",
       "ridge-silhouette",
       "shoreline",
@@ -18,6 +21,14 @@ describe("golden shots", () => {
       "coat-detail",
       "dawn",
       "storm",
+      // The 2 km world.
+      "w2k-whole-island",
+      "w2k-shield-profile",
+      "w2k-saddle",
+      "w2k-shoreline",
+      "w2k-reef-above",
+      "w2k-dawn",
+      "w2k-storm",
     ]);
   });
 

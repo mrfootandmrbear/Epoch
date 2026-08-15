@@ -9,3 +9,4 @@ dist/
 # harness at any commit (fixed seed, frozen time, fixed cameras). The reviewed
 # artifacts — contact sheets and manifests — are versioned instead.
 docs/polish/evidence/**/frames/
+evidence/**/frames/

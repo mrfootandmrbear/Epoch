@@ -153,7 +153,14 @@ const camera = new PerspectiveCamera(
   0.1,
   20000,
 );
-camera.position.set(155, 78, 178);
+// Default gameplay framing: the whole island group, from the seaward quarter
+// the reef-edge composition is judged from. Keyed to the extent for the same
+// reason as the zoom clamp.
+camera.position.set(
+  RENDER_SCALE.islandExtent * 0.41,
+  RENDER_SCALE.islandExtent * 0.205,
+  RENDER_SCALE.islandExtent * 0.47,
+);
 
 const renderer = new WebGPURenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -168,7 +175,9 @@ controls.target.set(0, 14, 0);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
 controls.minDistance = 1.25;
-controls.maxDistance = 800;
+// Far enough out to hold the whole 2 km world in frame with margin. Keyed to
+// the extent so a future resize does not silently crop the overview.
+controls.maxDistance = RENDER_SCALE.islandExtent * 1.6;
 // Stay above the horizon — past 0.49π the camera swings under the seabed and
 // the world renders from its underside.
 controls.maxPolarAngle = Math.PI * 0.49;
@@ -246,15 +255,20 @@ screensaverDelayEl.addEventListener("change", () => {
 });
 
 const sunLight = new DirectionalLight(new Color(0xfff2d9), 2.0);
-sunLight.position.copy(sunDirection).multiplyScalar(420);
+sunLight.position.copy(sunDirection).multiplyScalar(RENDER_SCALE.islandExtent * 1.1);
 sunLight.castShadow = true;
+// The shadow frustum covers the land, not the whole grid. At 2 km the world is
+// mostly open water, and sizing the map to the water would spend three
+// quarters of the texels on sea that casts and receives nothing — the map
+// resolution is the budget here, so it is spent on the island group.
+const SHADOW_RADIUS = RENDER_SCALE.islandExtent * 0.3;
 sunLight.shadow.mapSize.set(2048, 2048);
-sunLight.shadow.camera.left = -245;
-sunLight.shadow.camera.right = 245;
-sunLight.shadow.camera.top = 245;
-sunLight.shadow.camera.bottom = -245;
+sunLight.shadow.camera.left = -SHADOW_RADIUS;
+sunLight.shadow.camera.right = SHADOW_RADIUS;
+sunLight.shadow.camera.top = SHADOW_RADIUS;
+sunLight.shadow.camera.bottom = -SHADOW_RADIUS;
 sunLight.shadow.camera.near = 1;
-sunLight.shadow.camera.far = 900;
+sunLight.shadow.camera.far = RENDER_SCALE.islandExtent * 2.4;
 sunLight.shadow.bias = -0.00018;
 sunLight.shadow.normalBias = 0.035;
 scene.add(sunLight, sunLight.target);
@@ -756,6 +770,7 @@ function applyOceanForces(forces: ClimateForces, storm = captureStormSea): void 
     });
     const mesh = createFFTOceanMesh(ocean, {
       size: RENDER_SCALE.oceanExtent,
+      terrainSize: RENDER_SCALE.islandExtent,
       sunDirection,
       atmosphere: sampleAtmosphere(captureTime, captureMode ? "day" : "cycle"),
       terrainHeightTexture: landingState.terrainHeightTexture,

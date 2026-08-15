@@ -7,8 +7,9 @@ import {
 } from "./environment";
 import { createTerrainHistory, resolveTerrainHistory, withReefDeposition } from "./terrain-history";
 import { createInitialWorldState } from "./world-history";
-import { resolveVolcanicAccretion } from "./volcanism";
-import { ENVIRONMENT_FIXTURES } from "./environment-fixtures";
+import { resolveVolcanicAccretion, SHIELD_GEOMETRY } from "./volcanism";
+import { ENVIRONMENT_FIXTURES, REEF_REVIEW_SHELF } from "./environment-fixtures";
+import { RENDER_SCALE } from "./render-scale";
 
 function terrain(side = 7, elevation: (x: number, z: number) => number = () => 4) {
   const elevations = new Float32Array(side * side);
@@ -26,12 +27,20 @@ describe("environment foundations", () => {
   it("keeps the representative set bounded and seats the reef vent beside its review shelf", () => {
     expect(Object.keys(ENVIRONMENT_FIXTURES)).toHaveLength(6);
     const reef = ENVIRONMENT_FIXTURES["mature-warm-reef"];
-    const distanceToReviewShelf = Math.hypot(reef.hotSpot.x - 104, reef.hotSpot.z - 116);
-    expect(distanceToReviewShelf).toBeGreaterThan(55);
-    expect(distanceToReviewShelf).toBeLessThan(70);
+    const distanceToReviewShelf = Math.hypot(
+      reef.hotSpot.x - REEF_REVIEW_SHELF.x,
+      reef.hotSpot.z - REEF_REVIEW_SHELF.z,
+    );
+    // The relationship, not a fixed number of metres: the vent must clear its
+    // own shield's skirt as seen from the shelf, or fresh basalt suppresses
+    // every gram of carbonate the review cameras are pointed at. Asserting a
+    // raw distance band would silently stop meaning this if shield geometry
+    // changed again.
+    expect(distanceToReviewShelf).toBeGreaterThan(SHIELD_GEOMETRY.active.radius);
+    expect(distanceToReviewShelf).toBeLessThan(SHIELD_GEOMETRY.active.radius * 1.25);
 
-    const side = 65;
-    const extent = 320;
+    const side = 161;
+    const extent = RENDER_SCALE.islandExtent;
     const geological = createTerrainHistory(new Float32Array(side * side).fill(-5), side, extent);
     const volcanic = resolveVolcanicAccretion(
       geological,
@@ -40,7 +49,7 @@ describe("environment foundations", () => {
     );
     const combined = withReefDeposition(
       volcanic,
-      [{ x: 104, z: 116, framework: 0.9, deadFramework: 0.25, cover: 0.7 }],
+      [{ ...REEF_REVIEW_SHELF, framework: 0.9, deadFramework: 0.25, cover: 0.7 }],
       reef.years,
     );
     const step = extent / (side - 1);
@@ -50,7 +59,7 @@ describe("environment foundations", () => {
     for (let z = 0; z < side; z++) for (let x = 0; x < side; x++) {
       const worldX = x * step - half;
       const worldZ = z * step - half;
-      if (Math.hypot(worldX - 104, worldZ - 116) > 55) continue;
+      if (Math.hypot(worldX - REEF_REVIEW_SHELF.x, worldZ - REEF_REVIEW_SHELF.z) > 55) continue;
       const index = z * side + x;
       visibleBasalt ||= combined.basalt[index]! > 0.25;
       visibleCarbonate ||= combined.carbonate[index]! > 0.05;

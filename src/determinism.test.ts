@@ -4,6 +4,20 @@ import { createLineageHistory, type LineageHistory } from "./lineage-history";
 import { POPULATION_TRAIT_KEYS } from "./population-traits";
 import { resolveLanding } from "./outcome-resolver";
 import { captureWorldSnapshot } from "./world-snapshot";
+import { AUTHORED_SCALE, RENDER_SCALE } from "./render-scale";
+
+/**
+ * The baseline runs at the world's real proportions.
+ *
+ * It used to use `captureWorldSnapshot`'s defaults — a 300 m extent with a
+ * 145 m island — which is why it passed unchanged straight through the 2 km
+ * resize: a determinism baseline taken at proportions the game never runs at
+ * cannot notice a world-scale change. The grid is deliberately coarser than
+ * the shipping 401² so four jumps stay fast; it is the *extent* that has to be
+ * honest here, not the cell size.
+ */
+const FIXTURE_GRID = 201;
+const FIXTURE_EXTENT = RENDER_SCALE.islandExtent;
 
 const TERRAIN_SEED = 194_211;
 
@@ -36,9 +50,9 @@ function seededNoise(x: number, z: number): number {
 
 function fixedHeightfield(x: number, z: number): number {
   const radius = Math.hypot(x, z);
-  const island = 34 * Math.max(0, 1 - radius / 145);
-  const ridges = Math.sin(x * 0.045) * 5 + Math.cos(z * 0.038) * 4;
-  const detail = (seededNoise(Math.floor(x / 6), Math.floor(z / 6)) - 0.5) * 3;
+  const island = 34 * Math.max(0, 1 - radius / (145 * AUTHORED_SCALE));
+  const ridges = Math.sin(x * 0.045 / AUTHORED_SCALE) * 5 + Math.cos(z * 0.038 / AUTHORED_SCALE) * 4;
+  const detail = (seededNoise(Math.floor(x / (6 * AUTHORED_SCALE)), Math.floor(z / (6 * AUTHORED_SCALE))) - 0.5) * 3;
   return island + ridges + detail - 5;
 }
 
@@ -51,7 +65,9 @@ function runJumpSequence(): readonly JumpState[] {
 
   for (const jump of jumpSequence) {
     totalYears += jump.years;
-    const snapshot = captureWorldSnapshot(fixedHeightfield, totalYears, jump.climate);
+    const snapshot = captureWorldSnapshot(
+      fixedHeightfield, totalYears, jump.climate, FIXTURE_GRID, FIXTURE_EXTENT,
+    );
     const resolution = resolveLanding(snapshot, history, jump.years);
     history = resolution.nextHistory;
     semanticState.push({ totalYears, lineages: history.lineages });

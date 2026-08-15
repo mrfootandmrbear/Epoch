@@ -13,7 +13,14 @@ import type { TreeOutcome, VegetationGuild } from "./outcome-resolver";
 import { treeGeometry } from "./tree-geometry-assets";
 import { RENDER_SCALE } from "./render-scale";
 
-const MAX_TREES_PER_GUILD = 420;
+/**
+ * Instance capacity per vegetation guild.
+ *
+ * Sized against the resolver's per-area tree cap on the 2,000 m world, which
+ * scales with `RENDER_SCALE.islandLandRadius`. This is a buffer ceiling, not a
+ * population target — the resolver decides how many trees a landing has.
+ */
+const MAX_TREES_PER_GUILD = 3400;
 const NEAR_TREE_DISTANCE = RENDER_SCALE.lod.treeNear;
 const LOD_REPARTITION_DISTANCE = RENDER_SCALE.lod.treeRepartition;
 const UP = new Vector3(0, 1, 0);

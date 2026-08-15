@@ -17,11 +17,13 @@ import {
   DEFAULT_DRIFT_RATE,
   type ArchipelagoHistory,
 } from "../src/archipelago-history.ts";
+import { SHIELD_GEOMETRY } from "../src/volcanism.ts";
+import { RENDER_SCALE } from "../src/render-scale.ts";
 
-/** Matches the shield radius `resolveVolcanicAccretion` builds in `volcanism.ts`. */
-const SHIELD_RADIUS = 68;
-/** `RENDER_SCALE.islandExtent` — the playable terrain grid. */
-const ISLAND_EXTENT = 380;
+/** The shield radius `resolveVolcanicAccretion` actually builds. */
+const SHIELD_RADIUS = SHIELD_GEOMETRY.vigorous.radius;
+/** The playable terrain grid. */
+const ISLAND_EXTENT = RENDER_SCALE.islandExtent;
 
 /** Filled in by `render` once the whole sequence is known, so every panel shares one scale. */
 const VIEW = { minX: -400, minZ: -280, size: 560 };
@@ -174,7 +176,7 @@ function render(): string {
 
   const legend =
     `<text x="0" y="${height - 26}" fill="#8fa6b8" font-size="11" font-family="ui-sans-serif,system-ui">` +
-    `Top-down, crust frame. Dashed box = 380 m playable terrain grid. ` +
+    `Top-down, crust frame. Dashed box = ${ISLAND_EXTENT.toLocaleString()} m playable terrain grid. ` +
     `Circles = shields at ${SHIELD_RADIUS} m radius, brighter = more constructed. ` +
     `Cross = hotspot (fixed in mantle, so it migrates through this frame).</text>` +
     `<text x="0" y="${height - 10}" fill="#8fa6b8" font-size="11" font-family="ui-sans-serif,system-ui">` +

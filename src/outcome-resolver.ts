@@ -30,6 +30,7 @@ import { createMarineLineageHistory, resolveMarineLineages, type MarineLineageCh
 import { resolveFounderEstablishment } from "./founder-establishment";
 import { founderEnvironmentFit } from "./founder-profile";
 import { resolveLocalEnvironmentSample } from "./environment";
+import { RENDER_SCALE } from "./render-scale";
 
 export interface HabitatSample {
   elevation: number;
@@ -166,6 +167,12 @@ function hash(x: number, z: number): number {
 function clamp01(value: number): number {
   return Math.min(1, Math.max(0, value));
 }
+
+/**
+ * Disc radius, in metres, that the scatter loops below were authored against —
+ * the old 165 m island plus a little shore margin.
+ */
+const AUTHORED_SCATTER_RADIUS = 150;
 
 export function sampleHabitat(
   heightAt: HeightAt,
@@ -605,14 +612,24 @@ export function resolveLanding(
   const { climate, totalYears } = snapshot;
   const trees: TreeOutcome[] = [];
   const seagrass: SeagrassOutcome[] = [];
+  // Scatter over the land the world actually has, and carry the authored
+  // *density* rather than the authored *count*. These loops were written
+  // against a 165 m island: keeping their 150 m disc on the 2,000 m world
+  // would pile every tree into the middle third of the map, and keeping their
+  // 420-tree cap over seven times the land would read as a bare island.
+  const scatterRadius = RENDER_SCALE.islandLandRadius;
+  const densityScale = Math.pow(scatterRadius / AUTHORED_SCATTER_RADIUS, 2);
+  const perArea = (authored: number) => Math.round(authored * densityScale);
   const succession = clamp01(Math.log10(Math.max(1, totalYears)) / 3);
   const deepTime = clamp01((Math.log10(Math.max(1, totalYears)) - 3) / 3);
   const growth = TEMPERATURE[climate.temperature].growth;
   const seaLevel = SEA_LEVEL[climate.seaLevel];
   const treeLine = climate.temperature === "cold" ? 24 : climate.temperature === "mild" ? 38 : 46;
-  for (let i = 0; i < 1400 && trees.length < 420; i++) {
+  const canopyCandidates = perArea(1400);
+  const canopyCap = perArea(420);
+  for (let i = 0; i < canopyCandidates && trees.length < canopyCap; i++) {
     const angle = hash(i, 4) * Math.PI * 2;
-    const radius = Math.sqrt(hash(i, 9)) * 150;
+    const radius = Math.sqrt(hash(i, 9)) * scatterRadius;
     const x = Math.cos(angle) * radius;
     const z = Math.sin(angle) * radius;
     const ecosystem = sampleEcosystem(heightAt, x, z, climate as ClimateForces, forageAt, nutrientsAt, runoffAt);
@@ -652,9 +669,9 @@ export function resolveLanding(
   }
 
   if (totalYears >= 25) {
-    for (let i = 0; i < 3600 && seagrass.length < 900; i++) {
+    for (let i = 0; i < perArea(3600) && seagrass.length < perArea(900); i++) {
       const angle = hash(i, 811) * Math.PI * 2;
-      const radius = Math.sqrt(hash(i, 823)) * 152;
+      const radius = Math.sqrt(hash(i, 823)) * scatterRadius;
       const x = Math.cos(angle) * radius;
       const z = Math.sin(angle) * radius;
       const ecosystem = sampleEcosystem(heightAt, x, z, climate as ClimateForces, forageAt);
@@ -683,9 +700,10 @@ export function resolveLanding(
   // edges. Basin filtering below removes any candidate that overlaps an
   // enclosed freshwater pool after the shared hydrology pass resolves.
   if (climate.temperature === "warm" && climate.rainfall !== "arid" && totalYears >= 100) {
-    for (let i = 0; i < 900 && trees.length < 490; i++) {
+    const mangroveCap = canopyCap + perArea(70);
+    for (let i = 0; i < perArea(900) && trees.length < mangroveCap; i++) {
       const angle = hash(i, 701) * Math.PI * 2;
-      const radius = Math.sqrt(hash(i, 709)) * 152;
+      const radius = Math.sqrt(hash(i, 709)) * scatterRadius;
       const x = Math.cos(angle) * radius;
       const z = Math.sin(angle) * radius;
       const ecosystem = sampleEcosystem(heightAt, x, z, climate as ClimateForces, forageAt);
@@ -742,9 +760,9 @@ export function resolveLanding(
   let aerialBest = { x: 0, z: 0, altitude: 22, radius: 24, visible: false, score: -Infinity };
   let coastalEnergy = 0;
   let coastalSamples = 0;
-  for (let i = 0; i < 900; i++) {
+  for (let i = 0; i < perArea(900); i++) {
     const angle = hash(i, 141) * Math.PI * 2;
-    const radius = Math.sqrt(hash(i, 157)) * 148;
+    const radius = Math.sqrt(hash(i, 157)) * scatterRadius;
     const x = Math.cos(angle) * radius;
     const z = Math.sin(angle) * radius;
     const ecosystem = sampleEcosystem(heightAt, x, z, climate as ClimateForces);

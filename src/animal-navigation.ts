@@ -1,11 +1,28 @@
 import { Vector3 } from "three/webgpu";
 import { sampleHabitat } from "./outcome-resolver";
 import { SEA_LEVEL, type ClimateForces } from "./climate";
+import { RENDER_SCALE } from "./render-scale";
 
 type HeightAt = (x: number, z: number) => number;
 
-const CELL = 6;
-const LIMIT = 150;
+/**
+ * Half-width of the A* search box, in metres, and its cell size.
+ *
+ * Both follow the land rather than the grid: the box only has to contain
+ * walkable ground, and `islandExtent` is mostly open sea. `LIMIT` was a bare
+ * 150 authored against a 165 m island, and the 2 km resize did not touch this
+ * file — which meant every animal beyond 150 m of the origin clamped to the
+ * same boundary cell and `findTerrainPath` returned an empty path, freezing
+ * wildlife across most of the island.
+ *
+ * `CELL` scales with the box so the search stays a similar number of cells
+ * across (about 83) instead of growing with the square of the world. At the
+ * 2 km extent that is roughly 12 m per cell against a 5 m terrain grid.
+ */
+export const NAVIGATION_LIMIT = RENDER_SCALE.islandLandRadius * 1.1;
+export const NAVIGATION_CELL = NAVIGATION_LIMIT / 41;
+const LIMIT = NAVIGATION_LIMIT;
+const CELL = NAVIGATION_CELL;
 const WIDTH = Math.floor((LIMIT * 2) / CELL) + 1;
 
 function grid(value: number): number {

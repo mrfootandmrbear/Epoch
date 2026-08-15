@@ -46,6 +46,32 @@ const SHOT_SETS = {
     { label: "08-dawn", query: "shot=dawn&years=1000&time=42" },
     { label: "09-storm", query: "shot=storm&years=1000&time=42" },
   ],
+  // The 2 km world, added with the `islandExtent` change on 2026-08-15. This
+  // is a *new baseline*, not a continuation of `baseline`: the sets above were
+  // framed for a 380 m world and their images are not comparable with these.
+  // Nothing above was edited, so prior evidence stays readable on its own terms.
+  baseline2km: [
+    { label: "01-island-1yr", query: "shot=w2k-whole-island&years=1&time=42" },
+    { label: "02-island-1kyr", query: "shot=w2k-whole-island&years=1000&time=42" },
+    { label: "03-island-100kyr", query: "shot=w2k-whole-island&years=100000&time=42" },
+    { label: "04-island-1myr", query: "shot=w2k-whole-island&years=1000000&time=42" },
+    { label: "05-shield-profile", query: "shot=w2k-shield-profile&years=1000&time=42" },
+    { label: "06-saddle", query: "shot=w2k-saddle&years=1000&time=42" },
+    { label: "07-shoreline", query: "shot=w2k-shoreline&years=1000&time=42" },
+    { label: "08-dawn", query: "shot=w2k-dawn&years=1000&time=42" },
+    { label: "09-storm", query: "shot=w2k-storm&years=1000&time=42" },
+  ],
+  // Shield construction across the volcanic lifecycle, at the radius the
+  // 2 km grid can actually contain.
+  shield2km: [
+    { label: "01-vigorous", query: "shot=w2k-shield-profile&years=1000&time=42&volcano=vigorous" },
+    { label: "02-active", query: "shot=w2k-shield-profile&years=1000&time=42&volcano=active" },
+    { label: "03-waning", query: "shot=w2k-shield-profile&years=1000&time=42&volcano=waning" },
+    { label: "04-extinct", query: "shot=w2k-shield-profile&years=1000&time=42&volcano=extinct" },
+    { label: "05-vigorous-overview", query: "shot=w2k-whole-island&years=1000&time=42&volcano=vigorous" },
+    { label: "06-vigorous-1myr", query: "shot=w2k-whole-island&years=1000000&time=42&volcano=vigorous" },
+    { label: "07-reef-above", query: "shot=w2k-reef-above&fixture=mature-warm-reef&time=42" },
+  ],
   // Secondary composition set: the remaining golden cameras.
   detail: [
     { label: "01-ridge-silhouette", query: "shot=ridge-silhouette&years=1000&time=42" },

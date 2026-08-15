@@ -18,10 +18,11 @@ intent now lives in `PRODUCT.md`; it is the authority on what the game is for.
 | Install | `npm install` — **currently broken on clean clone**, see BACKLOG P0-1. Workaround: `npm install --no-package-lock --no-save` |
 | Dev server | `npm run dev` (Vite, port 5173) |
 | Build | `npm run build` (`tsc && vite build`) |
-| Test | `npm run test` (Vitest, 28 files / 94 tests) |
+| Test | `npm run test` (Vitest, 52 files / 317 tests) |
 | Typecheck only | `npx tsc --noEmit` |
 | Asset validation | `npm run asset:check -- assets/ecosystem/<asset-id>` |
-| **Evidence capture** | `node scripts/capture.mjs --set baseline --webgl` — see below |
+| **Evidence capture** | `node scripts/capture.mjs --set baseline2km --webgl` — see below |
+| Simulation readout scripts | `node --import ./scripts/ts-resolve.mjs scripts/<name>.ts` — the loader lets a script import `src/` with the extensionless specifiers Vite resolves and plain Node does not |
 
 ## Capture harness
 
@@ -39,12 +40,13 @@ Two layers, both deterministic:
    `manifest.json` recording backend, timings, and console errors.
 
 ```bash
-node scripts/capture.mjs --set baseline --webgl          # 9-shot contact sheet
+node scripts/capture.mjs --set baseline2km --webgl       # current 9-shot baseline
+node scripts/capture.mjs --set baseline --webgl          # pre-2 km, evidence only
 node scripts/capture.mjs --set detail --webgl            # volcanic + secondary cameras
 node scripts/capture.mjs --set baseline --only 02-island --webgl   # single shot, fast iteration
 ```
 
-Flags: `--set` (`baseline`|`detail`|`ui`), `--out`, `--width`, `--height`,
+Flags: `--set` (`baseline2km`|`shield2km`|`baseline`|`detail`|`ui`), `--out`, `--width`, `--height`,
 `--settle`, `--only <substring>`, `--webgl`, `--port`.
 
 `--webgl` hides `navigator.gpu` to force the WebGL2 backend. It is required for
@@ -55,6 +57,12 @@ P0-2, retracted).
 
 Shot sets are the fixed comparison basis for every A/B. Add a new set rather
 than editing an existing one; editing invalidates all prior evidence.
+
+The `baseline`/`detail` sets and the un-prefixed `GOLDEN_SHOTS` predate the 2 km
+world and are kept only so pre-resize captures stay readable. **Do not A/B a new
+capture against one of them** — they frame roughly a fifth of the current world,
+so the subject moved, not the renderer. Use `baseline2km` / `shield2km` and the
+`w2k-` cameras.
 
 ## Source layout (`src/`, 38 modules + 28 test files, ~7.6k lines)
 
@@ -82,6 +90,10 @@ rendering.** Respect it — `AGENTS.md` calls it out explicitly.
 - `world-history.ts`, `epoch-story.ts` — accumulated narrative across jumps.
 - `render-scale.ts` — **one world unit is one metre.** Shared contract anchoring
   island extent, organism size, wave amplitude, camera distance, LOD thresholds.
+  **The world is 2,000 m at 401×401 cells (5.0 m/cell) since 2026-08-15**; it was
+  380 m at 181×181 before that, so anything written against the old numbers is
+  stale. `islandLandRadius` (445 m) is separate from `islandExtent` on purpose —
+  scatter over *land* keys to the former, the crust frame to the latter.
 
 ### Rendering
 - `fft-ocean.ts` (375) + `fft-water.ts` (271) — Tessendorf/JONSWAP FFT ocean.

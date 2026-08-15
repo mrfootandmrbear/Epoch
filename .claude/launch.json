@@ -20,6 +20,12 @@
       "port": 5211
     },
     {
+      "name": "epoch-dev-scale",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--", "--port", "5223", "--strictPort", "--force"],
+      "port": 5223
+    },
+    {
       "name": "epoch-dev-reef",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--", "--port", "5217", "--strictPort", "--force"],
