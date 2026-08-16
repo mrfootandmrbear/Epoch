@@ -148,9 +148,32 @@ without becoming arbitrary or converging on a predetermined bestiary.
   is a known open defect recorded below and was visible in the frame that
   passed. "Initial first" is the owner's own qualifier and should be read as
   approving the direction, not closing the surface.
+- **Founder viability band-2 density, 2026-08-16** — accepted as-is. WU-A1
+  (`docs/briefs/WU-A1-founder-viability.md`) flagged that the "marginal"
+  band only covers 14–18% of the 60-choice × 3-island matrix rather than
+  "most cells," for a structural reason (the world's best-site forage tops
+  out too close to the break-even threshold to widen the band further
+  without collapsing the well-matched band). Owner reviewed this gap and did
+  not ask for a follow-up unit. Do not reopen without a new demonstrated
+  need — see the WU-A1 entry in `docs/polish/LOG.md` (2026-08-16) for the
+  full matrix.
+- **Raft arrival camera beat, 2026-08-16** — accepted. WU-A3
+  (`docs/briefs/WU-A3-raft-arrival.md`) closes backlog LW-5. Live
+  verification in the review harness was inconclusive (the browser pane's
+  throttled `requestAnimationFrame` on a backgrounded tab could not render
+  the beat at usable speed); the owner confirmed it directly on their own
+  machine instead.
 
 ## Open defects
 
+- **Zooming in on creatures bogs the framerate down, 2026-08-16.** Owner
+  report from live play on their own hardware (the only environment that can
+  produce a trustworthy performance reading — see "Performance target"
+  below). Not yet diagnosed: no readout script or profiling has isolated
+  whether this is herd/coat material cost, draw-call growth from WU-A2's
+  multi-raft/rootId work, LOD falloff, or something else. Needs a dedicated
+  diagnostic pass before any fix is attempted — do not guess-tune render
+  settings without evidence of the actual cost.
 - **The newest shield renders flat and unlit.** On real WebGPU as well as the
   fallback, the youngest shield in the chain draws as a dark disc with no
   relief, while `scripts/shield-chain-readout.ts` says that shield should carry
