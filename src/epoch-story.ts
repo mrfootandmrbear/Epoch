@@ -48,7 +48,13 @@ export function buildEpochStory(
 
   const events: string[] = [];
   if (relocated > 0) events.push(`${countLabel(relocated, "lineage")} found new ground`);
-  if (branches > 0) events.push(`${countLabel(branches, "new branch")} emerged`);
+  if (branches > 0) {
+    const isolation = changes.find((change) => change.event === "speciated" && change.isolation)?.isolation;
+    const cause = isolation
+      ? isolation.basis === "vicariance" ? " as a land bridge drowned" : " across open water"
+      : "";
+    events.push(`${countLabel(branches, "new branch")} emerged${cause}`);
+  }
   if (extinct > 0) events.push(`${countLabel(extinct, "lineage")} vanished`);
   if (marineRelocated > 0) events.push(`${countLabel(marineRelocated, "marine lineage")} shifted along the coast`);
   if (marineExtinct > 0) events.push(`${countLabel(marineExtinct, "marine lineage")} vanished`);

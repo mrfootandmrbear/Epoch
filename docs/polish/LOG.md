@@ -873,3 +873,79 @@ readability — those remain unrecorded in "Definition of done". Nor does it cle
 the flat dark newest shield, which was present in the frame that passed and is
 now filed under "Open defects" in `docs/EXECUTION.md`. The owner's own "initial
 first" is preserved verbatim in both places so the qualifier cannot be lost.
+
+## 2026-08-15 · Gene flow: the population consumer of island geography
+
+`docs/EXECUTION.md` order-of-work item 2 asked for the missing half of the
+grouping work: a *population* consumer. `island-geography.ts` could already say
+which shields share land and when a saddle drowned, but nothing read it — the
+lineage resolver still branched on `SPECIATION_COOLDOWN_YEARS`, "an arbitrary
+elapsed-time threshold," which the Definition of Done explicitly rules out.
+
+**The seam.** `resolveIslandGeography` gains a point query — `cellIsland` per
+cell plus `islandAt(geography, x, z)` — so an arbitrary population *site*, not
+just a shield vent, resolves to a land component. `resolveLanding` now takes an
+optional `geography` and `seaLevelHistory`; `landing-state.advance` resolves the
+geography from the freshly accreted terrain at the landing's stand and threads
+both in.
+
+**What reading island membership buys, all gated on geography being present:**
+
+- **Gene flow.** Two active populations of one identity that share an island
+  interbreed, so each jump blends their means toward the island centroid
+  (`GENE_FLOW_RATE`, scaled by jump duration). This is what makes a reconnection
+  read as one population again — divergence needs isolation, not distance.
+- **Isolation-driven branching.** `resolveIsolationSpeciation` replaces the
+  cooldown on the shipping path. A branch appears only when a viable founding
+  site sits on a *different* island than the parent, with a recorded cause:
+  **vicariance** (a shared saddle that carried a connection within the parent's
+  life and has since drowned, dated by `isolatedSinceYear`) or **dispersal** (an
+  over-water crossing, gated on epoch length, not lineage age). A single-island
+  world therefore never branches — the correct allopatric reading.
+- **Drift and founder effect.** A population isolated from its relatives drifts
+  neutrally (`driftPopulationTraits`, deterministic per lineage/year), so two
+  ranges diverge even in identical habitat; a branch's founding traits carry a
+  one-time bottleneck sample rather than the parent mean.
+- **Ancestry.** The branch records `origin { isolatedFromId, isolatedSinceYear,
+  basis, bridgeX/Z }`; `lineage-report.ts` and `epoch-story.ts` name the cause
+  ("land bridge drowned · Year N" / "reached a separate island") instead of the
+  old "45 m isolated".
+
+**Two paths, deliberately.** With no geography (synthetic unit fixtures, the
+determinism baseline), the legacy distance-and-cooldown speciation runs
+unchanged and no gene flow or drift is applied — so `determinism.test.ts`'s
+committed ecological snapshot did not move. The shipping path always supplies
+geography.
+
+**Verified on the real 2 km world, not only synthetic terrain.**
+`scripts/gene-flow-readout.ts` runs the shipping pipeline (young-volcano,
+`active` plume, six 1-Myr jumps under a rising/falling sea) — evidence saved to
+`docs/polish/evidence/gene-flow/active-6jump-readout.txt`. The chain grows to
+three-plus islands; shield-0 and shield-1 merge under a high stand and split
+again; `sheltered-grazer:0/1` branches onto island-2 (isolated by dispersal at
+3 Myr), the ridge grazer later radiates too, and when a descendant reconnects
+onto island-0 with its parent the run records gene flow closing their gap
+(−0.022). Every named mechanic fires end to end.
+
+**Known limitation, pre-existing, not touched here.** `migratedSite` samples
+sites within a radius without checking for a walkable land path, so a lineage
+can still "migrate" across open water between jumps. It predates this work; the
+gene-flow reconnection it produces is plausible, but water-blind migration is a
+separate fix. The shipping proof's isolation events are all *dispersal* rather
+than *vicariance*, because the ±3 m sea-level swing does not drown the ~5 m
+shield-0/shield-1 saddle; the vicariance dating path is covered by the unit test
+with a drownable bridge.
+
+**Evidence.** 379/379 tests pass (13 new: 3 in `island-geography.test.ts` for
+the point query, 10 in the new `gene-flow.test.ts` covering grouping, gene flow,
+isolation-vs-elapsed-time branching, the dispersal gate, vicariance dating,
+drift, the shared-mean helper, and determinism of the geography path).
+`npx tsc --noEmit` and `npm run build` are clean. No renderer change, so there
+is no visual gate to record; the lineage-report/story wording is the only
+player-facing surface and its legacy strings are preserved.
+
+**Not done here.** Item 2 also names "path-dependent selection" more fully and
+persistent per-lineage *variance* beyond the founder sample; those are present
+in bounded form (inherited traits blended toward the new island's habitat, plus
+drift) but could deepen if the proof exposes a need. The causal-reveal and
+serialized-fixture gates (items 3–5) are untouched.

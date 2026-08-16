@@ -1,0 +1,41 @@
+plume: active · 401² grid over 2000 m · 6 × 1,000,000 yr
+
+after jump 1 (1,000,000 yr · present sea)
+  islands  island-0[shield-0] 0.187 km²  island-1[shield-1] 0.001 km²
+  sheltered-grazer:0     on island-0 · established
+  ridge-grazer:0         on island-0 · established
+
+after jump 2 (2,000,000 yr · high sea)
+  islands  island-0[shield-0,shield-1] 0.227 km²
+  sheltered-grazer:0     on island-0 · reanchored
+  ridge-grazer:0         on island-0 · migrated
+
+after jump 3 (3,000,000 yr · high sea)
+  islands  island-0[shield-0] 0.119 km²  island-1[shield-1] 0.073 km²  island-2[shield-2] 0.031 km²  island-3[—] 0.003 km²
+  sheltered-grazer:0     on island-0 · migrated
+  ridge-grazer:0         on island-0 · migrated
+  sheltered-grazer:0/1   on island-2 · speciated · isolated by dispersal @ 3,000,000 yr
+
+after jump 4 (4,000,000 yr · present sea)
+  islands  island-0[shield-0] 0.120 km²  island-1[shield-1] 0.073 km²  island-2[shield-2] 0.030 km²  island-3[—] 0.002 km²
+  sheltered-grazer:0     on island-0 · migrated
+  ridge-grazer:0         on island-0 · reanchored
+  sheltered-grazer:0/1   on island-3 · migrated · isolated by dispersal @ 3,000,000 yr
+  sheltered-grazer:0/2   on island-2 · speciated · isolated by dispersal @ 4,000,000 yr
+
+after jump 5 (5,000,000 yr · high sea)
+  islands  island-0[shield-0] 0.111 km²  island-1[shield-1] 0.061 km²  island-2[shield-2] 0.018 km²
+  sheltered-grazer:0     on island-0 · reanchored · gene-flow −0.022
+  ridge-grazer:0         on island-0 · migrated
+  sheltered-grazer:0/1   on island-0 · reanchored · isolated by dispersal @ 3,000,000 yr · gene-flow −0.022
+  sheltered-grazer:0/2   on island-2 · reanchored · isolated by dispersal @ 4,000,000 yr
+  sheltered-grazer:0/3   on island-1 · speciated · isolated by dispersal @ 5,000,000 yr
+
+after jump 6 (6,000,000 yr · present sea)
+  islands  island-0[shield-0] 0.111 km²  island-1[shield-1] 0.060 km²  island-2[shield-2] 0.018 km²
+  sheltered-grazer:0     on island-1 · migrated · gene-flow −0.021
+  ridge-grazer:0         on island-1 · reanchored
+  sheltered-grazer:0/1   on island-0 · migrated · isolated by dispersal @ 3,000,000 yr
+  sheltered-grazer:0/2   on island-2 · migrated · isolated by dispersal @ 4,000,000 yr
+  sheltered-grazer:0/3   on island-1 · migrated · isolated by dispersal @ 5,000,000 yr · gene-flow −0.021
+  ridge-grazer:0/1       on island-0 · speciated · isolated by dispersal @ 6,000,000 yr

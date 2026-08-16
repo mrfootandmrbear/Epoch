@@ -253,6 +253,23 @@ function validateLineage(value: unknown, ids: Set<string>, index: number): Linea
       throw new RangeError(`${context}.${field} must be finite and within [0, 1]`);
     }
   }
+  if (lineage.origin !== undefined) {
+    const origin = requireRecord(lineage.origin, `${context}.origin`);
+    if (typeof origin.isolatedFromId !== "string" || origin.isolatedFromId.length === 0) {
+      throw new TypeError(`${context}.origin.isolatedFromId must be a non-empty string`);
+    }
+    if (!Number.isFinite(origin.isolatedSinceYear) || (origin.isolatedSinceYear as number) < 0) {
+      throw new RangeError(`${context}.origin.isolatedSinceYear must be a non-negative finite number`);
+    }
+    if (origin.basis !== "vicariance" && origin.basis !== "dispersal") {
+      throw new RangeError(`${context}.origin.basis is not recognized`);
+    }
+    for (const field of ["bridgeX", "bridgeZ"] as const) {
+      if (origin[field] !== undefined && !Number.isFinite(origin[field])) {
+        throw new RangeError(`${context}.origin.${field} must be finite when present`);
+      }
+    }
+  }
   return lineage as unknown as LineageState;
 }
 

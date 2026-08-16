@@ -18,7 +18,7 @@ intent now lives in `PRODUCT.md`; it is the authority on what the game is for.
 | Install | `npm install` — **currently broken on clean clone**, see BACKLOG P0-1. Workaround: `npm install --no-package-lock --no-save` |
 | Dev server | `npm run dev` (Vite, port 5173) |
 | Build | `npm run build` (`tsc && vite build`) |
-| Test | `npm run test` (Vitest, 52 files / 317 tests) |
+| Test | `npm run test` (Vitest, 55 files / 379 tests) |
 | Typecheck only | `npx tsc --noEmit` |
 | Asset validation | `npm run asset:check -- assets/ecosystem/<asset-id>` |
 | **Evidence capture** | `node scripts/capture.mjs --set baseline2km --webgl` — see below |

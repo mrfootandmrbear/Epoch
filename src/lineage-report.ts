@@ -35,7 +35,16 @@ function habitatLabel(change: LineageChange): string | undefined {
 }
 
 function eventLabel(change: LineageChange): string {
-  if (change.event === "speciated") return `new branch · ${change.moved.toFixed(0)}m isolated`;
+  if (change.event === "speciated") {
+    const isolation = change.isolation;
+    if (isolation) {
+      const year = `Year ${Math.round(isolation.isolatedSinceYear).toLocaleString()}`;
+      return isolation.basis === "vicariance"
+        ? `new branch · land bridge drowned · ${year}`
+        : `new branch · reached a separate island · ${year}`;
+    }
+    return `new branch · ${change.moved.toFixed(0)}m isolated`;
+  }
   if (change.status === "extinct") return "extinct";
   if (change.status === "not-established") return "not established";
   if (change.event === "established") return "established";

@@ -48,6 +48,7 @@ import { createStreamRenderer } from "./stream-renderer";
 import { createCascadeRenderer } from "./cascade-renderer";
 import { resolveFreshwaterField } from "./freshwater-basins";
 import { captureWorldSnapshot, type WorldSnapshot } from "./world-snapshot";
+import { resolveIslandGeography } from "./island-geography";
 import {
   createInitialWorldState,
   seedStartingPlume,
@@ -1195,7 +1196,28 @@ export function createLandingState(scene: Scene): WorldExperience {
       life.visible = true;
       const snapshot = currentSnapshot(totalYears);
       const reefOutcome = refreshReef(snapshot, years);
-      const resolution = resolveLanding(snapshot, worldHistory.lineages, years, worldHistory.marineLineages, reefOutcome.habitat);
+      // Which shields currently share land, resolved from the freshly accreted
+      // terrain at this landing's stand. This is what lets the lineage resolver
+      // read island membership: gene flow while connected, branching once
+      // isolated. The sea-level record is already updated for this jump above.
+      const geography = resolveIslandGeography(
+        {
+          side: worldHistory.terrain.side,
+          extent: worldHistory.terrain.extent,
+          elevations: worldHistory.terrain.elevations,
+        },
+        SEA_LEVEL[climate.seaLevel],
+        worldHistory.archipelago.shields,
+      );
+      const resolution = resolveLanding(
+        snapshot,
+        worldHistory.lineages,
+        years,
+        worldHistory.marineLineages,
+        reefOutcome.habitat,
+        geography,
+        worldHistory.seaLevelHistory,
+      );
       const { outcome } = resolution;
       currentOutcome = outcome;
       freshwater.setField(outcome.freshwaterField);

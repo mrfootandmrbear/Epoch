@@ -80,12 +80,23 @@ without becoming arbitrary or converging on a predetermined bestiary.
    erodes to 4.9 m, and a third emerges as its own island. `hotSpots` is retired;
    `WorldHistory` is version 10 and `ArchipelagoHistory` version 2.*
 
-   **What is still missing is the population consumer.** `resolveIslandGeography`
-   has no shipping-path caller yet — nothing reads island membership to decide
-   gene flow. That is item 2.
+   *The population consumer landed 2026-08-15.* `resolveIslandGeography` gained a
+   point query (`islandAt`); `landing-state.advance` resolves the geography at
+   each landing's stand and threads it, with `seaLevelHistory`, into
+   `resolveLanding`. Nothing about the grouping record itself changed — this is
+   its first reader. See item 2.
 2. Add population variance, founder bottlenecks, drift, path-dependent
    selection, and ancestry records only to the depth required by the sequence;
    express selection through authored trait pressures and tradeoffs.
+   *Implemented 2026-08-15 in `outcome-resolver.ts`: gene flow homogenizes
+   same-island lineages, branching is driven by island isolation (vicariance
+   dated from a drowned saddle, or an epoch-gated dispersal) rather than the old
+   elapsed-time cooldown, isolated lineages drift, and a branch records its
+   `origin` cause. Gated on geography being present, so the determinism baseline
+   (geography-free fixtures) is unchanged. Verified end-to-end on the real 2 km
+   world via `scripts/gene-flow-readout.ts`. Still bounded: `migratedSite`
+   remains water-blind, and "path-dependent selection" is present only as
+   inherited-trait blending toward the new island's habitat.*
 3. Resolve the serialized landing fixtures and their causal explanation.
 4. Render the regional geology and both descendant populations with a shared
    inherited visual history rooted in the opening Galápagos grammar.
@@ -189,10 +200,10 @@ members consequences.
 | Form → jump → reveal loop | Implemented | Preserve while replacing isolated duration shots with one inherited sequence. |
 | World scale | **Accepted** 2026-08-15 — 2,000 m extent at 401×401 cells (5.0 m/cell); shield mean flank measured at 6.6° | None. Do not reopen without a demonstrated failure. Prior captures are not a valid A/B. |
 | Multi-shield archipelago record | Implemented renderer-independent in `archipelago-history.ts` with 40 tests; shield zero is the authored island | Preserve. The record advances every jump and validates as part of `WorldHistory` v9. |
-| Emergent island grouping and connectivity | Implemented in `island-geography.ts` with 32 tests — land components, shield-pair saddles, `SeaLevelHistory`, dated connection episodes | Terrain consumer done. Still needs a *population* consumer: nothing reads island membership to decide gene flow. |
+| Emergent island grouping and connectivity | Implemented in `island-geography.ts` with 35 tests — land components, shield-pair saddles, `SeaLevelHistory`, dated connection episodes, and an `islandAt` point query | Both consumers done: terrain (accretion) and population (gene flow) now read it. Preserve. |
 | Persistent terrain and volcanic change | **Accepted** 2026-08-15 — "good initial first, it passes." Accretion runs off `resolveShieldVents`; the player fixes hotspot position and drift bearing at world formation and thereafter holds one three-way plume setting | None. See the verdict's scope below before treating any other gate as satisfied. |
 | Climate, hydrology, ocean, reef, and shared habitat sampling | Implemented in bounded forms | Reconcile fields with shield age, regional upwelling, and changing connectivity. |
-| Terrestrial population persistence | Implemented with trait means, energy, abundance, Distant Drifter establishment, and bounded branching | Persistent variance, explicit gene flow, drift, and path-dependent authored selection. |
+| Terrestrial population persistence | Implemented with trait means, energy, abundance, Distant Drifter establishment, and now island-driven gene flow, isolation branching, drift, and ancestry records (`gene-flow.test.ts`) | Deepen path-dependent selection and per-lineage variance only where the serialized proof (items 3–5) exposes a need. |
 | Marine lineage and reef succession | Implemented as bounded proofs | Preserve; expand only for an integrated-proof consumer. |
 | Aerial persistence and wider food web | Partial or planned | Deferred behind the current objective. |
 | Landing-state renderer | Substantial WebGPU/TSL implementation | Regional multi-shield grammar and serialized proof captures. |
@@ -238,3 +249,6 @@ them for migration detail, not priority.
 - Broad trophic catalogues and speculative cross-domain transitions.
 - Renderer polish without a demonstrated failure in the integrated sequence.
 - New documentation trackers or status systems.
+- The lightweight biodiversity/ecosystem-health indicator named in
+  `PRODUCT.md` — needs species breadth beyond the current single grazer
+  family to be meaningful.

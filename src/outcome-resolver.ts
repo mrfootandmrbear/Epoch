@@ -11,21 +11,33 @@ import { lineageSeed, populationArchetype } from "./population-archetypes";
 import {
   assertPopulationTraits,
   derivePopulationTraits,
+  POPULATION_TRAIT_KEYS,
   type PopulationIdentity,
   type PopulationTraits,
 } from "./population-traits";
 import {
   blendPopulationTraits,
   createLineageHistory,
+  driftPopulationTraits,
+  GENE_FLOW_RATE,
+  meanPopulationTraits,
   migrationRadius,
   populationTraitChanges,
   populationTraitDistance,
   traitAdaptationRate,
   type LineageChange,
   type LineageHistory,
+  type LineageOrigin,
   type LineageState,
   type LineageStatus,
 } from "./lineage-history";
+import {
+  islandAt,
+  isolatedSinceYear,
+  saddleBetween,
+  type IslandGeography,
+  type SeaLevelHistory,
+} from "./island-geography";
 import { createMarineLineageHistory, resolveMarineLineages, type MarineLineageChange, type MarineLineageHistory, type MarinePopulationOutcome } from "./marine-lineage";
 import { resolveFounderEstablishment } from "./founder-establishment";
 import { founderEnvironmentFit } from "./founder-profile";
@@ -269,6 +281,17 @@ const SPECIATION_COOLDOWN_YEARS = 100_000;
 const SPECIATION_MIN_DISTANCE = 45;
 const SPECIATION_MIN_TRAIT_DISTANCE = 0.025;
 
+/**
+ * A branch reaching a *separate, never-connected* island crossed open water — a
+ * rare dispersal that only reads as plausible over a long epoch. Vicariance (a
+ * land bridge drowning under a population that spanned it) needs no such gate:
+ * the drowning is itself the trigger and only happens across deep time. This is
+ * a property of the *epoch length*, not a per-lineage maturation clock — the
+ * distinction the objective draws when it forbids "an arbitrary elapsed-time
+ * threshold" for branching.
+ */
+const DISPERSAL_MIN_JUMP_YEARS = 1_000;
+
 function separationBonus(x: number, z: number, occupied: readonly ScoredSite[]): number {
   if (occupied.length === 0) return 0;
   const nearest = Math.min(...occupied.map((site) => Math.hypot(x - site.x, z - site.z)));
@@ -418,7 +441,7 @@ function resolveLineage(
   }
 
   const target = derivePopulationTraits(previous.identity, scored.habitat, snapshot.climate);
-  if (import.meta.env.DEV) {
+  if (import.meta.env?.DEV) {
     if (previous.traits) assertPopulationTraits(previous.traits, `lineage ${previous.id} inherited traits`);
     assertPopulationTraits(target, `lineage ${previous.id} target traits`);
   }
@@ -427,7 +450,7 @@ function resolveLineage(
     : previous.status === "not-established" && previous.founder && previous.traits
       ? previous.traits
       : target;
-  if (import.meta.env.DEV) assertPopulationTraits(traits, `lineage ${previous.id} resolved traits`);
+  if (import.meta.env?.DEV) assertPopulationTraits(traits, `lineage ${previous.id} resolved traits`);
   const moved = previous.site ? Math.hypot(scored.x - previous.site.x, scored.z - previous.site.z) : 0;
   const duration = clamp01(Math.log10(Math.max(1, jumpYears) + 1) / 6);
   const founder = previous.status === "not-established";
@@ -597,12 +620,305 @@ function resolveSpeciation(
   };
 }
 
+/**
+ * A founding-site search restricted to islands *other* than the parent's.
+ *
+ * `foundingSite` returns the single best site anywhere, which on a multi-island
+ * world is usually still on the parent's own island — the same ground, not a
+ * separate one. A branch is an allopatric event: it needs the best site that is
+ * genuinely across water, so this loop rejects every candidate that resolves to
+ * the parent's island or to one the parent has already colonized.
+ */
+function isolatedFoundingSite(
+  heightAt: HeightAt,
+  forageAt: HeightAt,
+  identity: PopulationIdentity,
+  climate: ClimateForces,
+  deepTime: number,
+  extent: number,
+  geography: IslandGeography,
+  parentIsland: string,
+  forbiddenIslands: ReadonlySet<string>,
+  occupied: readonly ScoredSite[],
+): (ScoredSite & { island: string }) | undefined {
+  let best: (ScoredSite & { island: string }) | undefined;
+  const worldRadius = extent / 2 - 5;
+  for (let i = 0; i < 320; i++) {
+    const angle = hash(i, 71) * Math.PI * 2;
+    const radius = Math.sqrt(hash(i, 83)) * worldRadius;
+    const x = Math.cos(angle) * radius;
+    const z = Math.sin(angle) * radius;
+    const island = islandAt(geography, x, z);
+    if (island === null || island === parentIsland || forbiddenIslands.has(island)) continue;
+    const habitat = sampleEcosystem(heightAt, x, z, climate, forageAt);
+    if (!isViableSite(habitat, climate)) continue;
+    const score = siteScore(habitat, identity, deepTime) + separationBonus(x, z, occupied);
+    if (!best || score > best.score) best = { x, y: habitat.elevation, z, habitat, score, island };
+  }
+  return best;
+}
+
+/**
+ * Classify why a population on `parentIsland` and a founding site on
+ * `childIsland` can no longer interbreed, and date it — the recorded cause a
+ * later reveal reads instead of "some threshold elapsed".
+ *
+ * `isolatedFromId` is filled by the caller; everything else is a fact about the
+ * geology and the sea-level record.
+ */
+function resolveIsolationBasis(
+  geography: IslandGeography,
+  seaLevelHistory: SeaLevelHistory | undefined,
+  parentIsland: string,
+  childIsland: string,
+  parentOriginAge: number,
+  totalYears: number,
+  jumpYears: number,
+): Omit<LineageOrigin, "isolatedFromId"> | undefined {
+  const from = geography.islands.find((island) => island.id === parentIsland);
+  const to = geography.islands.find((island) => island.id === childIsland);
+  // Vicariance: a col between a shield on each island carried a land connection
+  // within the parent's life and has since drowned. Prefer the most recently
+  // lost bridge — the last time the two ranges were actually one.
+  if (seaLevelHistory && from && to) {
+    let best: { year: number; x: number; z: number } | undefined;
+    for (const a of from.shieldIds) {
+      for (const b of to.shieldIds) {
+        const saddle = saddleBetween(geography, a, b);
+        if (!saddle) continue;
+        const year = isolatedSinceYear(seaLevelHistory, saddle.elevation);
+        if (year === null || year < parentOriginAge) continue;
+        if (!best || year > best.year) best = { year, x: saddle.x, z: saddle.z };
+      }
+    }
+    if (best) {
+      return { isolatedSinceYear: best.year, basis: "vicariance", bridgeX: best.x, bridgeZ: best.z };
+    }
+  }
+  // Dispersal: no bridge to lose, so the branch crossed open water — only
+  // credible over a long epoch, and dated to the crossing itself.
+  if (jumpYears >= DISPERSAL_MIN_JUMP_YEARS) {
+    return { isolatedSinceYear: totalYears, basis: "dispersal" };
+  }
+  return undefined;
+}
+
+/**
+ * Branch a lineage when geography — not elapsed time — isolates part of it.
+ *
+ * This replaces the maturation-cooldown speciation on the shipping path: a
+ * branch appears only when a viable founding site exists on a *different*
+ * island than the parent, and that separation has a recorded cause (a drowned
+ * land bridge, or an over-water crossing). A single-island world therefore
+ * never branches, which is the correct allopatric reading; a growing
+ * archipelago radiates one island per deep-time jump.
+ *
+ * The daughter inherits the parent's traits (path dependence), blends toward
+ * its new island's habitat (authored selection), and carries a founder-effect
+ * bottleneck in both trait means and abundance.
+ */
+function resolveIsolationSpeciation(
+  snapshot: WorldSnapshot,
+  history: LineageHistory,
+  resolved: readonly ReturnType<typeof resolveLineage>[],
+  jumpYears: number,
+  deepTime: number,
+  geography: IslandGeography,
+  seaLevelHistory: SeaLevelHistory | undefined,
+): ReturnType<typeof resolveLineage> | undefined {
+  const heightAt = (x: number, z: number) => snapshotHeightAt(snapshot, x, z);
+  const forageAt = (x: number, z: number) => snapshotForageAt(snapshot, x, z);
+  const occupied = resolved.flatMap(({ scored }) => (scored ? [scored] : []));
+
+  for (const parentResolution of resolved) {
+    const parent = parentResolution.next;
+    if (parent.status !== "active" || !parent.traits || !parent.site) continue;
+    const parentIsland = islandAt(geography, parent.site.x, parent.site.z);
+    if (parentIsland === null) continue;
+
+    // Islands this parent's descendants already hold: do not re-colonize them,
+    // so a parent radiates to a new island each jump rather than piling onto one.
+    const forbidden = new Set<string>();
+    for (const { next } of resolved) {
+      if (next.parentId === parent.id && next.status === "active" && next.site) {
+        const island = islandAt(geography, next.site.x, next.site.z);
+        if (island) forbidden.add(island);
+      }
+    }
+
+    const alternate = isolatedFoundingSite(
+      heightAt, forageAt, parent.identity, snapshot.climate as ClimateForces,
+      deepTime, snapshot.extent, geography, parentIsland, forbidden, occupied,
+    );
+    if (!alternate) continue;
+
+    const basis = resolveIsolationBasis(
+      geography, seaLevelHistory, parentIsland, alternate.island,
+      parent.originAge, snapshot.totalYears, jumpYears,
+    );
+    if (!basis) continue;
+    const origin: LineageOrigin = { ...basis, isolatedFromId: parent.id };
+
+    const childId = nextChildId(parent, history);
+    const target = derivePopulationTraits(parent.identity, alternate.habitat, snapshot.climate);
+    const blended = blendPopulationTraits(parent.traits, target, traitAdaptationRate(jumpYears));
+    // A one-time founder-effect sample: the colonists are not the parent mean.
+    const traits = driftPopulationTraits(
+      blended,
+      lineageSeed(parent.identity, childId) ^ (origin.isolatedSinceYear >>> 0),
+      1,
+    );
+    if (populationTraitDistance(parent.traits, traits) < SPECIATION_MIN_TRAIT_DISTANCE) continue;
+
+    const child: LineageState = {
+      id: childId,
+      parentId: parent.id,
+      originAge: origin.isolatedSinceYear,
+      generation: parent.generation + 1,
+      identity: parent.identity,
+      status: "active",
+      site: { x: alternate.x, z: alternate.z },
+      traits,
+      abundance: Math.max(0.12, (parent.abundance ?? 0.34) * 0.42),
+      energy: parent.energy ?? 0.62,
+      origin,
+    };
+    const siteDistance = Math.hypot(alternate.x - parent.site.x, alternate.z - parent.site.z);
+    return {
+      outcome: {
+        id: child.id,
+        identity: child.identity,
+        status: "active",
+        visible: true,
+        previousSite: parent.site,
+        site: { x: alternate.x, y: alternate.y, z: alternate.z, habitat: alternate.habitat },
+        traits,
+        abundance: child.abundance,
+        energy: child.energy,
+      },
+      next: child,
+      scored: alternate,
+      change: {
+        id: child.id,
+        parentId: child.parentId,
+        identity: child.identity,
+        previousStatus: "not-established",
+        status: "active",
+        moved: siteDistance,
+        event: "speciated",
+        habitat: alternate.habitat,
+        traits: populationTraitChanges(parent.traits, traits),
+        abundance: { before: 0, after: child.abundance ?? 0 },
+        energy: { before: 0, after: child.energy ?? 0 },
+        isolation: origin,
+      },
+    };
+  }
+  return undefined;
+}
+
+/** Rebuild a resolution with new trait means, keeping the pre-jump `before` values. */
+function withResolvedTraits(
+  resolution: ReturnType<typeof resolveLineage>,
+  traits: PopulationTraits,
+  changePatch: Partial<LineageChange>,
+): ReturnType<typeof resolveLineage> {
+  const prior = resolution.change.traits;
+  const rebuiltTraits = prior
+    ? (Object.fromEntries(POPULATION_TRAIT_KEYS.map((key) => [
+        key,
+        { before: prior[key]?.before ?? traits[key], after: traits[key] },
+      ])) as LineageChange["traits"])
+    : resolution.change.traits;
+  return {
+    ...resolution,
+    next: { ...resolution.next, traits },
+    outcome: { ...resolution.outcome, traits },
+    change: { ...resolution.change, ...changePatch, traits: rebuiltTraits },
+  };
+}
+
+/**
+ * Gene flow and drift, read off island membership — the consumer the emergent
+ * grouping in `island-geography.ts` was built for.
+ *
+ * - **Gene flow.** Two active populations of one identity that share an island
+ *   interbreed, so each jump pulls their means toward the shared island centroid.
+ *   This is what keeps a lineage that never split, or one whose bridge reformed,
+ *   from reading as two — divergence needs *isolation*, not just distance.
+ * - **Drift.** A population isolated from its relatives (alone on its island
+ *   while the same identity persists elsewhere) drifts neutrally, so two ranges
+ *   diverge even in identical habitat rather than resolving to one mean.
+ *
+ * Both are deterministic; capture mode forbids real randomness. Mutates nothing —
+ * it rewrites entries of the resolution array in place with updated copies.
+ */
+function applyIslandGeneFlow(
+  resolved: Array<ReturnType<typeof resolveLineage>>,
+  geography: IslandGeography,
+  jumpYears: number,
+  totalYears: number,
+): void {
+  const duration = clamp01(Math.log10(Math.max(1, jumpYears) + 1) / 6);
+  if (duration <= 0) return;
+
+  const active = resolved.flatMap((resolution, index) => {
+    const state = resolution.next;
+    if (state.status !== "active" || !state.traits || !state.site) return [];
+    const island = islandAt(geography, state.site.x, state.site.z);
+    if (island === null) return [];
+    return [{ index, island, identity: state.identity, traits: state.traits }];
+  });
+  if (active.length === 0) return;
+
+  // Which islands each identity occupies — an identity spanning more than one is
+  // the definition of an isolated pair, and so of where drift applies.
+  const islandsByIdentity = new Map<PopulationIdentity, Set<string>>();
+  const groups = new Map<string, typeof active>();
+  for (const member of active) {
+    const spread = islandsByIdentity.get(member.identity) ?? new Set<string>();
+    spread.add(member.island);
+    islandsByIdentity.set(member.identity, spread);
+    const key = `${member.island}|${member.identity}`;
+    const group = groups.get(key) ?? [];
+    group.push(member);
+    groups.set(key, group);
+  }
+
+  for (const group of groups.values()) {
+    if (group.length >= 2) {
+      // Gene flow: blend every member toward the island/identity mean.
+      const mean = meanPopulationTraits(group.map((member) => member.traits));
+      const rate = GENE_FLOW_RATE * duration;
+      for (const member of group) {
+        const blended = blendPopulationTraits(member.traits, mean, rate);
+        const closed = populationTraitDistance(member.traits, blended);
+        resolved[member.index] = withResolvedTraits(resolved[member.index]!, blended, { geneFlow: closed });
+      }
+    } else {
+      // A lone member. It drifts only if it is genuinely isolated from a relative.
+      const member = group[0]!;
+      const isolated = (islandsByIdentity.get(member.identity)?.size ?? 0) > 1;
+      if (!isolated) continue;
+      const state = resolved[member.index]!.next;
+      const drifted = driftPopulationTraits(
+        member.traits,
+        lineageSeed(member.identity, state.id) ^ (Math.floor(totalYears) >>> 0),
+        duration,
+      );
+      resolved[member.index] = withResolvedTraits(resolved[member.index]!, drifted, {});
+    }
+  }
+}
+
 export function resolveLanding(
   snapshot: WorldSnapshot,
   previousHistory: LineageHistory = createLineageHistory(),
   jumpYears = snapshot.totalYears,
   previousMarineHistory: MarineLineageHistory = createMarineLineageHistory(),
   reef: ReefEcosystemSignal = { shelter: 0, productivity: 0 },
+  geography?: IslandGeography,
+  seaLevelHistory?: SeaLevelHistory,
 ): LandingResolution {
   const heightAt = (x: number, z: number) => snapshotHeightAt(snapshot, x, z);
   const forageAt = (x: number, z: number) => snapshotForageAt(snapshot, x, z);
@@ -744,14 +1060,17 @@ export function resolveLanding(
       lineageResolutions.flatMap(({ scored }) => scored ? [scored] : []),
     ));
   }
-  const speciation = resolveSpeciation(
-    snapshot,
-    previousHistory,
-    lineageResolutions,
-    jumpYears,
-    deepTime,
-  );
+  // With the world's geography in hand, branching is driven by island
+  // isolation and gene flow reads island membership. Without it (synthetic unit
+  // fixtures with no archipelago) the legacy distance-and-maturation path runs,
+  // so those tests and the determinism baseline are undisturbed.
+  const speciation = geography
+    ? resolveIsolationSpeciation(
+      snapshot, previousHistory, lineageResolutions, jumpYears, deepTime, geography, seaLevelHistory,
+    )
+    : resolveSpeciation(snapshot, previousHistory, lineageResolutions, jumpYears, deepTime);
   if (speciation) lineageResolutions.push(speciation);
+  if (geography) applyIslandGeneFlow(lineageResolutions, geography, jumpYears, snapshot.totalYears);
 
   const marineResolution = resolveMarineLineages(snapshot, previousMarineHistory, jumpYears);
   const marineAbundance = marineResolution.outcomes.reduce((sum, population) => sum + (population.abundance ?? 0), 0)

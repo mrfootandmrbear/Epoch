@@ -4,6 +4,8 @@ import {
   cellIndexAt,
   connectionEpisodes,
   createSeaLevelHistory,
+  islandAt,
+  islandIndexAt,
   isolatedSinceYear,
   recordSeaLevel,
   resolveIslandGeography,
@@ -263,6 +265,41 @@ describe("resolveIslandGeography — contract", () => {
     expect(cellIndexAt(HALF, HALF, SIDE, EXTENT)).toBe(SIDE * SIDE - 1);
     expect(cellIndexAt(-10_000, 10_000, SIDE, EXTENT)).toBe((SIDE - 1) * SIDE);
     expect(cellIndexAt(STEP, 0, SIDE, EXTENT)).toBe(20 * SIDE + 21);
+  });
+});
+
+describe("resolveIslandGeography — island at a world position", () => {
+  it("names the island a summit stands on, and reports water as null", () => {
+    const shields = [shield("shield-0", -100, 0), shield("shield-1", 100, 0)];
+    // Split stand: the col is drowned, so the two cones are two islands.
+    const geography = resolveIslandGeography(twinCones(), 25, shields);
+
+    expect(geography.islands).toHaveLength(2);
+    // Each summit sits on its own island; the drowned col between them is water.
+    expect(islandAt(geography, -100, 0)).toBe(geography.islandOfShield.get("shield-0"));
+    expect(islandAt(geography, 100, 0)).toBe(geography.islandOfShield.get("shield-1"));
+    expect(islandAt(geography, 0, 0)).toBeNull();
+    // The two summits are on genuinely different components.
+    expect(islandAt(geography, -100, 0)).not.toBe(islandAt(geography, 100, 0));
+  });
+
+  it("places both summits on one island while the col stands above the sea", () => {
+    const geography = resolveIslandGeography(twinCones(), 0, [
+      shield("shield-0", -100, 0),
+      shield("shield-1", 100, 0),
+    ]);
+
+    expect(islandAt(geography, -100, 0)).toBe("island-0");
+    expect(islandAt(geography, 100, 0)).toBe("island-0");
+    // The col itself is now dry land, so it too resolves to the island.
+    expect(islandAt(geography, 0, 0)).toBe("island-0");
+  });
+
+  it("returns -1 and null for open water far outside the land", () => {
+    const geography = resolveIslandGeography(buildGrid((x, z) => 50 - 0.3 * Math.hypot(x, z)), 0);
+
+    expect(islandIndexAt(geography, 190, 190)).toBe(-1);
+    expect(islandAt(geography, 190, 190)).toBeNull();
   });
 });
 

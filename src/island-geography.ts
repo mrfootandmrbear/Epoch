@@ -77,6 +77,9 @@ export interface ShieldSaddle {
 export interface IslandGeography {
   /** The stand this grouping was resolved at, in metres. */
   readonly seaLevel: number;
+  /** Grid the resolve ran on, retained so a world position can be mapped to a cell. */
+  readonly side: number;
+  readonly extent: number;
   /** Land components, largest first. Empty when the whole grid is submerged. */
   readonly islands: readonly IslandGroup[];
   /**
@@ -87,6 +90,14 @@ export interface IslandGeography {
   readonly saddles: readonly ShieldSaddle[];
   /** Island id for a shield's vent cell, or `null` when that vent is underwater. */
   readonly islandOfShield: ReadonlyMap<string, string | null>;
+  /**
+   * Island ordinal for every grid cell, or -1 for water. The index is into
+   * `islands`, so `islands[cellIsland[cell]]` is the land component that cell
+   * belongs to. This is what lets a population site — an arbitrary world
+   * position, not a shield vent — be resolved to an island, which is the query
+   * gene flow is decided on.
+   */
+  readonly cellIsland: Int32Array;
   readonly totalLandCells: number;
   readonly totalLandAreaSquareMetres: number;
 }
@@ -400,17 +411,51 @@ function assembleGeography(input: AssembleInput): IslandGeography {
     };
   });
 
+  // Root → island ordinal, so every land cell can name the component it joined.
+  const rootToOrdinal = new Map<number, number>();
+  ordered.forEach(([root], position) => rootToOrdinal.set(root, position));
+  const cellIsland = new Int32Array(elevations.length).fill(-1);
+  for (let cell = 0; cell < elevations.length; cell++) {
+    if (elevations[cell]! <= seaLevel) continue;
+    const ordinal = rootToOrdinal.get(islandRoots[cell]!);
+    if (ordinal !== undefined) cellIsland[cell] = ordinal;
+  }
+
   let totalLandCells = 0;
   for (const island of islands) totalLandCells += island.landCells;
 
   return {
     seaLevel,
+    side,
+    extent,
     islands,
     saddles,
     islandOfShield,
+    cellIsland,
     totalLandCells,
     totalLandAreaSquareMetres: totalLandCells * cellArea,
   };
+}
+
+/**
+ * Island ordinal at a world position, or -1 when the position is water (or the
+ * grid is entirely submerged). The index is into `geography.islands`.
+ */
+export function islandIndexAt(geography: IslandGeography, x: number, z: number): number {
+  const cell = cellIndexAt(x, z, geography.side, geography.extent);
+  return geography.cellIsland[cell] ?? -1;
+}
+
+/**
+ * Island id at a world position, or `null` when the position is water.
+ *
+ * This is the query gene flow is decided on: two populations interbreed only
+ * while they stand on the same land component, so `islandAt(a) === islandAt(b)`
+ * with a non-null id is the connectivity test a lineage resolver needs.
+ */
+export function islandAt(geography: IslandGeography, x: number, z: number): string | null {
+  const index = islandIndexAt(geography, x, z);
+  return index >= 0 ? geography.islands[index]!.id : null;
 }
 
 /** The saddle between two shields, or `null` when either is unknown to this resolve. */
