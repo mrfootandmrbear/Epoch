@@ -46,7 +46,7 @@ import { DEFAULT_FOUNDER_CHOICES } from "../src/founder-profile";
 import { islandAt, resolveIslandGeography } from "../src/island-geography";
 import { RENDER_SCALE } from "../src/render-scale";
 import { startingWorldPreset } from "../src/starting-world-presets";
-import { resolveTerrainHistory, type TerrainHistory } from "../src/terrain-history";
+import { applyCoastalForageFloor, resolveTerrainHistory, type TerrainHistory } from "../src/terrain-history";
 import { createWorldHistory, seedStartingPlume, withRecordedSeaLevel } from "../src/world-history";
 import { captureWorldSnapshot } from "../src/world-snapshot";
 import { resolveLanding } from "../src/outcome-resolver";
@@ -106,11 +106,14 @@ for (let jump = 1; jump <= JUMPS; jump++) {
   history = withRecordedSeaLevel(
     {
       ...history,
-      terrain: resolveVolcanicAccretion(
-        resolveTerrainHistory(history.terrain, JUMP_YEARS, climate),
-        resolveShieldVents(archipelago, history.archipelago),
-        JUMP_YEARS,
-        archipelago.plume,
+      terrain: applyCoastalForageFloor(
+        resolveVolcanicAccretion(
+          resolveTerrainHistory(history.terrain, JUMP_YEARS, climate),
+          resolveShieldVents(archipelago, history.archipelago),
+          JUMP_YEARS,
+          archipelago.plume,
+        ),
+        seaLevel,
       ),
       archipelago,
     },

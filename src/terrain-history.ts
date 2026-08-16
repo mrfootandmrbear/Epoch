@@ -348,7 +348,11 @@ export function resolveTerrainHistory(
       const potential = clamp01((0.58 + moisture * 0.55 + protection * 0.42
         - nextDisturbance[index]! * 0.38) * (0.22 + fertility * 0.78));
       const regrowth = duration * (0.12 + Math.max(0, moisture) * 0.16);
-      nextForage[index] = clamp01(previous.forage[index]! + (potential - previous.forage[index]!) * regrowth);
+      const vegetationForage = previous.forage[index]! + (potential - previous.forage[index]!) * regrowth;
+      const coastalFood = elevation > sea && elevation < sea + 15
+        ? clamp01(1 - (elevation - sea) / 15) * 0.30
+        : 0;
+      nextForage[index] = clamp01(Math.max(coastalFood, vegetationForage));
 
       const litter = duration * protection * (0.035 + Math.max(0, moisture) * 0.035);
       const nutrientLoss = duration * erosion * nextRunoff[index]! * exposed * (0.025 + relief * 0.004);
@@ -502,4 +506,20 @@ export function withVegetationProtection(
     }
   }
   return { ...history, vegetationProtection: protection };
+}
+
+export function applyCoastalForageFloor(history: TerrainHistory, seaLevel: number): TerrainHistory {
+  const forage = history.forage.slice();
+  let changed = false;
+  for (let i = 0; i < forage.length; i++) {
+    const elev = history.elevations[i]!;
+    if (elev > seaLevel && elev < seaLevel + 15) {
+      const floor = clamp01(1 - (elev - seaLevel) / 15) * 0.30;
+      if (floor > forage[i]!) {
+        forage[i] = floor;
+        changed = true;
+      }
+    }
+  }
+  return changed ? { ...history, forage } : history;
 }

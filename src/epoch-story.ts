@@ -47,6 +47,7 @@ export function buildEpochStory(
   }
 
   const events: string[] = [];
+  if (established > 0) events.push(`${countLabel(established, "lineage")} took hold`);
   if (relocated > 0) events.push(`${countLabel(relocated, "lineage")} found new ground`);
   if (branches > 0) {
     const isolation = changes.find((change) => change.event === "speciated" && change.isolation)?.isolation;

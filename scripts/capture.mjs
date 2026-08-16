@@ -94,6 +94,26 @@ const SHOT_SETS = {
     { label: "09-hyperactive-saddle-3myr", query: "shot=w2k-chain-saddle&years=1000000&jumps=3&time=42&plume=hyperactive" },
     { label: "10-active-overview-3myr", query: "shot=w2k-whole-island&years=1000000&jumps=3&time=42&plume=active" },
   ],
+  // Serialized proof sequence: geology → isolation → adaptation chain from a
+  // single Distant Drifter founder on the default weathered island with an
+  // active plume. The three fixtures demonstrate establishment, island dispersal
+  // speciation, and continued diversification. Population-level cameras will be
+  // added with item 4 (render descendant populations); these currently show the
+  // geological context.
+  //
+  // Proof URLs (live app):
+  //   Established:  ?founders=drifter&plume=active&years=1000000&jumps=2
+  //   Speciated:    ?founders=drifter&plume=active&years=1000000&jumps=3
+  //   Diversified:  ?founders=drifter&plume=active&years=1000000&jumps=5
+  proofSequence: [
+    { label: "01-geology-1myr", query: "shot=w2k-chain&years=1000000&jumps=1&time=42&plume=active&founders=drifter" },
+    { label: "02-established-2myr", query: "shot=w2k-chain&years=1000000&jumps=2&time=42&plume=active&founders=drifter" },
+    { label: "03-established-saddle", query: "shot=w2k-chain-saddle&years=1000000&jumps=2&time=42&plume=active&founders=drifter" },
+    { label: "04-speciated-3myr", query: "shot=w2k-chain&years=1000000&jumps=3&time=42&plume=active&founders=drifter" },
+    { label: "05-speciated-saddle", query: "shot=w2k-chain-saddle&years=1000000&jumps=3&time=42&plume=active&founders=drifter" },
+    { label: "06-diversified-5myr", query: "shot=w2k-chain&years=1000000&jumps=5&time=42&plume=active&founders=drifter" },
+    { label: "07-diversified-overview", query: "shot=w2k-whole-island&years=1000000&jumps=5&time=42&plume=active&founders=drifter" },
+  ],
   // Secondary composition set: the remaining golden cameras.
   detail: [
     { label: "01-ridge-silhouette", query: "shot=ridge-silhouette&years=1000&time=42" },

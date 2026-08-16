@@ -1609,3 +1609,111 @@ speciation event needs owner-machine verification.
 **Tests.** 397/397 pass. `npx tsc --noEmit` clean. `npm run build` clean. No
 existing test depends on specific forage potential values — the change is purely
 a tuning constant in the terrain model.
+
+---
+
+## WU-A5 · Serialized proof fixtures and causal explanation (2026-08-16)
+
+**Objective.** Execution item 3: define the three declared landing fixtures for
+the geology → isolation → adaptation proof and verify the causal explanation at
+each fixture.
+
+### Balance fixes
+
+The WU-A4 forage bump unblocked founder establishment but two population
+persistence problems remained:
+
+1. **Young volcanic islands had near-zero forage (~0.004).** Volcanic accretion
+   deposits fresh basalt that destroys existing vegetation, and the soil
+   fertility term gates forage potential — young basalt with no soil development
+   produces no food. In reality, young Galápagos islands support populations
+   through marine-derived resources: intertidal foraging, seabird guano, marine
+   algae, crustaceans.
+
+2. **The established-population maintenance threshold (intake > 0.52) exceeded
+   the forage available on a moderate weathered island.** The parent lineage's
+   intake was ~0.435–0.492, causing steady abundance decline to zero.
+
+**Changes (4 files):**
+
+- `terrain-history.ts`: Added a **coastal food floor** — land cells within 15 m
+  of sea level get a marine-derived forage floor of 0.30 at sea level, tapering
+  to 0 at +15 m. Applied inline during terrain resolution AND via a new
+  exported `applyCoastalForageFloor` function called post-accretion, so
+  freshly-accreted volcanic cells receive the floor immediately.
+
+- `landing-state.ts`, `scripts/founding-split-readout.ts`: Wired the
+  post-accretion coastal floor call.
+
+- `outcome-resolver.ts`: Added a **coastal supplement** (up to 0.16) to the
+  established-population intake formula, matching the founder pathway's
+  existing `coastalProductivity` accounting. Lowered maintenance thresholds:
+  energy 0.48 → 0.38, abundance 0.52 → 0.42, energy contribution 0.45 → 0.38.
+
+- `epoch-story.ts`: Fixed a gap where establishment events after the first jump
+  were silently dropped from the story. "1 lineage took hold" now appears.
+
+**Effect on the proof sequence:**
+
+| Jump | Parent abundance | Branch abundance | Before |
+|---:|---:|---:|---:|
+| 2 (established) | 0.062 | — | 0.062 |
+| 3 (speciated) | 0.179 | 0.120 | 0.005 / extinct |
+| 4 | 0.314 | 0.132 | 0.000 / extinct |
+| 5 (diversified) | 0.418 | 0.139 + 0.120 | 0.000 / extinct |
+
+Young-island forage at speciation: 0.250 (was 0.004).
+
+### Proof fixtures
+
+Three declared landing fixtures, all from the same persisted world
+(`?founders=drifter&plume=active&years=1000000`):
+
+**Fixture 1 — Established (jump 2, Year 2M):**
+- Founder takes hold on the main island (abundance 6.2%, energy 56%)
+- Epoch story: "1 lineage took hold"
+- Geology: two shields merge into one landmass
+
+**Fixture 2 — Speciated (jump 3, Year 3M):**
+- First branch disperses to a new volcanic island
+- Two coexisting populations on separate islands
+- Lineage report: "new branch · reached a separate island · Year 3,000,000"
+- Habitats: parent = temperate/sheltered, branch = temperate/sheltered (coastal)
+- Epoch story: "1 new branch emerged across open water"
+
+**Fixture 3 — Diversified (jump 5, Year 5M):**
+- Three living populations across two islands
+- Parent (42% pop) on island-0, branch 0/2 (14%) on island-1, sub-branch
+  0/2/1 (12%) back on island-0
+- Trait divergence: parent adapts toward longer horns and warmer coat; branch
+  on wet volcanic island adapts toward shorter horns, colder coat, less
+  insulation
+- The branch lineage has itself branched back to the main island —
+  bidirectional dispersal
+
+**Causal gate check.** The lineage report at each fixture names:
+- The cause of isolation (dispersal across open water)
+- The date of isolation
+- The habitat of each population (moisture, terrain)
+- Trait changes in each population (magnitude and direction)
+
+A reviewer reading only the lineage report can reconstruct the geology →
+isolation → adaptation chain: islands formed, populations dispersed across
+water, isolation prevented gene flow, habitat differences drove trait
+divergence.
+
+### Capture set
+
+Added `proofSequence` to `scripts/capture.mjs` with 7 shots across the three
+fixtures: geology at 1M, establishment at 2M (chain + saddle), speciation at
+3M (chain + saddle), diversification at 5M (chain + overview). Population-level
+cameras will be added with item 4.
+
+**Tests.** 397/397 pass. `npx tsc --noEmit` clean. No console errors on real
+WebGPU at either proof fixture URL. The `proofSequence` capture set has not been
+run (Playwright is not installed in this environment); it is ready for item 5.
+
+**What this unblocks.** Item 4 (render the descendant populations with shared
+visual history) can now proceed — the fixtures define exactly which populations
+need to be visible, at what abundance, on which islands, with what trait
+differences. Item 5 (capture and verdicts) has the `proofSequence` set ready.

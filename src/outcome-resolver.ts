@@ -513,7 +513,11 @@ function resolveLineage(
   const founder = previous.status === "not-established";
   const beforeEnergy = previous.energy ?? (founder ? 0.38 : 0.62);
   const beforeAbundance = previous.abundance ?? (founder ? 0.012 : 0.34);
-  const intake = scored.habitat.forage * (0.75 + scored.habitat.moisture * 0.25);
+  const sea = SEA_LEVEL[snapshot.climate.seaLevel];
+  const coastalSupplement = scored.habitat.elevation > sea && scored.habitat.elevation < sea + 15
+    ? clamp01(1 - (scored.habitat.elevation - sea) / 15) * 0.16
+    : 0;
+  const intake = scored.habitat.forage * (0.75 + scored.habitat.moisture * 0.25) + coastalSupplement;
   // A raft founder reads what is already being eaten at and around its
   // landing site, not just the raw forage field (WU-A2, `foundingSite`
   // already nudges the site search away from occupied ground via
@@ -537,9 +541,9 @@ function resolveLineage(
     abundance: beforeAbundance,
     feedingAdaptation: previous.feedingAdaptation ?? 0.28,
   }, founderFit, jumpYears) : undefined;
-  const energy = founderResolution?.energy ?? clamp01(beforeEnergy + (intake - 0.48) * duration * 0.9);
+  const energy = founderResolution?.energy ?? clamp01(beforeEnergy + (intake - 0.38) * duration * 0.9);
   const abundance = founderResolution?.abundance ?? clamp01(beforeAbundance + (
-    (intake - 0.52) * 0.8 + (energy - 0.45) * 0.15
+    (intake - 0.42) * 0.8 + (energy - 0.38) * 0.15
   ) * duration);
   const status = founderResolution?.status
     ?? (abundance < 0.025 && energy < 0.08 ? "extinct" : "active");

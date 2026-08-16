@@ -109,6 +109,32 @@ without becoming arbitrary or converging on a predetermined bestiary.
    reproduce the old bug against the pre-fix resolver before confirming the fix
    closes it.*
 3. Resolve the serialized landing fixtures and their causal explanation.
+   *Implemented 2026-08-16 (WU-A5). Three proof fixtures defined:*
+   - *Established (jump 2, Year 2M): founder takes hold on the main island.*
+   - *Speciated (jump 3, Year 3M): first branch disperses to a new volcanic
+     island — two coexisting populations on separate islands.*
+   - *Diversified (jump 5, Year 5M): three living populations across two
+     islands, with continued branching and trait divergence.*
+
+   *Balance fixes required to reach stable coexistence:*
+   - *Coastal food floor in `terrain-history.ts`: land cells within 15 m of sea
+     level get a marine-derived forage floor (0.30 at sea level, tapering),
+     applied post-accretion via `applyCoastalForageFloor` so young volcanic
+     islands aren't starved by lava resurfacing.*
+   - *Coastal supplement in `outcome-resolver.ts`: established-population intake
+     adds up to 0.16 from coastal proximity, matching the founder pathway's
+     existing `coastalProductivity` accounting.*
+   - *Maintenance thresholds lowered: energy 0.48→0.38, abundance 0.52→0.42,
+     energy-to-abundance 0.45→0.38. The old thresholds exceeded the forage
+     available on a moderate Galápagos island.*
+   - *Epoch story (`epoch-story.ts`) now reports establishment events after the
+     first jump.*
+
+   *Causal explanation verified at each fixture: the epoch story names dispersal
+   causes ("across open water"), the lineage report names isolation dates and
+   habitat labels, and trait changes show opposite adaptation directions between
+   parent (temperate/sheltered) and branch (wet) populations. Capture set
+   `proofSequence` added to `scripts/capture.mjs`.*
 4. Render the regional geology and both descendant populations with a shared
    inherited visual history rooted in the opening Galápagos grammar.
 5. Capture the declared sequence, run automated checks, and obtain owner visual

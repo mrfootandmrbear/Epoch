@@ -30,7 +30,7 @@ import {
   setCreatureExpressionAt,
   type CreatureExpressionSample,
 } from "./creature-expression-spike";
-import { resolveTerrainHistory, withGrazingPressure, withReefDeposition, withVegetationProtection } from "./terrain-history";
+import { applyCoastalForageFloor, resolveTerrainHistory, withGrazingPressure, withReefDeposition, withVegetationProtection } from "./terrain-history";
 import { createVegetationRenderer } from "./vegetation-renderer";
 import { createSeagrassRenderer } from "./seagrass-renderer";
 import { createCoralRenderer } from "./coral-renderer";
@@ -1202,11 +1202,14 @@ export function createLandingState(scene: Scene): WorldExperience {
           // Resolve inherited weathering first. Active vents then leave recent
           // construction at the landing instead of aging their newest lava by
           // the entire jump interval.
-          terrain: resolveVolcanicAccretion(
-            resolveTerrainHistory(worldHistory.terrain, years, climate),
-            resolveShieldVents(archipelago, worldHistory.archipelago),
-            years,
-            archipelago.plume,
+          terrain: applyCoastalForageFloor(
+            resolveVolcanicAccretion(
+              resolveTerrainHistory(worldHistory.terrain, years, climate),
+              resolveShieldVents(archipelago, worldHistory.archipelago),
+              years,
+              archipelago.plume,
+            ),
+            SEA_LEVEL[climate.seaLevel],
           ),
           archipelago,
         },
