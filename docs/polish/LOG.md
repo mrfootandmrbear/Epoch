@@ -1529,3 +1529,83 @@ and a browser on a richly vegetated island. All pass. Full suite: `npm run test`
   `getDrifterHabitatSummary()`.
 
 **Ready for owner verdict.**
+
+---
+
+## WU-A4 · Unblock founder survival (2026-08-16)
+
+**Hypothesis.** No Distant Drifter founder survives any jump combination because
+terrain forage at the arrival site (~0.50) produces intake (~0.23) far below the
+break-even threshold (0.40). Even at full behavioural adaptation after a 1 Myr
+jump, intake only reaches ~0.42 with forage 0.50 — inside the marginal band, so
+net surplus is zero and abundance never climbs from the starting 0.018 to the
+0.05 establishment threshold. The terrain forage potential formula's base and
+fertility floor are too low for a weathered Galápagos island.
+
+**Change.** `terrain-history.ts:348`, the forage potential formula:
+- Base: `0.48` → `0.58` (a weathered island with established vegetation
+  communities has a higher baseline than bare ground)
+- Fertility floor: `0.08` → `0.22` (even bare basalt in Galápagos supports
+  pioneer plants — lichens, *Brachycereus* cacti, *Mollugo*)
+
+The `0.92` fertility scale becomes `0.78` to keep the ceiling at 1.0. Effect on
+forage potential by site type:
+
+| Site | Before | After |
+|---|:--:|:--:|
+| Dry barren (moisture 0.2, protection 0.2, fertility 0.4) | ~0.25 | ~0.35 |
+| Moderate coast (moisture 0.4, protection 0.3, fertility 0.5) | ~0.45 | ~0.60 |
+| Moist highland (moisture 0.7, protection 0.5, fertility 0.6) | ~0.55 | ~0.70 |
+
+**Evidence — `scripts/founding-split-readout.ts`.**
+
+```
+401² grid over 2000 m · 5 × 1,000,000 yr · climate = present/default
+
+after jump 1 (1,000,000 yr)
+  sheltered-grazer:0  not-established  abundance 0.045  energy 0.488
+
+after jump 2 (2,000,000 yr)
+  sheltered-grazer:0  active (established)  abundance 0.062  energy 0.561
+
+after jump 3 (3,000,000 yr)
+  sheltered-grazer:0    active  abundance 0.005  energy 0.521
+  sheltered-grazer:0/1  active (speciated)  abundance 0.120  energy 0.521
+    isolated by dispersal @ 3,000,000 yr
+
+after jump 4 (4,000,000 yr)
+  sheltered-grazer:0    active  abundance 0.000  energy 0.427
+  sheltered-grazer:0/2  active (speciated)  abundance 0.120  energy 0.427
+    isolated by dispersal @ 4,000,000 yr
+
+after jump 5 (5,000,000 yr)
+  sheltered-grazer:0    active  abundance 0.000  energy 0.359
+  sheltered-grazer:0/3  active (speciated)  abundance 0.120  energy 0.359
+    isolated by dispersal @ 5,000,000 yr
+```
+
+The full geology → isolation → adaptation chain works: the hotspot builds new
+islands, populations disperse to them, and isolation produces branching. Jump 3
+is the key proof landing — two coexisting populations on separate islands,
+isolated by dispersal.
+
+**Browser verification (limited by pane rAF throttling).** Year 2,000,000 on real
+WebGPU shows: "Sheltered grazer: established, population 6%, energy 56%." The
+Year 3,000,000 reveal transition could not complete in the throttled pane; the
+speciation event needs owner-machine verification.
+
+**Remaining concerns for later WUs.**
+- Parent lineage abundance drops to ~0 by jump 4 — the established-population
+  maintenance threshold (`intake - 0.52` in `outcome-resolver.ts:541`) is high
+  relative to the terrain's forage. The parent survives (energy > 0.08 keeps it
+  from extinction) but is functionally a relic.
+- Branch lineages go extinct when their small islands erode, producing serial
+  replacement rather than stable coexistence. Longer-lived islands or
+  multi-shield land bridges that persist would help.
+- Trait changes show `+0.000` across the board at jumps 1–2 because the founder
+  enters as `not-established` and trait blending only runs for `active`
+  populations. After establishment, trait adaptation should begin.
+
+**Tests.** 397/397 pass. `npx tsc --noEmit` clean. `npm run build` clean. No
+existing test depends on specific forage potential values — the change is purely
+a tuning constant in the terrain model.

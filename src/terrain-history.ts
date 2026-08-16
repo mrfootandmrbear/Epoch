@@ -345,8 +345,8 @@ export function resolveTerrainHistory(
       nextSoilDevelopment[index] = clamp01(previous.soilDevelopment[index]!
         + (soilPotential - previous.soilDevelopment[index]!) * soilResponse);
       const fertility = clamp01(nextSoilDevelopment[index]! * 0.68 + previous.nutrients[index]! * 0.32);
-      const potential = clamp01((0.48 + moisture * 0.55 + protection * 0.42
-        - nextDisturbance[index]! * 0.38) * (0.08 + fertility * 0.92));
+      const potential = clamp01((0.58 + moisture * 0.55 + protection * 0.42
+        - nextDisturbance[index]! * 0.38) * (0.22 + fertility * 0.78));
       const regrowth = duration * (0.12 + Math.max(0, moisture) * 0.16);
       nextForage[index] = clamp01(previous.forage[index]! + (potential - previous.forage[index]!) * regrowth);
 

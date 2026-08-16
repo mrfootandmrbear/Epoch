@@ -113,19 +113,18 @@ without becoming arbitrary or converging on a predetermined bestiary.
    inherited visual history rooted in the opening Galápagos grammar.
 5. Capture the declared sequence, run automated checks, and obtain owner visual
    verdicts.
-   *Attempted and retracted 2026-08-15, same day: `?founders=drifter&plume=
-   active&years=1000000&jumps=3` was believed to reach a branched state,
-   based on a browser screenshot later found to be misread (see
-   `docs/polish/LOG.md`, "Correction"). Direct instrumentation of the real
-   app shows the Distant Drifter founder going extinct on jump 1 under that
-   URL — a swept check across all 60 `FounderChoices` combinations found none
-   survive a single 1,000,000-year jump from year 0, and neither does a
-   ratchet of short jumps. BACKLOG P1-1 ("fauna is unreachable by automated
-   capture") is therefore **not** closed. Whether this is intended Distant
-   Drifter difficulty, a `founder-establishment.ts` balance gap, or a missing
-   warm-up step is open and needs answering before this item can proceed;
-   `scripts/founding-split-readout.ts` reproduces the extinction
-   renderer-independently for whoever picks it up.*
+   *Attempted and retracted 2026-08-15, same day — see LOG.md "Correction".*
+   *Unblocked 2026-08-16 (WU-A4): terrain forage potential was too low for any
+   founder to establish. Raised the base from 0.48 → 0.58 and the fertility
+   floor from 0.08 → 0.22 in `terrain-history.ts:348`.
+   `scripts/founding-split-readout.ts` now shows: founder not-established at
+   jump 1, established at jump 2, speciated via island dispersal at jump 3.
+   The default founder (small ground-plants temperate-seasonal) on the default
+   weathered island with active plume reaches two coexisting populations on
+   separate islands by Year 3,000,000. BACKLOG P1-1 ("fauna is unreachable
+   by automated capture") is unblocked — `?founders=drifter&plume=active&
+   years=1000000&jumps=2` reaches an established founder, `jumps=3` reaches
+   speciation. Items 3–4 can now proceed.*
 6. Resume water composition, herd embodiment verdicts, freshwater transitions,
    and broader ecology only where the integrated proof exposes a need.
 
