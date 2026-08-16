@@ -797,7 +797,8 @@ window.addEventListener("keydown", (event) => {
 shellToggleEl.addEventListener("click", () => {
   const compact = playerShellEl.classList.toggle("compact");
   shellToggleEl.setAttribute("aria-expanded", String(!compact));
-  shellToggleEl.textContent = compact ? "Expand" : "Compact";
+  shellToggleEl.textContent = compact ? "Expand" : "Minimize";
+  shellToggleEl.title = compact ? "Expand controls" : "Minimize controls";
 });
 
 startingWorldEl.addEventListener("change", () => {
