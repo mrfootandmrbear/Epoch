@@ -78,6 +78,22 @@
         background: #c9ddb9;
         box-shadow: 0 0 0 3px rgba(191,218,174,.2);
       }
+      #camera-dock .camera-dock-toggle {
+        appearance: none;
+        width: 34px;
+        height: 34px;
+        padding: 0;
+        border: 0;
+        border-radius: 9px;
+        color: rgba(247,243,232,.72);
+        background: transparent;
+        font: 700 18px/1 system-ui, sans-serif;
+        cursor: pointer;
+      }
+      #camera-dock .camera-dock-toggle:hover { background: rgba(255,255,255,.08); }
+      #camera-dock.compact { width: auto; gap: 0; }
+      #camera-dock.compact .camera-mode,
+      #camera-dock.compact .camera-help { display: none; }
       .camera-help { display: flex; gap: 12px; padding-right: 8px; }
       .camera-help span { display: grid; gap: 3px; white-space: nowrap; }
       .camera-help kbd {
@@ -579,18 +595,7 @@
         backdrop-filter: blur(18px) saturate(1.15);
         text-align: left;
       }
-      /*
-       * The player should see the island first. Leave only the control-panel
-       * header in reach while idle; hovering or tabbing into it restores the
-       * full panel without adding a separate mode or a timer that can interrupt
-       * an active choice.
-       */
-      @media (hover: hover) and (pointer: fine) {
-        #experience.player-shell:not(:hover):not(:focus-within) {
-          transform: translateY(calc(100% - 43px));
-        }
-        #experience.player-shell.committed { transform: translateY(18px); }
-      }
+      #experience.player-shell.committed { transform: translateY(18px); }
       .shell-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
       #experience #form-title { margin: 0; font-size: 21px; }
       .shell-toggle {
@@ -672,6 +677,7 @@
         <span class="mouse-help"><kbd>Mouse</kbd><small>Drag pan · Right orbit · Scroll zoom · Double-click fly-to</small></span>
         <span class="touch-help"><kbd>Touch</kbd><small>Drag pan · Pinch zoom+orbit</small></span>
       </div>
+      <button id="camera-dock-toggle" class="camera-dock-toggle" aria-expanded="true" aria-label="Minimize Explore controls" title="Minimize Explore controls">−</button>
     </nav>
     <aside id="lineage-panel" aria-label="Lineage changes"></aside>
     <div id="jump-veil" aria-live="polite">
@@ -690,7 +696,7 @@
     <div id="experience" class="player-shell">
       <div class="shell-header">
         <div id="form-title">Shape the island</div>
-        <button id="shell-toggle" class="shell-toggle" aria-expanded="true" title="Minimize controls">Minimize</button>
+        <button id="shell-toggle" class="shell-toggle" aria-expanded="true">Compact</button>
       </div>
       <p id="form-hint">Drag to pan the world. Right-drag to orbit. Scroll to zoom. Double-click to fly to a spot.</p>
       <div class="shell-body">

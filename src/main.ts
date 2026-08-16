@@ -103,6 +103,8 @@ const undoSculptEl = document.getElementById("undo-sculpt") as HTMLButtonElement
 const redoSculptEl = document.getElementById("redo-sculpt") as HTMLButtonElement;
 const playerShellEl = experienceEl;
 const shellToggleEl = document.getElementById("shell-toggle") as HTMLButtonElement;
+const cameraDockEl = document.getElementById("camera-dock")!;
+const cameraDockToggleEl = document.getElementById("camera-dock-toggle") as HTMLButtonElement;
 const startingWorldEl = document.getElementById("starting-world") as HTMLSelectElement;
 const startingWorldDescriptionEl = document.getElementById("starting-world-description")!;
 const screensaverEnabledEl = document.getElementById("screensaver-enabled") as HTMLInputElement;
@@ -797,9 +799,43 @@ window.addEventListener("keydown", (event) => {
 shellToggleEl.addEventListener("click", () => {
   const compact = playerShellEl.classList.toggle("compact");
   shellToggleEl.setAttribute("aria-expanded", String(!compact));
-  shellToggleEl.textContent = compact ? "Expand" : "Minimize";
-  shellToggleEl.title = compact ? "Expand controls" : "Minimize controls";
+  shellToggleEl.textContent = compact ? "Expand" : "Compact";
 });
+
+cameraDockToggleEl.addEventListener("click", () => {
+  setCameraDockCompact(!cameraDockEl.classList.contains("compact"));
+});
+
+const CAMERA_DOCK_IDLE_MS = 4000;
+let cameraDockIdleTimer: ReturnType<typeof setTimeout> | null = null;
+
+function setCameraDockCompact(compact: boolean): void {
+  cameraDockEl.classList.toggle("compact", compact);
+  cameraDockToggleEl.setAttribute("aria-expanded", String(!compact));
+  cameraDockToggleEl.setAttribute("aria-label", compact ? "Expand Explore controls" : "Minimize Explore controls");
+  cameraDockToggleEl.title = compact ? "Expand Explore controls" : "Minimize Explore controls";
+  cameraDockToggleEl.textContent = compact ? "+" : "−";
+}
+
+function cancelCameraDockAutoCollapse(): void {
+  if (cameraDockIdleTimer !== null) clearTimeout(cameraDockIdleTimer);
+  cameraDockIdleTimer = null;
+}
+
+function scheduleCameraDockAutoCollapse(): void {
+  cancelCameraDockAutoCollapse();
+  if (cameraDockEl.classList.contains("compact")) return;
+  cameraDockIdleTimer = setTimeout(() => {
+    cameraDockIdleTimer = null;
+    if (!cameraDockEl.matches(":hover") && !cameraDockEl.matches(":focus-within")) setCameraDockCompact(true);
+  }, CAMERA_DOCK_IDLE_MS);
+}
+
+cameraDockEl.addEventListener("pointerenter", cancelCameraDockAutoCollapse);
+cameraDockEl.addEventListener("pointerleave", scheduleCameraDockAutoCollapse);
+cameraDockEl.addEventListener("focusin", cancelCameraDockAutoCollapse);
+cameraDockEl.addEventListener("focusout", scheduleCameraDockAutoCollapse);
+scheduleCameraDockAutoCollapse();
 
 startingWorldEl.addEventListener("change", () => {
   const preset = startingWorldPreset(startingWorldEl.value);
