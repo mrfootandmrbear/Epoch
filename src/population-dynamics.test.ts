@@ -49,4 +49,27 @@ describe("population energy and abundance", () => {
     expect(established.feedingAdaptation).toBeGreaterThan(0.28);
     expect(failed.status).toBe("extinct");
   });
+
+  // WU-A1: the player's choice, not just the site, has to move the outcome.
+  // Same flat site, same forage, same single 1,000,000-year jump — only the
+  // founder's own choices (food source, origin climate) differ, through the
+  // exact `resolveLanding` path a player's click drives.
+  it("lets founder choice alone flip the outcome on an identical site", () => {
+    const heightAt = () => 12;
+    const snapshot = captureWorldSnapshot(heightAt, 1_000_000, DEFAULT_CLIMATE, 32, 180, () => 0.65);
+
+    const wellMatched = resolveLanding(
+      snapshot,
+      createDrifterFounderHistory(0, 0, { foodSource: "ground-plants", size: "small", originClimate: "temperate-seasonal" }),
+      1_000_000,
+    ).nextHistory.lineages[0]!;
+    const mismatched = resolveLanding(
+      snapshot,
+      createDrifterFounderHistory(0, 0, { foodSource: "animal-prey", size: "large", originClimate: "cold-wet" }),
+      1_000_000,
+    ).nextHistory.lineages[0]!;
+
+    expect(wellMatched.status).toBe("active");
+    expect(mismatched.status).toBe("extinct");
+  });
 });

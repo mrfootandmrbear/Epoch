@@ -55,6 +55,7 @@ import {
   validateWorldHistory,
   withRecordedSeaLevel,
 } from "./world-history";
+import type { HabitatSummary } from "./founder-match";
 import {
   advanceArchipelago,
   hotspotCrustPosition,
@@ -78,7 +79,7 @@ import { VOLCANIC_OUTPUTS, type PlumeVigor, type VolcanicOutput } from "./volcan
 import { createVolcanicHotSpotMarker } from "./volcanic-hotspot-marker";
 import { startingWorldPreset, type StartingWorldPreset } from "./starting-world-presets";
 import { createFishRenderer } from "./fish-renderer";
-import { createDistantDrifterRenderer } from "./distant-drifter-renderer";
+import { createDistantDrifterRenderer, drifterArrivalPosition } from "./distant-drifter-renderer";
 import {
   applyHeightBrush,
   applyCliffStroke,
@@ -475,6 +476,11 @@ export interface WorldExperience {
   redoSculpt: () => boolean;
   sculptHistory: () => Readonly<{ canUndo: boolean; canRedo: boolean }>;
   resetStartingWorld: (preset: StartingWorldPreset) => void;
+  /**
+   * Habitat summary at the drifter landing site, for the match readout.
+   * Read-only snapshot of forage, moisture, elevation, and vegetation.
+   */
+  getDrifterHabitatSummary: () => Readonly<HabitatSummary>;
   introduceDistantDrifter: (currentAge: number, choices: Readonly<FounderChoices>) => boolean;
   showcaseGrazerHerd: () => void;
   showcaseHerdContrast: () => void;
@@ -1089,8 +1095,39 @@ export function createLandingState(scene: Scene): WorldExperience {
       syncTerrainDetails();
       freshwater.setField(resolveFreshwaterField(currentSnapshot(0), SEA_LEVEL[preset.climate.seaLevel], preset.climate.rainfall));
     },
+    getDrifterHabitatSummary() {
+      const seaLevel = SEA_LEVEL[activeClimate.seaLevel];
+      const arrivalPos = drifterArrivalPosition(seaLevel);
+      const elevation = heightAt(arrivalPos.x, arrivalPos.z);
+      const forage = forageAt(arrivalPos.x, arrivalPos.z);
+
+      // Determine moisture from climate
+      const moisture = activeClimate.rainfall === "arid" ? 0.2
+        : activeClimate.rainfall === "temperate" ? 0.5 : 0.8;
+
+      // Determine elevation band: significantly above sea level = highland
+      const elevationBand = elevation - seaLevel >= 20 ? "highland" : "lowland";
+
+      // Vegetation is present if forage is above a sparse threshold
+      const hasVegetation = forage > 0.25;
+
+      return {
+        forageLevel: forage,
+        moisture,
+        elevationBand,
+        hasVegetation,
+        climate: activeClimate,
+      };
+    },
     introduceDistantDrifter(currentAge: number, choices: Readonly<FounderChoices>) {
-      if (worldHistory.lineages.lineages.some((lineage) => lineage.status !== "extinct")) return false;
+      // WU-A2: a raft can launch at any time, including onto an island with
+      // active incumbent populations — `docs/TANGLED-BANK.md`'s "into a
+      // living ecosystem" scenario. Establishment contests forage against
+      // whatever is already there (`outcome-resolver.ts`'s founder path);
+      // this call always succeeds at *launching* the raft. Lineage ids are
+      // already ordinal-based (`sheltered-grazer:${ordinal}`, from
+      // `lineages.length`), so a second raft gets a distinct id and root for
+      // free.
       const founders = createDrifterFounderHistory(currentAge, worldHistory.lineages.lineages.length, choices);
       worldHistory = {
         ...worldHistory,

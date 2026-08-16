@@ -40,8 +40,8 @@ import {
   type SeaLevelHistory,
 } from "./island-geography";
 import { createMarineLineageHistory, resolveMarineLineages, type MarineLineageChange, type MarineLineageHistory, type MarinePopulationOutcome } from "./marine-lineage";
-import { resolveFounderEstablishment } from "./founder-establishment";
-import { founderEnvironmentFit } from "./founder-profile";
+import { FOUNDER_MARGIN_BAND_WIDTH, resolveFounderEstablishment } from "./founder-establishment";
+import { founderEnvironmentFit, type FoodAffinities, type FounderProfile } from "./founder-profile";
 import { resolveLocalEnvironmentSample } from "./environment";
 import { RENDER_SCALE } from "./render-scale";
 
@@ -299,6 +299,47 @@ function separationBonus(x: number, z: number, occupied: readonly ScoredSite[]):
   return Math.min(1, nearest / 75) * 1.35;
 }
 
+/** An already-active population's site and abundance, read for forage contest only — not its full lineage state. */
+interface IncumbentPresence {
+  readonly x: number;
+  readonly z: number;
+  readonly abundance: number;
+}
+
+const CONTEST_RADIUS = 60;
+const CONTEST_STRENGTH = 0.82;
+
+/**
+ * How much of a site's raw forage a newly arriving raft founder can actually
+ * reach once nearby established populations are already eating there.
+ *
+ * WU-A2: `docs/TANGLED-BANK.md`'s "into a living ecosystem" scenario needs a
+ * raft's establishment odds to visibly worsen on an occupied island. Rather
+ * than a bespoke displacement rule, this shrinks the *input* to WU-A1's
+ * existing three-band establishment logic (`founder-establishment.ts`) —
+ * less reachable food pushes the same intake/energy math toward the
+ * marginal band and then the failing one, exactly as a genuinely poor site
+ * would. Pressure from each incumbent falls off linearly to zero at
+ * `CONTEST_RADIUS` and scales with how abundant that incumbent already is;
+ * it never removes all forage (`CONTEST_STRENGTH` < 1), so a contested
+ * arrival can still land in the marginal band instead of being auto-failed.
+ */
+function contestedForageAt(
+  x: number,
+  z: number,
+  rawForage: number,
+  incumbents: readonly IncumbentPresence[],
+): number {
+  if (incumbents.length === 0) return rawForage;
+  let pressure = 0;
+  for (const incumbent of incumbents) {
+    const distance = Math.hypot(x - incumbent.x, z - incumbent.z);
+    if (distance >= CONTEST_RADIUS) continue;
+    pressure += incumbent.abundance * (1 - distance / CONTEST_RADIUS);
+  }
+  return rawForage * (1 - Math.min(1, pressure) * CONTEST_STRENGTH);
+}
+
 function siteScore(
   habitat: EcosystemSample,
   identity: PopulationIdentity,
@@ -397,6 +438,7 @@ function resolveLineage(
   deepTime: number,
   geography: IslandGeography | undefined,
   occupied: readonly ScoredSite[] = [],
+  incumbents: readonly IncumbentPresence[] = [],
 ): { outcome: PopulationOutcome; next: LineageState; change: LineageChange; scored?: ScoredSite } {
   const heightAt = (x: number, z: number) => snapshotHeightAt(snapshot, x, z);
   const forageAt = (x: number, z: number) => snapshotForageAt(snapshot, x, z);
@@ -472,16 +514,24 @@ function resolveLineage(
   const beforeEnergy = previous.energy ?? (founder ? 0.38 : 0.62);
   const beforeAbundance = previous.abundance ?? (founder ? 0.012 : 0.34);
   const intake = scored.habitat.forage * (0.75 + scored.habitat.moisture * 0.25);
+  // A raft founder reads what is already being eaten at and around its
+  // landing site, not just the raw forage field (WU-A2, `foundingSite`
+  // already nudges the site search away from occupied ground via
+  // `separationBonus`, but the *established* founders it does land near
+  // still have to be felt in the food budget). Established populations do
+  // not re-read this each jump — the existing per-jump abundance track
+  // already carries their own history of competition.
+  const foundingForage = founder ? contestedForageAt(scored.x, scored.z, scored.habitat.forage, incumbents) : scored.habitat.forage;
   const founderFit = previous.founder
     ? founderEnvironmentFit(
       previous.founder,
-      scored.habitat.forage,
+      foundingForage,
       scored.habitat.moisture,
       snapshot.climate,
       scored.habitat.coastalProductivity,
       previous.foodAffinities,
     )
-    : { foodAvailability: scored.habitat.forage * (0.82 + scored.habitat.moisture * 0.18), climateFit: 1, metabolicCost: 1 };
+    : { foodAvailability: foundingForage * (0.82 + scored.habitat.moisture * 0.18), climateFit: 1, metabolicCost: 1 };
   const founderResolution = founder ? resolveFounderEstablishment({
     energy: beforeEnergy,
     abundance: beforeAbundance,
@@ -600,6 +650,7 @@ function resolveSpeciation(
     generation: parentResolution.next.generation + 1,
     identity: parentResolution.next.identity,
     status: "active",
+    rootId: parentResolution.next.rootId,
     site: { x: alternate.x, z: alternate.z },
     traits,
     abundance: Math.max(0.12, (parentResolution.next.abundance ?? 0.34) * 0.42),
@@ -792,6 +843,7 @@ function resolveIsolationSpeciation(
       generation: parent.generation + 1,
       identity: parent.identity,
       status: "active",
+      rootId: parent.rootId,
       site: { x: alternate.x, z: alternate.z },
       traits,
       abundance: Math.max(0.12, (parent.abundance ?? 0.34) * 0.42),
@@ -882,19 +934,28 @@ function applyIslandGeneFlow(
     if (state.status !== "active" || !state.traits || !state.site) return [];
     const island = islandAt(geography, state.site.x, state.site.z);
     if (island === null) return [];
-    return [{ index, island, identity: state.identity, traits: state.traits }];
+    return [{ index, island, identity: state.identity, rootId: state.rootId, traits: state.traits }];
   });
   if (active.length === 0) return;
 
   // Which islands each identity occupies — an identity spanning more than one is
-  // the definition of an isolated pair, and so of where drift applies.
+  // the definition of an isolated pair, and so of where drift applies. Root is
+  // deliberately excluded from this map: it answers "does this identity persist
+  // elsewhere", which is a question about the identity as a whole, not about
+  // which raft it descends from.
   const islandsByIdentity = new Map<PopulationIdentity, Set<string>>();
+  // WU-A2: the blend key includes `rootId` — two rafts of the same identity
+  // sharing an island are "interacting but ancestrally separate"
+  // (`docs/TANGLED-BANK.md`), never one interbreeding population. Lineages
+  // without a recorded root (the legacy synthetic fixtures `createLineageHistory`
+  // still produces) all share the `undefined` key, so their existing
+  // same-island gene flow is unchanged.
   const groups = new Map<string, typeof active>();
   for (const member of active) {
     const spread = islandsByIdentity.get(member.identity) ?? new Set<string>();
     spread.add(member.island);
     islandsByIdentity.set(member.identity, spread);
-    const key = `${member.island}|${member.identity}`;
+    const key = `${member.island}|${member.identity}|${member.rootId ?? "unrooted"}`;
     const group = groups.get(key) ?? [];
     group.push(member);
     groups.set(key, group);
@@ -923,6 +984,101 @@ function applyIslandGeneFlow(
       );
       resolved[member.index] = withResolvedTraits(resolved[member.index]!, drifted, {});
     }
+  }
+}
+
+/**
+ * Estimate a population's food intake at a given site the same way
+ * `resolveFounderEstablishment`'s own intake formula does
+ * (`foodQuality * (0.25 + adaptation * 0.75) * climateFit`), without running
+ * the full establishment resolution and without touching any stored
+ * energy/abundance. Used only to *compare* two populations' fitness at one
+ * shared site — never to resolve either of them.
+ */
+function estimatedIntakeAt(
+  founder: Readonly<FounderProfile> | undefined,
+  affinities: Readonly<FoodAffinities> | undefined,
+  adaptation: number,
+  habitat: Readonly<EcosystemSample>,
+  climate: ClimateForces,
+  forageOverride?: number,
+): number {
+  const forage = forageOverride ?? habitat.forage;
+  if (!founder) {
+    // No recorded founder profile (a legacy non-raft baseline lineage): fall
+    // back to the same generic, food-source-agnostic formula the established
+    // path already uses for such lineages.
+    return clamp01(forage) * (0.75 + habitat.moisture * 0.25);
+  }
+  const fit = founderEnvironmentFit(founder, forage, habitat.moisture, climate, habitat.coastalProductivity, affinities);
+  return clamp01(fit.foodAvailability) * (0.25 + clamp01(adaptation) * 0.75) * clamp01(fit.climateFit);
+}
+
+/** Contest radius for the rare displacement outcome: tighter than `CONTEST_RADIUS` because this compares two populations that would be sharing essentially the same ground, not merely nearby. */
+const DISPLACEMENT_RADIUS = 40;
+
+/**
+ * Must clear WU-A1's own marginal band by a full band width in both
+ * directions — the arrival has to be decisively better fed at the shared
+ * site, not just nudged ahead of an incumbent already near the establishment
+ * threshold.
+ */
+const DISPLACEMENT_MARGIN = FOUNDER_MARGIN_BAND_WIDTH * 2;
+
+/**
+ * Rarely, a raft that has just established lands so much better-suited to a
+ * site than a nearby incumbent of a different root that it displaces it —
+ * `docs/TANGLED-BANK.md`'s third named arrival outcome, alongside failure and
+ * a marginal niche. This is not a coin flip: it is a direct, deterministic
+ * comparison of two intake estimates at the same site, both derived the same
+ * way `resolveFounderEstablishment`'s own intake is. The loser simply goes
+ * extinct — exactly how starvation already ends a lineage — so two roots are
+ * never merged by this; it is competitive exclusion, not hybridization
+ * (`docs/TANGLED-BANK.md`'s reconnection mechanics are a different unit,
+ * WU-B2, and do not apply here).
+ */
+function applyRaftArrivalDisplacement(
+  resolved: Array<ReturnType<typeof resolveLineage>>,
+  climate: ClimateForces,
+): void {
+  for (const resolution of resolved) {
+    if (resolution.change.event !== "established") continue;
+    const arrival = resolution.next;
+    const arrivalHabitat = resolution.outcome.site?.habitat;
+    if (!arrival.site || !arrivalHabitat) continue;
+
+    let victimIndex = -1;
+    let victimDistance = Infinity;
+    for (let index = 0; index < resolved.length; index++) {
+      const candidate = resolved[index]!.next;
+      if (candidate === arrival || candidate.status !== "active" || !candidate.site) continue;
+      if (candidate.rootId !== undefined && arrival.rootId !== undefined && candidate.rootId === arrival.rootId) continue;
+      const distance = Math.hypot(candidate.site.x - arrival.site.x, candidate.site.z - arrival.site.z);
+      if (distance < DISPLACEMENT_RADIUS && distance < victimDistance) {
+        victimDistance = distance;
+        victimIndex = index;
+      }
+    }
+    if (victimIndex < 0) continue;
+    const victim = resolved[victimIndex]!.next;
+
+    const arrivalIntake = estimatedIntakeAt(
+      arrival.founder, arrival.foodAffinities, arrival.feedingAdaptation ?? 1, arrivalHabitat, climate,
+    );
+    // The incumbent's fitness at the arrival's own site, uncontested by the
+    // arrival itself — "how well would this incumbent do here on its own
+    // merits", the fair baseline to compare the arrival's fitness against.
+    const victimIntake = estimatedIntakeAt(
+      victim.founder, victim.foodAffinities, victim.feedingAdaptation ?? 1, arrivalHabitat, climate,
+    );
+    if (arrivalIntake - victimIntake <= DISPLACEMENT_MARGIN) continue;
+
+    resolved[victimIndex] = {
+      ...resolved[victimIndex]!,
+      next: { ...victim, status: "extinct", energy: 0, abundance: 0 },
+      outcome: { ...resolved[victimIndex]!.outcome, status: "extinct", visible: false },
+      change: { ...resolved[victimIndex]!.change, status: "extinct", event: "extinct" },
+    };
   }
 }
 
@@ -1067,6 +1223,15 @@ export function resolveLanding(
 
   const lineageResolutions: Array<ReturnType<typeof resolveLineage>> = [];
   for (const lineage of previousHistory.lineages) {
+    // Rafts are appended to the end of `previousHistory.lineages`
+    // (`introduceDistantDrifter` in `landing-state.ts`), so every
+    // already-established incumbent this jump has already been resolved
+    // into `lineageResolutions` by the time a founder further down the list
+    // is reached — this is exactly the "what's already being eaten here"
+    // read `contestedForageAt` needs.
+    const incumbents: IncumbentPresence[] = lineageResolutions.flatMap(({ next }) => (
+      next.status === "active" && next.site ? [{ x: next.site.x, z: next.site.z, abundance: next.abundance ?? 0 }] : []
+    ));
     lineageResolutions.push(resolveLineage(
       snapshot,
       lineage,
@@ -1074,6 +1239,7 @@ export function resolveLanding(
       deepTime,
       geography,
       lineageResolutions.flatMap(({ scored }) => scored ? [scored] : []),
+      incumbents,
     ));
   }
   // With the world's geography in hand, branching is driven by island
@@ -1087,6 +1253,7 @@ export function resolveLanding(
     : resolveSpeciation(snapshot, previousHistory, lineageResolutions, jumpYears, deepTime);
   if (speciation) lineageResolutions.push(speciation);
   if (geography) applyIslandGeneFlow(lineageResolutions, geography, jumpYears, snapshot.totalYears);
+  applyRaftArrivalDisplacement(lineageResolutions, snapshot.climate as ClimateForces);
 
   const marineResolution = resolveMarineLineages(snapshot, previousMarineHistory, jumpYears);
   const marineAbundance = marineResolution.outcomes.reduce((sum, population) => sum + (population.abundance ?? 0), 0)

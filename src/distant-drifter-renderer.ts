@@ -53,6 +53,28 @@ function founderSample(profile: Readonly<FounderProfile>, index: number): Creatu
   };
 }
 
+// The default camera approaches from the south-east. Keep the reveal in
+// clear foreground water instead of behind the arrival panel or island.
+//
+// The bearing is the authored one; the distance is not. The original (92, 86)
+// was open water off a 165 m island, but this file was not touched by the
+// 2 km resize, so the same point ended up 7-17 m up the hillside in all three
+// starting worlds — a raft rendered at sea level inside a hill. Keyed to the
+// land radius now: 1.25x clears every preset's shore into 5-7 m of water,
+// which is offshore without being out over the basin drop.
+const ARRIVAL_BEARING = new Vector3(92, 0, 86).normalize();
+const ARRIVAL_BASE_POSITION = ARRIVAL_BEARING.clone()
+  .multiplyScalar(RENDER_SCALE.islandLandRadius * 1.25);
+
+/**
+ * World-space point the raft settles at once `reveal` runs, at the given sea
+ * level. Exposed so presentation code (the arrival beat in `main.ts`) can
+ * frame a camera on the founder cohort without importing the renderer.
+ */
+export function drifterArrivalPosition(seaLevel: number): Vector3 {
+  return new Vector3(ARRIVAL_BASE_POSITION.x, seaLevel + 0.12, ARRIVAL_BASE_POSITION.z);
+}
+
 export interface DistantDrifterRenderer {
   readonly group: Group;
   readonly founderSeed: () => number | undefined;
@@ -92,18 +114,6 @@ export function createDistantDrifterRenderer(): DistantDrifterRenderer {
 
   let cohort: ReturnType<typeof createCreatureExpressionSpike> | undefined;
   let seed: number | undefined;
-  // The default camera approaches from the south-east. Keep the reveal in
-  // clear foreground water instead of behind the arrival panel or island.
-  //
-  // The bearing is the authored one; the distance is not. The original (92, 86)
-  // was open water off a 165 m island, but this file was not touched by the
-  // 2 km resize, so the same point ended up 7-17 m up the hillside in all three
-  // starting worlds — a raft rendered at sea level inside a hill. Keyed to the
-  // land radius now: 1.25x clears every preset's shore into 5-7 m of water,
-  // which is offshore without being out over the basin drop.
-  const arrivalBearing = new Vector3(92, 0, 86).normalize();
-  const basePosition = arrivalBearing.clone()
-    .multiplyScalar(RENDER_SCALE.islandLandRadius * 1.25);
   const cohortMatrix = new Matrix4();
   const cohortRotation = new Quaternion();
   const cohortScale = new Vector3();
@@ -129,8 +139,7 @@ export function createDistantDrifterRenderer(): DistantDrifterRenderer {
     cohort.instanceMatrix.needsUpdate = true;
     cohort.computeBoundingSphere();
     group.add(cohort);
-    group.position.copy(basePosition);
-    group.position.y = seaLevel + 0.12;
+    group.position.copy(drifterArrivalPosition(seaLevel));
     group.visible = true;
   }
 

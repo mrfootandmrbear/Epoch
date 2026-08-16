@@ -277,17 +277,30 @@ that white "reads as a snow patch rather than a pool," and `foamColor 0xeef9ff`
 - **Care:** dedicated WU with before/after evidence — do not fold into a slice.
 
 ### LW-5 · Drifter arrival is undersold
-**Impact 2 · Cost 2 · Risk 1 · Score 1.00 · Status: OPEN**
+**Impact 2 · Cost 2 · Risk 1 · Score 1.00 · Status: FIXED (WU-A3, ready for owner verdict)**
 
+Fixed in `main.ts` / `distant-drifter-renderer.ts`: launching a raft now plays
+a short camera beat (in `reveal.ts`'s vocabulary — fixed timings, no new
+visual system) that eases to a framing where the three founders read clearly
+against the island, holds, then eases back to exactly the player's prior
+camera. `controls.enabled` is never toggled; grabbing the camera mid-beat
+hands control back immediately. See the WU-A3 `LOG.md` entry for the full
+before/after and verification notes.
+
+**The stated cause here was wrong and is corrected.** `controls.minDistance`
+is `1.25` — the zoom does not clamp back; the player could always get close.
 The raft models correctly (logs + greenery + 3 founders,
-`distant-drifter-renderer.ts`), but at the default gameplay camera it sits as a
-distant speck at world `(92, sea, 86)` and the zoom clamps well back, so the
-founder cohort — the whole point of the moment — never resolves. A framing gap,
-not a defect.
+`distant-drifter-renderer.ts`) and — contrary to the original suspicion —
+its world position was already re-keyed to `RENDER_SCALE.islandLandRadius`
+in the same commit that widened the world to 2 km, so it was not sitting on
+stale pre-resize coordinates either. The actual cause was framing and
+attention: the default gameplay camera frames the *entire* 2,000 m world, so
+the raft — a deliberately small ~12 m cohort just offshore — was always a
+minor feature at the edge of a very wide shot, with nothing ever pointing the
+camera at it or telling the player to look.
 
-- **Repro:** live app → Arrival → Distant Drifter; the raft is a speck at SE.
-- **Hypothesis:** a brief camera push-in on reveal, or a nearer clamp while the
-  drifter is active, so the arrival reads as an event.
+- **Repro (pre-fix):** live app → Arrival → Distant Drifter; the raft was a
+  speck at SE with no camera event drawing attention to it.
 
 ### LW-6 · Lighting is undifferentiated across dawn / day / storm
 **Impact 4 · Cost 3 · Risk 2 · Score 0.67 · Status: OPEN**

@@ -46,6 +46,20 @@ export interface LineageState {
   readonly generation: number;
   readonly identity: PopulationIdentity;
   readonly status: LineageStatus;
+  /**
+   * Which founding raft this lineage descends from. Every raft that starts a
+   * new lineage tree assigns itself a fresh `rootId`; every branch inherits
+   * its ancestor's. Two roots sharing an island stay "interacting but
+   * ancestrally separate" (`docs/TANGLED-BANK.md`) — gene flow in
+   * `outcome-resolver.ts` reads this alongside identity and island so two
+   * roots never homogenize into one. Absent on the legacy synthetic fixtures
+   * `createLineageHistory` still produces for tests that predate rafts; those
+   * are treated as one shared, unnamed root so their existing gene-flow
+   * behaviour is unchanged. Also doubles as the renderer's future per-root
+   * palette hook — a stable key to pick a distinct colour per bank root — but
+   * no renderer reads it yet; that is later work.
+   */
+  readonly rootId?: number;
   readonly site?: Readonly<{ x: number; z: number }>;
   readonly traits?: Readonly<PopulationTraits>;
   readonly abundance?: number;
@@ -145,6 +159,10 @@ export function createDrifterFounderHistory(
       generation: 0,
       identity: "sheltered-grazer",
       status: "not-established",
+      // Every raft starts a fresh root; the ordinal is already unique per raft
+      // (`introduceDistantDrifter` passes the current lineage count), so it
+      // doubles as the root key without inventing a second counter.
+      rootId: ordinal,
       abundance: 0.018,
       energy: 0.38,
       feedingAdaptation: 0.28,
@@ -155,10 +173,16 @@ export function createDrifterFounderHistory(
   };
 }
 
+/** The highest fraction of the target this curve ever reaches in one jump. */
+export const TRAIT_ADAPTATION_RATE_CEILING = 0.75;
+
 /** 100 years = 0.05, 10,000 = 0.40, 1,000,000 = 0.75. */
 export function traitAdaptationRate(jumpYears: number): number {
   const logYears = Math.max(0, Math.log10(Math.max(1, jumpYears)));
-  return Math.min(0.75, 0.025 * Math.min(logYears, 2) + 0.175 * Math.max(0, logYears - 2));
+  return Math.min(
+    TRAIT_ADAPTATION_RATE_CEILING,
+    0.025 * Math.min(logYears, 2) + 0.175 * Math.max(0, logYears - 2),
+  );
 }
 
 /**

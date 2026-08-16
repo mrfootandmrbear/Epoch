@@ -21,13 +21,21 @@ import {
 } from "./island-geography";
 
 /**
+ * Bumped to 11 on 2026-08-16 (WU-A2) when `LineageState.rootId` was added.
+ * Multiple rafts can now land on the same world, and `rootId` is what keeps
+ * their descendants distinct roots in the bank instead of merging into one
+ * tree — see `lineage-history.ts`. The field is optional (legacy synthetic
+ * fixtures omit it and are treated as one shared root), so no migration is
+ * needed for the shape of existing readers; the bump is a record of the
+ * schema change, not a hard break.
+ *
  * Bumped to 10 on 2026-08-15 when `hotSpots` was retired. Accretion now runs off
  * the archipelago shield chain, so the plume's position, drift bearing and vigor
  * all live in `archipelago`, and a parallel authored vent list had no remaining
  * owner — keeping it would have been two records able to disagree about where
  * the volcano is.
  */
-export const WORLD_HISTORY_VERSION = 10 as const;
+export const WORLD_HISTORY_VERSION = 11 as const;
 
 export interface WorldHistory {
   readonly version: typeof WORLD_HISTORY_VERSION;
@@ -219,6 +227,9 @@ function validateLineage(value: unknown, ids: Set<string>, index: number): Linea
   }
   if (lineage.status !== "not-established" && lineage.status !== "active" && lineage.status !== "extinct") {
     throw new RangeError(`${context}.status is not recognized`);
+  }
+  if (lineage.rootId !== undefined && (!Number.isInteger(lineage.rootId) || (lineage.rootId as number) < 0)) {
+    throw new RangeError(`${context}.rootId must be a non-negative integer when present`);
   }
   if (lineage.site !== undefined) {
     const site = requireRecord(lineage.site, `${context}.site`);

@@ -1,7 +1,7 @@
 # Repo map
 
 > **Purpose:** Let a fresh session act without re-exploring the repository.
-> **Updated:** 2026-08-12 (Phase 0).
+> **Updated:** 2026-08-16.
 > Re-read this instead of globbing `src/`. If it is stale, fixing it is its own Work Unit.
 
 ## What Epoch is
@@ -18,11 +18,11 @@ intent now lives in `PRODUCT.md`; it is the authority on what the game is for.
 | Install | `npm install` — **currently broken on clean clone**, see BACKLOG P0-1. Workaround: `npm install --no-package-lock --no-save` |
 | Dev server | `npm run dev` (Vite, port 5173) |
 | Build | `npm run build` (`tsc && vite build`) |
-| Test | `npm run test` (Vitest, 55 files / 379 tests) |
+| Test | `npm run test` (Vitest, 55 files / 384 tests) |
 | Typecheck only | `npx tsc --noEmit` |
 | Asset validation | `npm run asset:check -- assets/ecosystem/<asset-id>` |
 | **Evidence capture** | `node scripts/capture.mjs --set baseline2km --webgl` — see below |
-| Simulation readout scripts | `node --import ./scripts/ts-resolve.mjs scripts/<name>.ts` — the loader lets a script import `src/` with the extensionless specifiers Vite resolves and plain Node does not |
+| Simulation readout scripts | `node --import ./scripts/ts-resolve.mjs scripts/<name>.ts` — the loader lets a script import `src/` with the extensionless specifiers Vite resolves and plain Node does not. `scripts/founding-split-readout.ts` reproduces founder establishment renderer-independently and must be given real terrain sampler functions — calling `captureWorldSnapshot` without them silently defaults forage to a constant 1 everywhere, producing false results (see 2026-08-15 `LOG.md` entry). |
 
 ## Capture harness
 
@@ -64,20 +64,20 @@ capture against one of them** — they frame roughly a fifth of the current worl
 so the subject moved, not the renderer. Use `baseline2km` / `shield2km` and the
 `w2k-` cameras.
 
-## Source layout (`src/`, 38 modules + 28 test files, ~7.6k lines)
+## Source layout (`src/`, 67 modules + 55 test files, ~21.4k lines)
 
 The codebase holds a deliberate seam: **simulation state is separate from
 rendering.** Respect it — `AGENTS.md` calls it out explicitly.
 
 ### Entry / composition
-- `main.ts` (511) — scene, camera, renderer, controls, UI wiring, render loop,
+- `main.ts` (951) — scene, camera, renderer, controls, UI wiring, render loop,
   capture-mode plumbing. The only place all subsystems meet.
 - `index.html` (~530) — all markup *and* all CSS inline, including the HUD,
   `#experience` control panel, `#epoch-card`, `#lineage-panel`, `#jump-veil`.
 
 ### Simulation (renderer-independent)
-- `landing-state.ts` (896) — largest module; orchestrates the resolved landing.
-- `outcome-resolver.ts` (799) — resolves a landing snapshot directly from
+- `landing-state.ts` (1480) — largest module; orchestrates the resolved landing.
+- `outcome-resolver.ts` (1184) — resolves a landing snapshot directly from
   terrain + climate rather than stepping every year (keeps deep time fast).
 - `world-snapshot.ts` — one immutable sampled snapshot per jump.
 - `climate.ts` — `DEFAULT_CLIMATE`, `SEA_LEVEL`, whole-island forcings.
@@ -85,14 +85,25 @@ rendering.** Respect it — `AGENTS.md` calls it out explicitly.
 - `volcanism.ts` — hot-spot lifecycle (vigorous → active → waning → extinct).
 - `archipelago-history.ts` — fixed mantle hotspot, drifting crust, the shield
   chain it leaves. Knows where shields *are*, deliberately not which share land.
-- `island-geography.ts` — that second question, resolved from the heightfield:
+- `island-geography.ts` (673) — that second question, resolved from the heightfield:
   land components above sea level, and the saddle elevation between every shield
   pair, from one descending-elevation join tree. Also holds `SeaLevelHistory`,
   which turns a saddle elevation into the years a land connection existed.
+
+### Lineage and population
+- `lineage-history.ts` (280) — lineage records, `LineageOrigin` (why a branch
+  happened: vicariance vs. dispersal, dated and located), `LineageEvent`.
+- `outcome-resolver.ts` (1184) — gene flow, drift, isolation branching, migration.
+- `island-geography.ts` (673) — land components, saddles, `SeaLevelHistory`,
+  `islandAt` point query for population reanchoring.
+- `founder-establishment.ts` (46) / `founder-profile.ts` (184) — Distant Drifter
+  founder choices and whether a founder establishes.
+- `population-traits.ts` (87) / `population-archetypes.ts` (68) — the trait model.
+- `lineage-report.ts` (124) — the text lineage panel (HTML).
+
+### Simulation (continued: hydrology)
 - `stream-network.ts`, `freshwater-basins.ts`, `water-volume.ts` — hydrology.
-- `population-traits.ts`, `population-archetypes.ts`, `lineage-history.ts`,
-  `marine-lineage.ts`, `founder-establishment.ts`, `animal-navigation.ts` —
-  ecology, trait inheritance, dispersal, herd movement.
+- `marine-lineage.ts`, `animal-navigation.ts` — marine lineage and herd movement.
 - `world-history.ts`, `epoch-story.ts` — accumulated narrative across jumps.
 - `render-scale.ts` — **one world unit is one metre.** Shared contract anchoring
   island extent, organism size, wave amplitude, camera distance, LOD thresholds.
@@ -102,7 +113,7 @@ rendering.** Respect it — `AGENTS.md` calls it out explicitly.
   scatter over *land* keys to the former, the crust frame to the latter.
 
 ### Rendering
-- `fft-ocean.ts` (375) + `fft-water.ts` (271) — Tessendorf/JONSWAP FFT ocean.
+- `fft-ocean.ts` (375) + `fft-water.ts` (389) — Tessendorf/JONSWAP FFT ocean.
 - `terrain-material.ts`, `terrain-material-state.ts`, `terrain-detail-renderer.ts`
 - `vegetation-renderer.ts`, `seagrass-renderer.ts`, `stream-renderer.ts`,
   `freshwater-renderer.ts`, `atmosphere-renderer.ts`

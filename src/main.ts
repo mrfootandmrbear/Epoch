@@ -59,6 +59,7 @@ import { isPlumeVigor, type PlumeVigor, type VolcanicOutput } from "./volcanism"
 import { isVolcanicLifecyclePhase, volcanicLifecyclePrefix } from "./volcanic-lifecycle";
 import { ENVIRONMENT_FIXTURES, isEnvironmentFixtureName } from "./environment-fixtures";
 import { STARTING_WORLD_PRESETS, startingWorldPreset } from "./starting-world-presets";
+import { drifterArrivalPosition } from "./distant-drifter-renderer";
 import {
   DEFAULT_FOUNDER_CHOICES,
   founderProfileLabel,
@@ -67,6 +68,7 @@ import {
   type FounderOriginClimate,
   type FounderSizeBand,
 } from "./founder-profile";
+import { founderMatchReadout } from "./founder-match";
 
 const statusEl = document.getElementById("status")!;
 const lineagePanelEl = document.getElementById("lineage-panel")!;
@@ -234,10 +236,84 @@ if (captureMode) {
   document.body.classList.add("capture-mode");
 }
 
+// LW-5: launching a raft used to hand the player a distant speck — the raft
+// renders correctly, but the default gameplay camera frames the whole 2 km
+// world, so a ~12 m cohort at the shore never resolves. This is a short beat
+// in `reveal.ts`'s vocabulary (fixed approach/hold/return timings, no new
+// visual system) rather than a cutscene: the camera eases to a framing where
+// the founders read, holds, then eases back to wherever the player's camera
+// was. It never touches `controls.enabled` — grabbing the camera during the
+// beat ends it immediately and hands control back exactly where the camera
+// stood, same as the global interaction handler below already does for the
+// screensaver.
+const ARRIVAL_APPROACH_MS = 1400;
+const ARRIVAL_HOLD_MS = 1800;
+const ARRIVAL_RETURN_MS = 1400;
+const ARRIVAL_TOTAL_MS = ARRIVAL_APPROACH_MS + ARRIVAL_HOLD_MS + ARRIVAL_RETURN_MS;
+function easeInOut(t: number): number {
+  const clamped = Math.max(0, Math.min(1, t));
+  return clamped * clamped * (3 - 2 * clamped);
+}
+interface ArrivalBeat {
+  startedAt: number;
+  fromPosition: Vector3;
+  fromTarget: Vector3;
+  approachPosition: Vector3;
+  approachTarget: Vector3;
+}
+let arrivalBeat: ArrivalBeat | null = null;
+function playDrifterArrival(raftPosition: Vector3): void {
+  // Capture mode is deterministic evidence: a beat that moves a fixed camera
+  // invalidates every prior capture, so this never plays under it.
+  if (captureMode) return;
+  const approachPosition = raftPosition.clone();
+  approachPosition.y = 0;
+  // Stand further out along the same offshore bearing the raft already
+  // arrives on, so the shot reads as "look back at the raft with the island
+  // behind it" instead of cutting to an arbitrary angle.
+  approachPosition.normalize().multiplyScalar(raftPosition.length() + 15);
+  approachPosition.y = raftPosition.y + 3.2;
+  const approachTarget = raftPosition.clone();
+  approachTarget.y = raftPosition.y + 1;
+  arrivalBeat = {
+    startedAt: performance.now(),
+    fromPosition: camera.position.clone(),
+    fromTarget: controls.target.clone(),
+    approachPosition,
+    approachTarget,
+  };
+}
+function updateArrivalBeat(): void {
+  if (!arrivalBeat) return;
+  const elapsedMs = performance.now() - arrivalBeat.startedAt;
+  if (elapsedMs < ARRIVAL_APPROACH_MS) {
+    const progress = easeInOut(elapsedMs / ARRIVAL_APPROACH_MS);
+    camera.position.lerpVectors(arrivalBeat.fromPosition, arrivalBeat.approachPosition, progress);
+    controls.target.lerpVectors(arrivalBeat.fromTarget, arrivalBeat.approachTarget, progress);
+  } else if (elapsedMs < ARRIVAL_APPROACH_MS + ARRIVAL_HOLD_MS) {
+    camera.position.copy(arrivalBeat.approachPosition);
+    controls.target.copy(arrivalBeat.approachTarget);
+  } else if (elapsedMs < ARRIVAL_TOTAL_MS) {
+    const progress = easeInOut((elapsedMs - ARRIVAL_APPROACH_MS - ARRIVAL_HOLD_MS) / ARRIVAL_RETURN_MS);
+    camera.position.lerpVectors(arrivalBeat.approachPosition, arrivalBeat.fromPosition, progress);
+    controls.target.lerpVectors(arrivalBeat.approachTarget, arrivalBeat.fromTarget, progress);
+  } else {
+    camera.position.copy(arrivalBeat.fromPosition);
+    controls.target.copy(arrivalBeat.fromTarget);
+    arrivalBeat = null;
+  }
+  camera.lookAt(controls.target);
+  camera.updateMatrixWorld();
+}
+
 for (const eventName of ["pointerdown", "wheel", "keydown", "touchstart"] as const) {
   window.addEventListener(eventName, () => {
     lastInteraction = performance.now() / 1000;
     if (presentation.active) presentation.setActive(false);
+    // Grabbing the camera mid-beat is the predictable, immediate hand-back:
+    // the beat stops and the player's gesture applies from wherever the
+    // camera already was, exactly like it would with no beat running.
+    arrivalBeat = null;
   }, { passive: true });
 }
 
@@ -708,6 +784,7 @@ startingWorldEl.addEventListener("change", () => {
   startingWorldDescriptionEl.textContent = preset.description;
   formHintEl.textContent = `${preset.name} loaded. Shape it further or set the forces for its first jump.`;
   syncBrushControls();
+  updateDrifterPreview();
 });
 
 jumpYearsEl.addEventListener("change", () => {
@@ -723,7 +800,10 @@ function readFounderChoices(): FounderChoices {
 }
 
 function updateDrifterPreview(): void {
-  drifterPreviewEl.textContent = `${founderProfileLabel({ ...readFounderChoices(), generationSeed: 0 })}. Exact anatomy will be generated when the raft is launched.`;
+  const choices = readFounderChoices();
+  const habitatSummary = landingState.getDrifterHabitatSummary();
+  const matchReadout = founderMatchReadout(habitatSummary, choices);
+  drifterPreviewEl.textContent = `${matchReadout} Exact anatomy will be generated when the raft is launched.`;
 }
 
 for (const select of [drifterFoodEl, drifterSizeEl, drifterClimateEl]) {
@@ -741,12 +821,14 @@ distantDrifterEl.addEventListener("click", () => {
   drifterClimateEl.disabled = true;
   drifterPreviewEl.textContent = `${founderProfileLabel({ ...choices, generationSeed: 0 })}. The generated founders are now fixed.`;
   formHintEl.textContent = "A vegetation raft carries a tiny founder cohort. Arrival is not establishment; food supply, body cost, and climate fit will decide whether it survives.";
+  playDrifterArrival(drifterArrivalPosition(SEA_LEVEL[committedClimate.seaLevel]));
 });
 
 for (const select of [rainfallEl, temperatureEl, windEl, seaLevelEl]) {
   select.addEventListener("change", () => {
     climate = readClimate();
     formHintEl.textContent = `${climateLabel(climate)} — these forces will act across the next jump.`;
+    updateDrifterPreview();
   });
 }
 
@@ -786,14 +868,18 @@ jumpButtonEl.addEventListener("click", () => {
     const hasEstablishedTerrestrialPopulation = lineageReport.changes.some((change) => change.status === "active");
     landingSummaryEl.textContent = landingSummary(totalYears, committedClimate, hasEstablishedTerrestrialPopulation);
     epochStoryEl.textContent = buildEpochStory(previousAge, lineageReport.changes, committedClimate, lineageReport.marineChanges);
-    if (lineageReport.changes.length > 0 && lineageReport.changes.every((change) => change.status === "extinct")) {
-      distantDrifterEl.textContent = "Distant Drifter";
-      distantDrifterEl.classList.remove("active");
-      distantDrifterEl.disabled = false;
-      drifterFoodEl.disabled = false;
-      drifterSizeEl.disabled = false;
-      drifterClimateEl.disabled = false;
-    }
+    // WU-A2: a raft can launch again after any jump, whether the last one
+    // died, established, or is still thriving — `docs/TANGLED-BANK.md`
+    // explicitly wants rafts launchable "before the first jump, between
+    // jumps, after an extinction event, or into a thriving ecosystem". Reset
+    // unconditionally rather than only on total extinction.
+    distantDrifterEl.textContent = "Distant Drifter";
+    distantDrifterEl.classList.remove("active");
+    distantDrifterEl.disabled = false;
+    drifterFoodEl.disabled = false;
+    drifterSizeEl.disabled = false;
+    drifterClimateEl.disabled = false;
+    updateDrifterPreview();
     epochCardEl.classList.add("visible");
   }, () => {
     jumped = false;
@@ -927,7 +1013,8 @@ async function start() {
     updateAtmosphere(captureMode ? elapsed : elapsed - atmosphereCycleOrigin);
     landingState.update(elapsed, camera.position);
     presentation.update(elapsed);
-    if (!presentation.active) controls.update();
+    updateArrivalBeat();
+    if (!presentation.active && !arrivalBeat) controls.update();
     updateShadowCoverage();
     const callsBeforeRender = renderer.info.render.calls;
     renderPipeline!.render();

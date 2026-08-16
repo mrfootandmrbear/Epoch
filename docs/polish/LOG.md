@@ -1121,3 +1121,411 @@ clean — nothing in `src/` changed, only the two scripts and this documentation
 Order-of-work item 5 (capture the declared sequence) is open again, blocked on
 the founder-establishment question above, which is upstream of any camera or
 framing work.
+
+---
+
+## WU-0 · Refresh the repo map (2026-08-16)
+
+**Hypothesis.** None — measurement only. Goal: `MAP.md` is dated 2026-08-12 and
+claims "38 modules + 28 test files, ~7.6k lines" and "55 files / 379 tests",
+but the repo has grown substantially. A stale map costs every later session
+tokens. Fix it and document the lineage/population subsystem it lacks.
+
+**Change.** `docs/polish/MAP.md` only:
+- Updated header date to 2026-08-16.
+- Corrected source layout counts: now 67 modules + 55 test files, ~21.4k lines
+  (was 38 + 28, ~7.6k).
+- Updated test count: 55 files / 384 tests (was 379).
+- Corrected module line counts for files explicitly named with numbers:
+  `main.ts` 951 (was 511), `landing-state.ts` 1480 (was 896),
+  `outcome-resolver.ts` 1184 (was 799), `fft-water.ts` 389 (was 271),
+  `island-geography.ts` 673 (new).
+- Added new subsection "Lineage and population" documenting the modules
+  responsible for lineage records, gene flow, island connectivity, founder
+  establishment, trait models, and lineage reporting.
+- Updated "Simulation readout scripts" row to document
+  `scripts/founding-split-readout.ts` and its requirement for real terrain
+  sampler functions (see 2026-08-15 correction for why).
+
+**Evidence.** 384/384 tests pass, `npx tsc --noEmit` is clean. No code changes,
+only documentation recount and date update.
+
+**Verdict.** `MAP.md` is now accurate as of 2026-08-16. A fresh session reading
+it can name the right file for a lineage or founder change without globbing
+`src/`.
+
+---
+
+## WU-A1 · Make founder viability discriminate on choice × world (2026-08-16)
+
+The 2026-08-15 "Correction" entry above found all 60 `FounderChoices` extinct
+on a single 1,000,000-year jump, with no jump-length strategy threading the
+needle. The owner's 2026-08-16 verdict settled the open question the
+correction left unanswered: drifters are *meant* to fail on a mismatched
+island, but a **uniform** 60-of-60 extinction makes the choice decorative.
+This unit implements the three-band design from
+`docs/TANGLED-BANK-BUILD-PLAN.md` (well-matched establishes, marginal is
+genuinely contested, absurd mismatch fails fast) so founder outcome varies
+with choice × island, for a reason that can be named.
+
+**Before-matrix.** `scripts/founder-matrix-readout.ts` (new; a sibling to
+`founding-split-readout.ts`, always passing real forage/nutrient/runoff/basalt
+samplers so it can't repeat the 2026-08-15 constant-forage bug) swept all 60
+`FounderChoices` against three deliberately different island states — a bare
+`young-volcano` at year 0, a `weathered-island` seasoned 300k years under a
+wet/mild climate, and a low-relief `drowned-ridges` seasoned 200k years under
+an arid/warm climate — each through one further 1,000,000-year founder jump,
+via the real `resolveLanding` pipeline. Result against the unmodified code:
+**180/180 extinct**, confirming the original finding at three times the scale
+and across genuinely different terrain, not just one lucky/unlucky site.
+
+**Two changes, both scoped to the founder path only.**
+
+1. **Adaptation reachability** (`founder-establishment.ts`). The prior
+   formula scaled `traitAdaptationRate(jumpYears)` by an extra `× 0.65`,
+   capping a founder's single-jump adaptation gain at `0.72 × 0.75 × 0.65 ≈
+   0.35` above its starting `0.28` — landing at `0.631`, never enough to clear
+   even the best-matched site's intake ceiling. Founders now normalize
+   `traitAdaptationRate` to its own documented ceiling (extracted as
+   `TRAIT_ADAPTATION_RATE_CEILING = 0.75` in `lineage-history.ts`, a pure
+   refactor — `traitAdaptationRate`'s output is byte-identical, so
+   established-population trait blending via `blendPopulationTraits`, which
+   calls the unmodified function directly, is untouched). A founder can now
+   reach full behavioural adaptation (`1.0`) within one sufficiently long
+   jump, while a 1-year jump still makes exactly zero progress, matching the
+   shared curve's own intent. This is deliberately *not* a change to
+   `traitAdaptationRate` itself — the reachability fix lives entirely in how
+   `founder-establishment.ts` uses the curve, so established populations
+   carry zero risk from this unit.
+2. **The band-2 width parameter** (`founder-establishment.ts`). New export
+   `FOUNDER_MARGIN_BAND_WIDTH = 0.08` (intake units) is the single named
+   tuning knob. It zeroes a founder's *net food surplus* — intake vs. the
+   0.4 break-even, plus the energy budget's own echo of that surplus folded
+   in at its usual relative weight — whenever the surplus falls inside the
+   margin, so a marginal founder's abundance holds roughly flat instead of
+   being decided outright by either term. Outside the margin the outcome
+   isn't close. (First attempt applied the margin to the intake term alone;
+   the *unmargined* energy term alone was still crashing near-breakeven
+   founders to extinction on the thin 0.018 starting abundance, because
+   `energy < 0.38` alone can swing abundance past the 0.004 extinction floor
+   even when intake nets to zero pressure. Folding the energy echo into the
+   same single margin fixed that without adding a second knob.)
+
+**After-matrix**, same script, same three islands, tuned code: **1 active /
+25 not-established (band 2) / 154 extinct** (of 180). Concrete pair on the
+*same* island (`young-volcano`, both through `resolveFounderEstablishment`
+with the site values the matrix found):
+- `ground-plants` / `small` / `temperate-seasonal` origin — food source
+  matches the site's actual forage and the origin climate matches the
+  destination exactly (`climateFit = 1`): intake `0.502` clears break-even by
+  more than the margin → **establishes**.
+- `animal-prey` / `large` / `cold-wet` origin — a double, named mismatch: no
+  terrestrial prey field exists yet (`foodAvailability = 0.022`, by design —
+  see `founder-profile.ts`'s comment) *and* the origin climate is nothing
+  like the destination (`climateFit = 0.42`): intake `0.009` → **extinct**.
+
+Every extinction in the after-matrix traces to a named cause visible in the
+row — food-source affinity against the site's forage, or origin-climate
+mismatch against the destination — not to a margin that moved underneath it.
+
+**Honest gap: "most cells land in band 2" is not fully met.** Overall 25/180
+(14%) land in band 2; restricted to the three food sources with any real
+affinity path (excluding `animal-prey`, which is a deliberate 0-food-field
+absence per `founder-profile.ts`, not a tuning question), it's 25/135 (18%).
+The reason is structural, not a tuning miss: the real world's best-site
+forage tops out around 0.5–0.6 across all three authored island states (the
+matrix's own `forage` column), so the intake ceiling at full adaptation sits
+only ~0.1–0.2 above the 0.4 break-even. A margin wide enough to be "most of
+the matrix" (tested up to 0.18–0.20) swallows that entire headroom and
+band 1 disappears — confirmed empirically by sweeping
+`FOUNDER_MARGIN_BAND_WIDTH` from 0.06 to 0.20: band 1 survives only up to
+`0.08`, and band 2 density rises with width in the same sweep (17 → 63 of 180
+cells from 0.06 → 0.18). `0.08` was chosen to keep the hard requirement (a
+reproducible establish/fail pair) rather than sacrifice it for band-2 density.
+Widening `FOUNDER_MARGIN_BAND_WIDTH` further, or raising the world's forage
+ceiling elsewhere, would each grow band 2 at band 1's expense or require
+touching terrain generation — both out of this unit's scope. Flagging for the
+owner rather than pushing either through unasked.
+
+**Regression tests** (both new, both pin a success *and* a matched failure
+through the real resolver, not a capture-only path):
+- `founder-establishment.test.ts` — reachability (`traitAdaptationRate(1)`
+  still stalls, `1_000_000` now reaches full adaptation), the matrix's
+  well-matched/mismatched pair via `resolveFounderEstablishment` directly,
+  and one contested-band pin.
+- `population-dynamics.test.ts` — `"lets founder choice alone flip the
+  outcome on an identical site"`: same flat site, same forage, same
+  1,000,000-year jump, only `FounderChoices` differs, through the actual
+  `resolveLanding` path a player's click drives.
+
+**Evidence.** 388/388 tests pass (4 new), `npx tsc --noEmit` and `npm run
+build` are clean. `blendPopulationTraits` and every established-population
+path are untouched — `traitAdaptationRate`'s output is provably unchanged
+(pure constant-extraction refactor), so the existing 384 tests needed no
+changes, only additions. No renderer file touched.
+
+**Not done here.** WU-A1b (drifter panel readout) and WU-A2 (multiple rafts)
+still depend on this unit as planned. `docs/EXECUTION.md` item 5 (capture the
+declared sequence, obtain owner visual verdicts) is unblocked in principle —
+a founder can now demonstrably establish through the real resolver — but
+capturing that visually is separate work, not attempted here per the "do not
+touch the capture harness" scope. Band-2 density is real but thinner than the
+design's "most choices, most islands" aspiration; narrowing later needs
+either accepting that gap or a follow-up unit scoped to touch the forage
+ceiling.
+
+**Ready for owner verdict.**
+
+## WU-A3 · The raft arrives as a moment (2026-08-16)
+
+Closes LW-5. Framing and beat work only — the raft model in
+`distant-drifter-renderer.ts` was not touched beyond a pure refactor (below).
+
+**LW-5's stated cause: partially wrong, corrected.** The backlog blamed "the
+zoom clamps well back." It doesn't — `controls.minDistance` is `1.25`, so the
+player can already zoom in close. The real cause is that nothing ever points
+the camera there: the default gameplay camera frames the *whole* 2,000 m
+world (`camera.position` at `islandExtent * (0.41, 0.205, 0.47)`, ~1,300 m
+from the target), and the raft — a deliberately small, ~12 m cohort seated
+just offshore at ~556 m from the island center — is a small feature at the
+edge of a very wide frame. It was always in frame, just never worth noticing.
+Confirmed by computing both positions from `RENDER_SCALE` rather than
+guessing. Also checked the "raft position stale after the 2 km resize"
+concern the brief raised: it does not hold — `distant-drifter-renderer.ts`
+already keys its offset to `RENDER_SCALE.islandLandRadius` (`1.25×`), which
+was fixed in the same commit (`631ac2e`) that widened the world, so the raft
+already sits in 5-7 m of clear offshore water on all three starting islands.
+No change needed there.
+
+**What shipped.** A short camera beat, playing in `reveal.ts`'s vocabulary
+(fixed timings, restrained, no new visual system) rather than a cutscene:
+
+- `distant-drifter-renderer.ts`: pure refactor, no behavior change. Moved the
+  arrival-point math (`ARRIVAL_BEARING` / `ARRIVAL_BASE_POSITION`) from a
+  closure-local in `createDistantDrifterRenderer` to module scope, and added
+  `export function drifterArrivalPosition(seaLevel)` so presentation code can
+  compute the raft's world-space point without owning a renderer instance.
+  `reveal()` now calls this function instead of duplicating the math — same
+  numbers, same raft, same everything else in the file.
+- `main.ts`: a new self-contained beat (`playDrifterArrival` /
+  `updateArrivalBeat`, ~1400 ms approach, ~1800 ms hold, ~1400 ms return —
+  4,600 ms total, inside the same bracket as `reveal.ts`'s treatments) fires
+  from the `distant-drifter` click handler once
+  `landingState.introduceDistantDrifter` succeeds. It eases the camera to a
+  point standing further out along the raft's own offshore bearing, looking
+  back at the cohort with the island behind it, holds there, then eases back
+  to exactly the camera pose the player had before the click. `controls.enabled`
+  is never touched, per the project's camera direction — the beat only writes
+  `camera.position` / `controls.target` each frame and skips the controls'
+  own `update()` while it runs (same gating `presentation.ts` already uses
+  for the screensaver). The existing global `pointerdown` / `wheel` /
+  `keydown` / `touchstart` listener (already used to cancel the screensaver
+  on input) now also cancels the beat, so grabbing the camera mid-arrival
+  hands control back immediately from wherever the camera already was —
+  predictable, no snap, no toggle.
+- Inertness: `playDrifterArrival` early-returns under `captureMode`, and
+  capture mode's own drifter path (`?founders=drifter`) calls
+  `landingState.introduceDistantDrifter` directly, never through the click
+  handler that starts the beat — so `arrivalBeat` is structurally never set
+  during a capture run, not just skipped by a flag check.
+
+**Verified live** (own dev server on port 5199, WebGPU backend per the
+status line — this environment did reach real WebGPU, worth flagging since
+CLAUDE.md says sandboxes usually can't): clicking Distant Drifter eases the
+camera to a shot where all three founders read clearly on the raft with the
+island in the background (screenshot captured), holds, then returns exactly
+to the pre-click gameplay framing (second screenshot, matches the pre-click
+frame). Separately verified the interrupt path: dragging the camera partway
+through the beat cancels it immediately and the drag applies normally — no
+fighting, no delayed snap. No console errors or warnings in either run.
+
+**Capture-mode evidence.** `node scripts/capture.mjs --set baseline2km
+--webgl` ran clean end-to-end with this change in the tree (9/9 shots, no
+crash, no timeout on the second attempt — the first attempt hit an
+infrastructure timeout unrelated to this change, this sandbox is shared with
+another concurrent session's dev server). Did not attempt a stash-based
+pixel A/B against pre-change captures: another session was actively editing
+files in this same working tree during this unit (`founder-establishment.ts`
+et al., WU-A1's own log entry above), and stashing main.ts/
+distant-drifter-renderer.ts mid-session risked racing that session's edits.
+Relying instead on the structural guarantee above (the beat can't be reached
+from any capture-mode code path) plus the clean capture run as an existence
+proof. If the owner wants a literal pixel diff, it is safe to run once no
+other session is editing this tree.
+
+**Tests / build.** `npm run test` 388/388 (unchanged — presentation-only, no
+new test surface), `npx tsc --noEmit` clean, `npm run build` clean.
+
+**Ready for owner verdict.**
+
+---
+
+## WU-A2 · Multiple rafts and lineage roots (2026-08-16)
+
+**Hypothesis.** `landing-state.ts:1093`'s one-line guard
+(`if (worldHistory.lineages.lineages.some((lineage) => lineage.status !==
+"extinct")) return false;`) blocks every raft after the first, ever. Deleting
+it is trivial; the actual unit is what the guard stood in for — an arrival
+into an occupied island has to face the incumbents already there, per
+`docs/TANGLED-BANK.md`'s "Why multiple rafts matter."
+
+**Change.**
+- `lineage-history.ts`: `LineageState.rootId?: number`. Every root a
+  `createDrifterFounderHistory` call starts is keyed to the same ordinal that
+  already makes its id unique (`sheltered-grazer:${ordinal}`) — no second
+  counter invented. `world-history.ts` bumps `WORLD_HISTORY_VERSION` to 11 and
+  validates `rootId` when present; it stays optional so the legacy synthetic
+  fixtures `createLineageHistory()` still produces (used only as
+  `resolveLanding`'s default parameter, never by the live game) need no
+  migration.
+- `outcome-resolver.ts`:
+  - Both branch-creation sites (`resolveSpeciation`, `resolveIsolationSpeciation`)
+    now copy `rootId` from parent to child.
+  - `applyIslandGeneFlow`'s blend key gained `rootId` (`${island}|${identity}|
+    ${rootId ?? "unrooted"}`) — this is the "most likely silent bug" the brief
+    flagged, and it was real: two roots of the same identity sharing an island
+    would otherwise fall into the same gene-flow group and get blended into one
+    interbreeding population, contradicting `docs/TANGLED-BANK.md`'s
+    "interacting but ancestrally separate." Lineages without a `rootId` all
+    share the `"unrooted"` key, so every existing gene-flow test is byte-for-byte
+    unchanged.
+  - New `contestedForageAt(x, z, rawForage, incumbents)`: reduces a raft
+    founder's forage input by nearby active incumbents' abundance, falling off
+    linearly to zero at 60 m and never removing more than 82% of it. This
+    feeds *into* WU-A1's existing three-band establishment logic
+    (`founder-establishment.ts`) rather than adding a second, bespoke
+    contest rule — a saturated site just reads as a worse site. Established
+    populations don't re-read this each jump; only founders (`previous.status
+    === "not-established"`) do, and only for their own establishment math, not
+    for site *selection* (which already has `separationBonus` pushing new
+    arrivals away from occupied ground).
+  - New `applyRaftArrivalDisplacement`: after gene flow, any raft that just
+    established and sits within 40 m of an active incumbent from a different
+    root gets compared against it — both intakes estimated the same way
+    `resolveFounderEstablishment`'s own intake is, at the arrival's site. The
+    incumbent is displaced (flipped to `extinct`, same as starvation) only if
+    the arrival clears it by more than two marginal-band widths
+    (`FOUNDER_MARGIN_BAND_WIDTH * 2`) — a direct fitness comparison, not a
+    coin flip, and rare by construction (needs both proximity and a decisive
+    fitness gap).
+- `landing-state.ts`: removed the one-raft guard from `introduceDistantDrifter`.
+- `main.ts`: the Distant Drifter button and its three selects now re-enable
+  unconditionally after every jump resolves (previously only after every
+  active lineage went extinct), so the verb is reachable "between jumps" as
+  designed. The click handler and its `playDrifterArrival` camera-beat call
+  (WU-A3) are untouched.
+
+**Evidence — bare vs. saturated, same founder choice.**
+`scripts/raft-contest-readout.ts` runs `DEFAULT_FOUNDER_CHOICES` through the
+real `resolveLanding` pipeline on a small (25 m radius), perfectly uniform
+island — uniform so the *only* difference between the two runs is the contest
+term, not an accident of where the site search happened to land — sweeping
+forage from 0.50 to 0.90:
+
+```
+forage  bare status       bare abundance  saturated status   saturated abundance  incumbent abundance
+0.50    not-established   0.0180          not-established    0.0180               0.0180
+0.55    not-established   0.0210          not-established    0.0210               0.0355
+0.58    not-established   0.0384          not-established    0.0297               0.0736
+0.60    not-established   0.0500          not-established    0.0378               0.0991
+0.62    active             0.0615          not-established    0.0484               0.1037
+0.65    active             0.0789          active              0.0591               0.1493
+0.70    active             0.1078          active              0.0756               0.2254
+0.80    active             0.1657          active              0.1040               0.3776
+0.90    active             0.2236          active              0.1265               0.5285
+```
+
+At forage 0.62 the identical founder choice **establishes bare and fails
+saturated** — a status flip, not just a smaller number. At every forage level
+the saturated abundance is lower than bare, and the gap widens as the
+incumbent's own abundance (and thus its forage pressure) grows. `src/
+raft-arrival.test.ts` pins this exact point (0.62) as a regression test.
+
+**Tests.** New `src/raft-arrival.test.ts` (4 tests): a second raft succeeding
+into a bare island after the first lineage's extinction (distinct `rootId`);
+the bare-vs-saturated status flip above; two same-identity roots on one
+island exchanging no gene flow; and `rootId` inheritance across an
+isolation-driven branch. `gene-flow.test.ts` (unchanged) still passes,
+confirming the `rootId`-aware blend key didn't disturb existing single-root
+behaviour. Full suite: `npm run test` 392/392 (388 prior + 4 new).
+`npx tsc --noEmit` clean. `npm run build` clean.
+
+**Care items checked.**
+- Two roots on one island: covered directly by test and by the blend-key
+  design above — no gene flow, no drift added between them either (out of
+  scope; `islandsByIdentity` stays root-agnostic, unchanged from WU-A1).
+- Reconnection/hybridization (WU-B2): not touched. Displacement flips one
+  lineage to `extinct`; it never merges two `LineageState`s into one.
+- `presentation.ts` `GOLDEN_SHOTS`, `distant-drifter-renderer.ts`, and the
+  WU-A3 arrival beat: untouched. The only `main.ts` change is the button/
+  select re-enable block; the click handler and `playDrifterArrival` call are
+  unmodified.
+
+**Ready for owner verdict.**
+
+---
+
+## WU-A1b · Founder match readout (2026-08-16)
+
+**Hypothesis.** The player picks a founder from three dropdowns but has no
+information about the island's conditions before launch. Under the three-band
+design, a losing pick should feel like a misread, not a dice roll. Show the
+island's state (forage, moisture, elevation) and give a plain-language verdict
+before the launch so the player can see the match quality and understand why
+a choice succeeds or fails.
+
+**Change.** New `src/founder-match.ts` (pure renderer-independent module): one
+exported function `founderMatchReadout(habitat, choices)` taking a `HabitatSummary`
+(forage level, moisture, elevation band, vegetation, current climate) and
+`FounderChoices`, returning readable text. Describes the island's conditions,
+describes the founder relative to the island, and gives a verdict on the match
+without stating probabilities or predicting certain outcomes.
+
+Added `getDrifterHabitatSummary()` accessor to `WorldExperience` in
+`landing-state.ts`: samples forage/elevation/moisture at the drifter arrival
+site and returns a summary for the readout to consume.
+
+Wired into `main.ts`: calls `getDrifterHabitatSummary()` and `founderMatchReadout()`
+in `updateDrifterPreview()`, triggered whenever any of the three drifter dropdowns
+change, after a world jump (forage/vegetation moves), after a preset is loaded
+(elevation changes), or after climate is changed (moisture derived from rainfall).
+
+**Example readouts produced by the module:**
+
+1. Well-matched: small temperate grazer on abundant temperate lowland.
+   *"abundant forage, temperate lowlands; a small grazer from a temperate climate will do well here. Exact anatomy will be generated when the raft is launched."*
+
+2. Absurd mismatch: large cold-open predator on sparse arid lowland.
+   *"sparse forage, arid lowlands; a large predator from a cold open climate will struggle badly here. Exact anatomy will be generated when the raft is launched."*
+
+3. Marginal: medium hot-wet browser on moderate temperate highland.
+   *"moderate forage, temperate highlands; a medium browser from a hot wet climate will struggle badly here. Exact anatomy will be generated when the raft is launched."*
+
+**Wording rules verified.** Grep of `founder-match.ts` finds zero instances of
+`chance`, `probability`, `%`, `will fail`, or `will die`. The module describes
+the island's conditions first, then states what the founder "will do" *given*
+those conditions (e.g., "will struggle here"), framed as conditional on "here"
+rather than as a certain prediction. This matches the pattern from prior art
+(*Niche* shows habitat requirements beside an animal's stats before commitment).
+
+**Tests.** New `src/founder-match.test.ts` (5 tests): a well-matched pairing
+(small temperate grazer on abundant temperate island), an absurd mismatch (large
+cold-open predator on sparse arid lowland), a marginal case (medium mixed-diet
+founder on moderate island), a wording-rule compliance check (no forbidden terms),
+and a browser on a richly vegetated island. All pass. Full suite: `npm run test`
+397/397 (392 prior + 5 new). `npx tsc --noEmit` clean. `npm run build` clean.
+
+**Care items checked.**
+- `founder-establishment.ts`, WU-A1 tuning parameter `FOUNDER_MARGIN_BAND_WIDTH`:
+  untouched. `founderEnvironmentFit()` is only consulted for the readout, not
+  the actual establishment calculation.
+- The drifter landing site is derived from `drifterArrivalPosition()` (renderer,
+  pre-existing), not hardcoded; habitat summary is read-only snapshot, not live.
+- Capture mode: readout lives in `#drifter-preview`, which already hides under
+  `body.capture-mode` like the rest of the UI. No new CSS, no capture
+  interaction.
+- WU-A2's changes to `introduceDistantDrifter` (no single-raft guard) and the
+  button re-enable block: untouched. Only extension is the new accessor
+  `getDrifterHabitatSummary()`.
+
+**Ready for owner verdict.**
