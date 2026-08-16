@@ -7,6 +7,7 @@ import {
   islandAt,
   islandIndexAt,
   isolatedSinceYear,
+  nearestIslandId,
   recordSeaLevel,
   resolveIslandGeography,
   saddleBetween,
@@ -300,6 +301,37 @@ describe("resolveIslandGeography — island at a world position", () => {
 
     expect(islandIndexAt(geography, 190, 190)).toBe(-1);
     expect(islandAt(geography, 190, 190)).toBeNull();
+  });
+});
+
+describe("resolveIslandGeography — nearest island to a drowned position", () => {
+  it("returns the direct island when the position is already land", () => {
+    const geography = resolveIslandGeography(twinCones(), 0, [
+      shield("shield-0", -100, 0),
+      shield("shield-1", 100, 0),
+    ]);
+    expect(nearestIslandId(geography, -100, 0)).toBe(islandAt(geography, -100, 0));
+  });
+
+  it("retreats to the nearer surviving island once the exact site is water", () => {
+    const shields = [shield("shield-0", -100, 0), shield("shield-1", 100, 0)];
+    // Split stand: the col is drowned, so a point due north of either summit is
+    // water, but each is unambiguously closer to its own island than the other.
+    const geography = resolveIslandGeography(twinCones(), 25, shields);
+    expect(islandAt(geography, -100, 150)).toBeNull();
+    expect(islandAt(geography, 100, 150)).toBeNull();
+
+    expect(nearestIslandId(geography, -100, 150)).toBe(geography.islandOfShield.get("shield-0"));
+    expect(nearestIslandId(geography, 100, 150)).toBe(geography.islandOfShield.get("shield-1"));
+  });
+
+  it("returns null when no land survives anywhere in the grid", () => {
+    const geography = resolveIslandGeography(twinCones(), 55, [
+      shield("shield-0", -100, 0),
+      shield("shield-1", 100, 0),
+    ]);
+    expect(geography.islands).toEqual([]);
+    expect(nearestIslandId(geography, 0, 0)).toBeNull();
   });
 });
 

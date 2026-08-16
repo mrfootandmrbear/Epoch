@@ -41,6 +41,34 @@ function oneIsland(x: number, z: number): number {
   return Math.max(40 - 0.35 * Math.hypot(x, z), -50);
 }
 
+// Peaks close enough that a deep-time migration reach can span the water
+// between them (~80 m of open water at the present stand) — unlike the
+// far-apart `twoIslands` peaks above, which the comment on `PEAK` documents as
+// deliberately out of reach. This is what lets these cases exercise ordinary
+// migration actually being tempted across the water, not just "too far to
+// matter".
+const CLOSE_PEAK = 140;
+
+/** Two mirror-image cones a short swim apart: still two islands, but reachable ones. */
+function closeIslands(x: number, z: number): number {
+  const cone = (peakX: number) => 40 - 0.4 * Math.hypot(x - peakX, z);
+  return Math.max(cone(-CLOSE_PEAK), cone(CLOSE_PEAK), -50);
+}
+
+/**
+ * A tiny, steep home island next to a much larger, gentler neighbour, both
+ * within a deep-time migration reach of each other. Habitat quality alone
+ * makes the neighbour a clearly better site than anything home ground offers
+ * — which is exactly what would tempt an unrestricted search across the water
+ * separating them, and exactly what a land-path check must refuse regardless
+ * of how much better the far side scores.
+ */
+function crossableIslands(x: number, z: number): number {
+  const home = 40 - 4.0 * Math.hypot(x - -CLOSE_PEAK, z);
+  const lush = 40 - 0.4 * Math.hypot(x - CLOSE_PEAK, z);
+  return Math.max(home, lush, -50);
+}
+
 /**
  * Two cones joined by an isthmus that sags to +2 m at the origin and rises
  * toward each cone. Land at the present stand (one island); at the high stand
@@ -156,6 +184,40 @@ describe("gene flow reads island membership", () => {
     for (const id of ["sheltered-grazer:0", "sheltered-grazer:1"]) {
       expect(apart.changes.find((c) => c.id === id)!.geneFlow).toBeUndefined();
     }
+  });
+});
+
+describe("migration stays on land", () => {
+  it("does not let an established population swim to a neighbouring island for a better site", () => {
+    // Starts on its tiny home island's only viable ground. The neighbouring
+    // island is unambiguously better habitat and well within a million-year
+    // migration reach (~368 m) — nothing but the water between them should
+    // stop the resolver from "migrating" it there.
+    const resolution = resolveWith(
+      crossableIslands,
+      [grazer("sheltered-grazer:0", { x: -CLOSE_PEAK, z: 0 }, NIMBLE)],
+      PRESENT, 2_000_000, 1_000_000,
+    );
+    const next = resolution.nextHistory.lineages.find((l) => l.id === "sheltered-grazer:0")!;
+    expect(next.status).toBe("active");
+    expect(next.site!.x).toBeLessThan(0);
+  });
+
+  it("retreats to its own island's surviving ground when its site drowns, not to the neighbouring island", () => {
+    // At the present stand this point is dry (elevation 1 m, just inside the
+    // present buffer); resolved at the high stand its own island still has dry
+    // land 5 m further inland, but the neighbouring island's nearest shore is
+    // 90 m away — an unmistakable difference for a resolver retreating to the
+    // nearest surviving land instead of searching the whole map.
+    const origin = { x: -CLOSE_PEAK + 97.5, z: 0 };
+    const resolution = resolveWith(
+      closeIslands,
+      [grazer("sheltered-grazer:0", origin, NIMBLE)],
+      HIGH, 500_000, 500_000,
+    );
+    const next = resolution.nextHistory.lineages.find((l) => l.id === "sheltered-grazer:0")!;
+    expect(next.status).toBe("active");
+    expect(next.site!.x).toBeLessThan(0);
   });
 });
 

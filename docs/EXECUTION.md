@@ -94,14 +94,38 @@ without becoming arbitrary or converging on a predetermined bestiary.
    elapsed-time cooldown, isolated lineages drift, and a branch records its
    `origin` cause. Gated on geography being present, so the determinism baseline
    (geography-free fixtures) is unchanged. Verified end-to-end on the real 2 km
-   world via `scripts/gene-flow-readout.ts`. Still bounded: `migratedSite`
-   remains water-blind, and "path-dependent selection" is present only as
-   inherited-trait blending toward the new island's habitat.*
+   world via `scripts/gene-flow-readout.ts`. Still bounded: "path-dependent
+   selection" is present only as inherited-trait blending toward the new
+   island's habitat.*
+
+   *`migratedSite`'s water-blindness closed 2026-08-15: ordinary migration and
+   the wide reanchor search (after a population's exact site drowns) now both
+   require the candidate to share a land connection with wherever the
+   population currently stands (`islandAt`, falling back to `nearestIslandId`
+   when the exact site has drowned outright), so a lineage can no longer
+   "migrate" to a different island with no path between them. Gated on
+   geography exactly like the rest of item 2, so the legacy fixture path is
+   unchanged; 5 new tests in `island-geography.test.ts` and `gene-flow.test.ts`
+   reproduce the old bug against the pre-fix resolver before confirming the fix
+   closes it.*
 3. Resolve the serialized landing fixtures and their causal explanation.
 4. Render the regional geology and both descendant populations with a shared
    inherited visual history rooted in the opening Galápagos grammar.
 5. Capture the declared sequence, run automated checks, and obtain owner visual
    verdicts.
+   *Attempted and retracted 2026-08-15, same day: `?founders=drifter&plume=
+   active&years=1000000&jumps=3` was believed to reach a branched state,
+   based on a browser screenshot later found to be misread (see
+   `docs/polish/LOG.md`, "Correction"). Direct instrumentation of the real
+   app shows the Distant Drifter founder going extinct on jump 1 under that
+   URL — a swept check across all 60 `FounderChoices` combinations found none
+   survive a single 1,000,000-year jump from year 0, and neither does a
+   ratchet of short jumps. BACKLOG P1-1 ("fauna is unreachable by automated
+   capture") is therefore **not** closed. Whether this is intended Distant
+   Drifter difficulty, a `founder-establishment.ts` balance gap, or a missing
+   warm-up step is open and needs answering before this item can proceed;
+   `scripts/founding-split-readout.ts` reproduces the extinction
+   renderer-independently for whoever picks it up.*
 6. Resume water composition, herd embodiment verdicts, freshwater transitions,
    and broader ecology only where the integrated proof exposes a need.
 

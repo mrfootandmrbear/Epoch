@@ -34,6 +34,7 @@ import {
 import {
   islandAt,
   isolatedSinceYear,
+  nearestIslandId,
   saddleBetween,
   type IslandGeography,
   type SeaLevelHistory,
@@ -348,6 +349,7 @@ function migratedSite(
   deepTime: number,
   jumpYears: number,
   extent: number,
+  geography: IslandGeography | undefined,
   occupied: readonly ScoredSite[] = [],
 ): ScoredSite | undefined {
   if (!lineage.site) return undefined;
@@ -357,6 +359,16 @@ function migratedSite(
   const normalRadius = migrationRadius(jumpYears);
   const maximumRadius = originValid ? normalRadius : extent;
   const samplingSeed = lineageSeed(lineage.identity, lineage.id);
+  // A migrated site must be reachable by land from wherever the population
+  // actually stands. Without this, the wide reanchor search below (or simply a
+  // migration radius that outreaches a narrow strait) lets a population "swim"
+  // to a different island every jump, silently corrupting the island-membership
+  // reading gene flow and isolation branching are built on. `undefined` means no
+  // geography was supplied (the legacy synthetic-fixture path) and disables the
+  // check entirely; `null` means geography was supplied but no reachable land
+  // exists at all, which must reject every candidate rather than fall back to
+  // an unrestricted search.
+  const homeIsland = geography ? nearestIslandId(geography, origin.x, origin.z) : undefined;
   let best: ScoredSite | undefined;
 
   for (let i = -1; i < 480; i++) {
@@ -366,6 +378,7 @@ function migratedSite(
     const z = origin.z + Math.sin(angle) * radius;
     const sampleBoundary = extent / 2 - 5;
     if (Math.abs(x) > sampleBoundary || Math.abs(z) > sampleBoundary) continue;
+    if (homeIsland !== undefined && (homeIsland === null || islandAt(geography!, x, z) !== homeIsland)) continue;
     const habitat = sampleEcosystem(heightAt, x, z, climate, forageAt);
     if (!isViableSite(habitat, climate)) continue;
     const displacement = Math.hypot(x - origin.x, z - origin.z);
@@ -382,6 +395,7 @@ function resolveLineage(
   previous: LineageState,
   jumpYears: number,
   deepTime: number,
+  geography: IslandGeography | undefined,
   occupied: readonly ScoredSite[] = [],
 ): { outcome: PopulationOutcome; next: LineageState; change: LineageChange; scored?: ScoredSite } {
   const heightAt = (x: number, z: number) => snapshotHeightAt(snapshot, x, z);
@@ -412,6 +426,7 @@ function resolveLineage(
       deepTime,
       jumpYears,
       snapshot.extent,
+      geography,
       occupied,
     )
     : foundingSite(
@@ -1057,6 +1072,7 @@ export function resolveLanding(
       lineage,
       jumpYears,
       deepTime,
+      geography,
       lineageResolutions.flatMap(({ scored }) => scored ? [scored] : []),
     ));
   }

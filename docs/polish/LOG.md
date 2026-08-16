@@ -949,3 +949,175 @@ persistent per-lineage *variance* beyond the founder sample; those are present
 in bounded form (inherited traits blended toward the new island's habitat, plus
 drift) but could deepen if the proof exposes a need. The causal-reveal and
 serialized-fixture gates (items 3–5) are untouched.
+
+## 2026-08-15 · Honest isolation: migration and reanchor now require a land path
+
+Item 2's gene-flow work landed with one documented gap: `migratedSite` — the
+function that re-anchors an *already-established* lineage's site every jump —
+never consulted island geography at all, even though `resolveLanding` already
+had `geography` in scope. Ordinary migration, and the wider search a
+population makes once its exact site drowns, both picked whichever sampled
+candidate scored best inside a search radius, with no check that the
+destination was reachable by land from wherever the population actually stood.
+A deep-time migration reach (~368 m at a million years) is comparable to the
+width of open water between two young shields on this world, so this let a
+population silently "swim" to a different island in one ordinary jump — which
+would then corrupt the very island-membership reading `applyIslandGeneFlow`
+and `resolveIsolationSpeciation` depend on: gene flow could fire for two
+populations that never actually shared land, and a branch's declared
+"isolated" island could quietly un-isolate the next time it moved.
+
+**The fix.** `island-geography.ts` gains `nearestIslandId`: `islandAt` itself
+when the query point is dry land, otherwise the land found by searching
+outward in expanding grid rings — a cheap, deterministic proxy for "the ground
+this population last stood on" once its exact site has gone under.
+`outcome-resolver.ts` threads `geography` into `resolveLineage` and
+`migratedSite`, which now resolve the population's home island once
+(`nearestIslandId` at its current site) and reject every migration candidate
+not on that same island. `undefined` (no geography — the legacy
+synthetic-fixture path) disables the check exactly as the rest of item 2
+already does; `null` (geography present but no land survives anywhere near the
+population) rejects every candidate, which correctly starves the lineage to
+extinction rather than falling back to an unrestricted search. Branching
+(`isolatedFoundingSite`) already required landing on a *different* island on
+purpose — that half of the seam was sound and is untouched.
+
+**Verifying this actually closes the gap, not just plausibly does.** Both new
+tests were written to fail against the pre-fix resolver before being confirmed
+against the fix. The first attempt at a migration test didn't: two
+mirror-symmetric islands within reach of each other don't reproduce the bug,
+because the resolver's own small distance penalty already keeps a
+population home when both sides score identically, with or without the fix.
+Replaced with a tiny, steep home island next to a much better-habitat
+neighbour, plus a second case where a population's exact site drowns under
+sea-level rise while nearer ground on its own island stays dry. Confirmed by
+temporarily reverting `outcome-resolver.ts` alone: both cases then put the
+population on the far, unconnected island (`site.x` flips sign); with the fix
+restored, both stay on their own island.
+
+**Evidence.** 384/384 tests pass (5 new: 3 in `island-geography.test.ts` for
+`nearestIslandId`, 2 in `gene-flow.test.ts` for the migration/reanchor
+land-path checks). `npx tsc --noEmit` and `npm run build` are clean. No
+renderer change, so there is no visual gate to record.
+
+**Not done here.** This closes the one bug the prior entry named explicitly.
+Real pathfinding — a walkable route through the grid, rather than "same land
+component at the current stand" — was not needed: `resolveIslandGeography`'s
+land components already answer walkability at whatever stand a jump resolved
+at, and `nearestIslandId`'s ring search only covers the rarer case of a site
+drowning outright.
+
+## 2026-08-15 · Capture can now reach the post-split landing
+
+BACKLOG P1-1 named the gap: terrestrial fauna arrives only through the
+Distant Drifter, an energy-limited founder that needs a further jump to
+establish, and capture mode advanced exactly once — so no capture could
+contain land animals, let alone a speciation event. `w2k-chain`'s owner
+verdict proved the *geology* reads; nothing had yet proven the *population*
+consumer of that geology (item 2, landed earlier today) was reachable the same
+way a player reaches it.
+
+**Turned out to need no application code at all.** `founders=drifter` in
+`main.ts` already runs `introduceDistantDrifter` before the jump loop, and
+`jumps=`/`plume=` already replay the shield chain the multi-shield accretion
+work proved. Composing them —
+`?shot=w2k-chain&years=1000000&jumps=3&plume=active&founders=drifter` — was
+untried, not unsupported. `scripts/founding-split-readout.ts` (a sibling to
+`gene-flow-readout.ts`, entered through the Distant Drifter instead of the two
+always-present starting lineages) found the sequence renderer-independently
+first: the founder establishes on jump 1, thrives on jump 2, and on jump 3 —
+the same jump the third shield emerges — speciates onto it by dispersal.
+
+**Verified through the actual browser, on real WebGPU.** Navigated the app to
+that URL in the Browser pane (`backend: WebGPU`, not the fallback): the chain
+renders with no console errors, `captureReady` flips true, and orbiting in
+close on the new shield shows the branched herd standing on it, exactly where
+the sim placed `sheltered-grazer:0/1`. This is the resolver a player's click
+uses, not a fabricated capture-only state — the care BACKLOG P1-1 asked for.
+The known "flat dark unlit newest shield" defect makes the herd hard to read
+at a distance (their pale coats read as faint dots against it), which is a
+reason the shield-shading defect matters more than previously scored, not a
+new finding.
+
+**Evidence.** Added `foundingSplit2km` to `capture.mjs`'s `SHOT_SETS`,
+reusing the existing `w2k-chain`/`w2k-whole-island` cameras rather than
+authoring new ones — framing the two descendants well is its own Work Unit.
+`node scripts/capture.mjs --set foundingSplit2km --webgl` produces
+`docs/polish/evidence/foundingSplit2km/contact-sheet.png` (fallback backend;
+the herds are too small to read at contact-sheet scale, which is expected —
+this set proves reachability, not legibility). 384/384 tests pass, `npx tsc
+--noEmit` and `npm run build` are clean; no simulation code changed.
+
+**Not done here.** This closes BACKLOG P1-1's reachability gap only. Framing
+the two descendants for a real evidence pass (order-of-work item 4's golden
+cameras), the causal-reveal wording (item 3), and an owner verdict on any of
+it are still open. The flat-shaded newest shield is unchanged and still filed
+under "Open defects" above.
+
+## 2026-08-15 · Correction: the founding split does not establish
+
+The previous entry's central claim — that `?founders=drifter&plume=active&
+years=1000000&jumps=3` reaches a branched population — is **wrong**, found
+the same day while starting the next Work Unit (framing golden cameras for
+the two descendants).
+
+**What actually happened.** The "verified through the actual browser, on real
+WebGPU" paragraph above was a misread: what looked like a branched herd
+standing on the new shield was almost certainly the terrain's own rock-scatter
+detail objects, not creatures — the shield's flat, unlit shading (a known open
+defect) makes small pale shapes on it easy to mistake for animals at a
+distance, and no closer, unambiguous confirmation was taken before writing the
+verdict up as fact. The renderer-independent script that supposedly confirmed
+it first, `founding-split-readout.ts`, had its own bug: it called
+`captureWorldSnapshot` without forage/nutrient/runoff/basalt sampler
+functions, which silently default to a **constant forage of 1 everywhere** —
+nothing like the real terrain's forage field, which sits around 0.55-0.60 at
+the best site `foundingSite` can find near the plume. That constant-1 forage
+made the founder look thriving in the readout while the real app, sampling
+the real field, was starving it to death.
+
+**Caught by direct instrumentation of the real app, not another guess.**
+Temporary `console.log`s in `landing-state.ts` and `outcome-resolver.ts`,
+read back through `read_console_messages` in a fresh browser tab (stale Vite
+state was the first suspect and was ruled out), show the founder's abundance
+and energy hitting exactly zero on jump 1, every time, with `event: "extinct"`
+— not the "established... thrives... speciates" sequence previously reported.
+The instrumentation was removed once the finding was confirmed; the debug
+logs never reached a commit.
+
+**How far this goes, checked properly this time.** With the script fixed to
+sample real terrain fields (matching `currentSnapshot()`'s bilinear sampling
+exactly):
+- **No founder choice survives.** A sweep of all 60 `FounderChoices`
+  combinations (4 food sources × 3 sizes × 5 origin climates) against a
+  single 1,000,000-year jump from year 0 found every one extinct. The best
+  case still lands on zero abundance.
+- **Pacing doesn't rescue it either.** A 1-year jump makes literally zero
+  feeding-adaptation progress (`traitAdaptationRate(1) === 0` exactly), so
+  tiny jumps stall forever rather than easing the founder in. Any jump long
+  enough to move adaptation (roughly 50-100+ years) already costs more
+  abundance than the founder's starting 0.018 can absorb, because `intake`
+  stays under the ~0.4 break-even point until adaptation has climbed much
+  higher than one such jump can raise it. There is no jump-length strategy
+  found that thread this needle on the site `foundingSite` actually picks.
+
+**Open question, not answered here.** Is the Distant Drifter *meant* to fail
+under ordinary conditions — a founder that only succeeds with a deliberately
+prepared, unusually rich site — or is `founder-establishment.ts`'s
+intake/abundance balance tuned tighter than intended? Neither this session nor
+the retracted one has evidence either way; it needs someone to check whether
+an established founder has ever actually been produced through real play, not
+just through capture-mode URLs.
+
+**Reverted.** The `foundingSplit2km` capture set and its evidence directory
+are removed — they showed the (real, already-proven-elsewhere) three-island
+chain with no population on it, not what their labels claimed.
+`scripts/founding-split-readout.ts` is kept, fixed, and repointed at
+demonstrating the extinction rather than a false success — see its header.
+`docs/EXECUTION.md` item 5's note is corrected to match.
+
+**Evidence.** 384/384 tests pass, `npx tsc --noEmit` and `npm run build` are
+clean — nothing in `src/` changed, only the two scripts and this documentation.
+Order-of-work item 5 (capture the declared sequence) is open again, blocked on
+the founder-establishment question above, which is upstream of any camera or
+framing work.

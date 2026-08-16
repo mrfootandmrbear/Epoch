@@ -458,6 +458,45 @@ export function islandAt(geography: IslandGeography, x: number, z: number): stri
   return index >= 0 ? geography.islands[index]!.id : null;
 }
 
+/**
+ * Island id of the nearest dry land to a world position: `islandAt` itself
+ * when the position is already land, otherwise the land found by searching
+ * outward in expanding grid rings from the cell it falls in.
+ *
+ * A population whose exact site just drowned (a jump's sea-level rise
+ * submerged that one cell) still needs a "home island" to migrate honestly —
+ * the closest surviving ground, not an unrelated island found by scanning the
+ * whole map. This is a cheap proxy for a walkable path, not real pathfinding,
+ * but on the compact land components this world produces the nearest land in
+ * grid distance is the land the population actually stood on. Returns `null`
+ * only when the search exhausts the grid without finding any land at all.
+ */
+export function nearestIslandId(geography: IslandGeography, x: number, z: number): string | null {
+  const direct = islandAt(geography, x, z);
+  if (direct !== null) return direct;
+
+  const { side, extent, cellIsland } = geography;
+  const cell = cellIndexAt(x, z, side, extent);
+  const originX = cell % side;
+  const originZ = Math.floor(cell / side);
+
+  for (let ring = 1; ring < side; ring++) {
+    const zLow = originZ - ring;
+    const zHigh = originZ + ring;
+    for (let zz = zLow; zz <= zHigh; zz++) {
+      if (zz < 0 || zz >= side) continue;
+      const onEdgeRow = zz === zLow || zz === zHigh;
+      const xStep = onEdgeRow ? 1 : ring * 2;
+      for (let xx = originX - ring; xx <= originX + ring; xx += xStep) {
+        if (xx < 0 || xx >= side) continue;
+        const ordinal = cellIsland[zz * side + xx]!;
+        if (ordinal >= 0) return geography.islands[ordinal]!.id;
+      }
+    }
+  }
+  return null;
+}
+
 /** The saddle between two shields, or `null` when either is unknown to this resolve. */
 export function saddleBetween(
   geography: IslandGeography,
