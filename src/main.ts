@@ -176,24 +176,55 @@ const controls = new OrbitControls(camera, renderer.domElement);
 controls.target.set(0, 14, 0);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
-controls.minDistance = 1.25;
-// Far enough out to hold the whole 2 km world in frame with margin. Keyed to
-// the extent so a future resize does not silently crop the overview.
+controls.minDistance = 3;
 controls.maxDistance = RENDER_SCALE.islandExtent * 1.6;
-// Stay above the horizon — past 0.49π the camera swings under the seabed and
-// the world renders from its underside.
 controls.maxPolarAngle = Math.PI * 0.49;
+controls.screenSpacePanning = false;
 controls.zoomToCursor = true;
-controls.zoomSpeed = 1.25;
-// Keep the camera vocabulary predictable across devices. Terrain tools only
-// borrow the primary gesture; secondary mouse and multi-touch navigation stay
-// in these conventional OrbitControls positions.
-controls.mouseButtons.LEFT = MOUSE.ROTATE;
+controls.zoomSpeed = 1.0;
+// Google Earth vocabulary: left-drag pans the world under you, right-drag
+// tilts/orbits, scroll zooms toward cursor. Sculpting tools override the
+// primary gesture but secondary navigation stays here.
+controls.mouseButtons.LEFT = MOUSE.PAN;
 controls.mouseButtons.MIDDLE = MOUSE.DOLLY;
-controls.mouseButtons.RIGHT = MOUSE.PAN;
-controls.touches.ONE = TOUCH.ROTATE;
-controls.touches.TWO = TOUCH.DOLLY_PAN;
+controls.mouseButtons.RIGHT = MOUSE.ROTATE;
+controls.touches.ONE = TOUCH.PAN;
+controls.touches.TWO = TOUCH.DOLLY_ROTATE;
 renderer.domElement.addEventListener("contextmenu", (event) => event.preventDefault());
+
+// Double-click zooms smoothly toward the terrain point under the cursor,
+// like Google Earth. The orbit target moves to the clicked point and the
+// camera closes half the remaining distance in a short ease.
+const DBLCLICK_EASE_MS = 600;
+let dblClickAnim: { start: number; fromPos: Vector3; fromTarget: Vector3; toPos: Vector3; toTarget: Vector3 } | null = null;
+renderer.domElement.addEventListener("dblclick", (event) => {
+  if (captureMode || formTool !== "look") return;
+  pointer.set((event.clientX / window.innerWidth) * 2 - 1, -(event.clientY / window.innerHeight) * 2 + 1);
+  raycaster.setFromCamera(pointer, camera);
+  const hits = raycaster.intersectObject(landingState.terrain, false);
+  if (!hits.length) return;
+  const hit = hits[0].point;
+  const toTarget = hit.clone();
+  toTarget.y = Math.max(hit.y, 0);
+  const direction = camera.position.clone().sub(toTarget).normalize();
+  const currentDist = camera.position.distanceTo(controls.target);
+  const toPos = toTarget.clone().addScaledVector(direction, Math.max(currentDist * 0.5, controls.minDistance));
+  dblClickAnim = {
+    start: performance.now(),
+    fromPos: camera.position.clone(),
+    fromTarget: controls.target.clone(),
+    toPos,
+    toTarget,
+  };
+});
+function updateDblClickZoom(): void {
+  if (!dblClickAnim) return;
+  const t = Math.min(1, (performance.now() - dblClickAnim.start) / DBLCLICK_EASE_MS);
+  const ease = t * t * (3 - 2 * t);
+  camera.position.lerpVectors(dblClickAnim.fromPos, dblClickAnim.toPos, ease);
+  controls.target.lerpVectors(dblClickAnim.fromTarget, dblClickAnim.toTarget, ease);
+  if (t >= 1) dblClickAnim = null;
+}
 
 const captureParams = new URLSearchParams(window.location.search);
 const captureShot = captureParams.get("shot");
@@ -310,10 +341,8 @@ for (const eventName of ["pointerdown", "wheel", "keydown", "touchstart"] as con
   window.addEventListener(eventName, () => {
     lastInteraction = performance.now() / 1000;
     if (presentation.active) presentation.setActive(false);
-    // Grabbing the camera mid-beat is the predictable, immediate hand-back:
-    // the beat stops and the player's gesture applies from wherever the
-    // camera already was, exactly like it would with no beat running.
     arrivalBeat = null;
+    dblClickAnim = null;
   }, { passive: true });
 }
 
@@ -490,7 +519,7 @@ function syncBrushControls(): void {
 
 // Gesture arbitration. A shaping tool takes the primary gesture (left-drag /
 // one finger) and nothing else, so the camera is never taken away mid-sculpt:
-// right-drag still pans, the wheel still zooms, two fingers still pinch-pan.
+// right-drag still orbits, the wheel still zooms, two fingers still pinch.
 // `controls.enabled` is left alone here — presentation mode owns that flag.
 const activePointers = new Set<number>();
 let strokePointerId: number | null = null;
@@ -505,8 +534,8 @@ let strokeOrigin: { x: number; y: number } | null = null;
 
 function syncCameraGestures(): void {
   const painting = formTool !== "look" && !jumped;
-  controls.mouseButtons.LEFT = painting ? null : MOUSE.ROTATE;
-  controls.touches.ONE = painting ? null : TOUCH.ROTATE;
+  controls.mouseButtons.LEFT = painting ? null : MOUSE.PAN;
+  controls.touches.ONE = painting ? null : TOUCH.PAN;
 }
 let totalYears = 0;
 let climate: ClimateForces = { ...DEFAULT_CLIMATE };
@@ -567,11 +596,11 @@ function setTool(tool: FormTool): void {
   });
   formHintEl.textContent =
     tool === "look"
-      ? "Explore with left-drag or one finger. Pan with right-drag or two fingers; zoom with the wheel or a pinch."
+      ? "Drag to pan the world. Right-drag to orbit. Scroll to zoom. Double-click to fly to a spot."
       : tool === "raise"
-        ? "Drag across the land to build ridges and refuges — right-drag or two fingers still move the camera."
+        ? "Drag across the land to build ridges and refuges — right-drag to orbit, scroll to zoom."
         : tool === "carve"
-          ? "Drag across the land to cut valleys and channels — right-drag or two fingers still move the camera."
+          ? "Drag across the land to cut valleys and channels — right-drag to orbit, scroll to zoom."
           : tool === "level"
             ? "Brush across rough ground to form shelves, plains, and level valley floors."
             : tool === "cliff"
@@ -1014,7 +1043,8 @@ async function start() {
     landingState.update(elapsed, camera.position);
     presentation.update(elapsed);
     updateArrivalBeat();
-    if (!presentation.active && !arrivalBeat) controls.update();
+    updateDblClickZoom();
+    if (!presentation.active && !arrivalBeat && !dblClickAnim) controls.update();
     updateShadowCoverage();
     const callsBeforeRender = renderer.info.render.calls;
     renderPipeline!.render();

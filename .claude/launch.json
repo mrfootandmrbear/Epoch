@@ -26,6 +26,12 @@
       "port": 5223
     },
     {
+      "name": "epoch-dev-controls",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--", "--port", "5231", "--strictPort", "--force"],
+      "port": 5231
+    },
+    {
       "name": "epoch-dev-reef",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--", "--port", "5217", "--strictPort", "--force"],
