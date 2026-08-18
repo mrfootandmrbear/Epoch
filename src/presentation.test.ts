@@ -32,6 +32,7 @@ describe("golden shots", () => {
       // The multi-shield chain.
       "w2k-chain",
       "w2k-chain-saddle",
+      "proof-founder",
     ]);
   });
 

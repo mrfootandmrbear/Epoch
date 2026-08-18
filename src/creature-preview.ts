@@ -33,10 +33,11 @@ const samples = view === "game-distance"
   ? Array.from({ length: 12 }, (_, index) => [low, mean, high][index % 3]!)
   : [low, mean, high];
 const herd = createCreatureExpressionSpike(samples);
+const gap = 1.45;
 if (view === "front") {
   const matrix = new Matrix4();
   for (let index = 0; index < samples.length; index++) {
-    matrix.makeTranslation(0, 0, (index - 1) * 3.2);
+    matrix.makeTranslation(0, 0, (1 - index) * gap);
     herd.setMatrixAt(index, matrix);
   }
   herd.instanceMatrix.needsUpdate = true;
@@ -45,7 +46,7 @@ if (view === "front") {
   for (let index = 0; index < samples.length; index++) {
     const row = Math.floor(index / 4);
     const column = index % 4;
-    matrix.makeTranslation(column * 3.4 - 5.1 + row * 0.35, 0, row * -3.2);
+    matrix.makeTranslation(column * 1.55 - 2.3 + row * 0.18, 0, row * -1.45);
     herd.setMatrixAt(index, matrix);
   }
   herd.instanceMatrix.needsUpdate = true;
@@ -53,8 +54,8 @@ if (view === "front") {
 scene.add(herd);
 
 const ground = new Mesh(
-  new PlaneGeometry(60, 60),
-  new MeshStandardMaterial({ color: 0x566342, roughness: 0.94 }),
+  new PlaneGeometry(24, 24),
+  new MeshStandardMaterial({ color: 0x8a7a58, roughness: 0.94 }),
 );
 ground.rotation.x = -Math.PI / 2;
 ground.position.y = -0.01;
@@ -66,14 +67,14 @@ sun.position.set(-8, 14, 9);
 sun.castShadow = true;
 scene.add(sun);
 
-if (view === "front") camera.position.set(13, 3.3, 0);
-if (view === "side") camera.position.set(4.2, 3.3, 15);
-if (view === "top") camera.position.set(4.2, 20, 0.5);
-if (view === "game-distance") camera.position.set(17, 12, 25);
+if (view === "front") camera.position.set(6.4, 0.85, 0);
+if (view === "side") camera.position.set(1.55, 0.85, 6.6);
+if (view === "top") camera.position.set(1.55, 8.2, 0.12);
+if (view === "game-distance") camera.position.set(7.2, 4.4, 9.2);
 camera.lookAt(
-  view === "front" || view === "game-distance" ? 0 : 4.2,
-  view === "top" ? 0 : 1.35,
-  view === "game-distance" ? -3.2 : 0,
+  view === "front" ? 0 : view === "game-distance" ? 0.1 : 1.55,
+  view === "top" ? 0 : 0.22,
+  view === "game-distance" ? -0.8 : 0,
 );
 
 addEventListener("resize", () => {
@@ -83,4 +84,5 @@ addEventListener("resize", () => {
 });
 
 await renderer.init();
+document.documentElement.dataset.captureReady = "true";
 renderer.setAnimationLoop(() => renderer.render(scene, camera));

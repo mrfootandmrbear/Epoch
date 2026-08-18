@@ -342,15 +342,15 @@ const herdScale = new Vector3(0.9, 0.9, 0.9);
 const herdHidden = new Vector3(0, 0, 0);
 const HERD_UP = new Vector3(0, 1, 0);
 
-/** The accepted marsh-grazer's showcase means. */
+/** Land-iguana founder showcase means: squat, arid-gold, modest crest. */
 const SHOWCASE_GRAZER_TRAITS: PopulationTraits = {
-  bodyMass: 1.08,
-  legLength: 1.05,
-  footWidth: 1.04,
-  insulation: 0.42,
-  coatLightness: 0.48,
-  coatWarmth: 0.58,
-  hornLength: 0.92,
+  bodyMass: 1.02,
+  legLength: 0.86,
+  footWidth: 0.92,
+  insulation: 0.22,
+  coatLightness: 0.58,
+  coatWarmth: 0.78,
+  hornLength: 0.88,
 };
 
 /** Light, long-legged, bare-coated: fast, wide-spread, loose-holding. */

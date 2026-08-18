@@ -1,7 +1,7 @@
 # Epoch execution direction
 
 > **Class:** Contract. **Authority:** Canonical source for current state and
-> priority. **Updated:** 2026-08-17. Update whenever a listed capability,
+> priority. **Updated:** 2026-08-18. Update whenever a listed capability,
 > priority, or verdict changes.
 
 ## Current objective
@@ -22,7 +22,7 @@ WebGPU.
 
 | Next | Brief | Gate |
 |---|---|---|
-| **Now** | [WU-4a](briefs/WU-4a-founder-family.md) — land-iguana founder family | Owner: does it read as that lineage? |
+| **Now** | [WU-4a](briefs/WU-4a-founder-family.md) — land-iguana founder family at **candidate**; awaiting owner verdict | Owner: does it read as that lineage, with crest—not horns—carrying `hornLength`? |
 | Then | [WU-4b](briefs/WU-4b-proof-placement.md) — herds on the islands the resolver named | Owner: placement matches the lineage report |
 | Then | [WU-4c](briefs/WU-4c-ancestry-split.md) — related specialists | Owner: descendant readability |
 | Then | Item 5 captures + visual and causal gates | Recorded in this file |
@@ -157,6 +157,11 @@ capture shows the sequence fails without them.
    WU-4b (place proof populations), WU-4c (ancestry vs habitat split). The
    accepted marsh-grazer remains on disk as prior evidence; the proof path must
    stop using it as the founder look.*
+   *WU-4a implemented 2026-08-18: package `galapagos-land-iguana` is at
+   **candidate** with empty `acceptance.verdict`. The proof embodiment
+   (`createCreatureExpressionSpike`, landing herds, raft founders) now uses that
+   export. `hornLength` is a nuchal/dorsal crest. Not accepted — owner visual
+   verdict required.*
 5. Capture the declared sequence, run automated checks, and obtain owner visual
    verdicts.
    *Attempted and retracted 2026-08-15, same day — see LOG.md "Correction".*
@@ -299,7 +304,7 @@ members consequences.
 | Marine lineage and reef succession | Implemented as bounded proofs | Preserve; expand only for an integrated-proof consumer. |
 | Aerial persistence and wider food web | Partial or planned | Deferred behind the current objective. |
 | Landing-state renderer | Substantial WebGPU/TSL implementation | Regional multi-shield grammar and serialized proof captures. |
-| Ecosystem assets | Grazer and coral accepted; tree, seagrass, and fish remain candidates | Use one recognizable present-day Galápagos founder family for the proof; after it clears, add ancestral families one at a time with bounded evolvable trait contracts. |
+| Ecosystem assets | Grazer and coral accepted; land-iguana founder family at **candidate** (WU-4a, 2026-08-18); tree, seagrass, and fish remain candidates | Owner verdict: does the founder read as a Galápagos land iguana, with crest—not horns—carrying `hornLength`? After that clears, WU-4b/4c, then add ancestral families one at a time. |
 | Jump transition | Production direction selected; depth remains secondary | Revisit after landing causality reads clearly. |
 
 “Implemented” means present with proportionate automated evidence. “Accepted”

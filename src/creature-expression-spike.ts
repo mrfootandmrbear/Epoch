@@ -7,8 +7,8 @@ import {
   Matrix4,
   Mesh,
 } from "three/webgpu";
-import source from "../assets/ecosystem/example-marsh-grazer/source/marsh-grazer.geometry.json";
-import { COAT_DETAIL_ATTRIBUTE, createGrazerCoatMaterial } from "./creature-material";
+import source from "../assets/ecosystem/galapagos-land-iguana/source/land-iguana.geometry.json";
+import { COAT_DETAIL_ATTRIBUTE, createFounderHideMaterial } from "./creature-material";
 
 export const GRAZER_SHAPE_CHANNELS = [
   "bodyMass",
@@ -31,7 +31,7 @@ function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
 }
 
-export function createMarshGrazerGeometry(): BufferGeometry {
+export function createLandIguanaGeometry(): BufferGeometry {
   const geometry = new BufferGeometry();
   geometry.setAttribute("position", new Float32BufferAttribute(source.positions, 3));
   geometry.setIndex(source.indices);
@@ -48,9 +48,9 @@ export function createMarshGrazerGeometry(): BufferGeometry {
 export function createCreatureExpressionSpike(
   samples: readonly CreatureExpressionSample[],
 ): InstancedMesh {
-  const geometry = createMarshGrazerGeometry();
-  const material = createGrazerCoatMaterial();
-  // The coat material reads insulation per instance, which the morph texture
+  const geometry = createLandIguanaGeometry();
+  const material = createFounderHideMaterial();
+  // The hide material reads insulation per instance, which the morph texture
   // cannot supply to a fragment shader. One instanced attribute carries the
   // trait and a stable per-animal seed alongside it.
   geometry.setAttribute(
@@ -64,7 +64,7 @@ export function createCreatureExpressionSpike(
 
   samples.forEach((sample, index) => {
     setCoatDetailAt(result, index, sample);
-    matrix.makeTranslation(index * 4.2, 0, 0);
+    matrix.makeTranslation(index * 1.6, 0, 0);
     result.setMatrixAt(index, matrix);
     probe.morphTargetInfluences!.fill(0);
     sample.shape.forEach((value, channel) => {
@@ -87,10 +87,10 @@ export function createCreatureExpressionSpike(
 }
 
 /**
- * Writes the insulation the coat shader reads, plus a stable seed that keeps
- * one animal's fur from being a pixel-exact copy of its neighbour's. Insulation
- * is shape channel 3, the same value the bulk morph uses, so surface and
- * silhouette never disagree about how thick a coat is.
+ * Writes the insulation the hide shader reads, plus a stable seed that keeps
+ * one animal's scales from being a pixel-exact copy of its neighbour's.
+ * Insulation is shape channel 3, the same value the bulk morph uses, so
+ * surface and silhouette never disagree about how thick the hide is.
  */
 function setCoatDetailAt(
   herd: InstancedMesh,
@@ -139,19 +139,14 @@ export function setCreatureExpressionAt(
 const coatColor = new Color();
 
 /**
- * The two coat scalars as a colour.
- *
- * The tonal range is wider than the original band. With one mesh shared by
- * every population, colour is most of what separates one animal from the next,
- * and a range this narrow compressed a whole herd's worth of variation into a
- * few percent of lightness. Population means still land where they always did;
- * only the distance the extremes can travel from them has grown.
+ * Ochre-to-gold family albedo. Warmth pulls toward saturated saffron; lightness
+ * walks the same hue from dark chocolate to pale Conolophus yellow.
  */
 function coatColorFor(sample: CreatureExpressionSample, out: Color): Color {
   const warmth = clamp01(sample.coatWarmth);
   return out.setHSL(
-    0.082 - warmth * 0.045,
-    0.17 + warmth * 0.32,
-    0.19 + clamp01(sample.coatLightness) * 0.44,
+    0.105 - warmth * 0.028,
+    0.32 + warmth * 0.38,
+    0.24 + clamp01(sample.coatLightness) * 0.40,
   );
 }

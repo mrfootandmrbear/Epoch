@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "id": "galapagos-land-iguana",
+  "displayName": "Galápagos Land Iguana",
+  "category": "animal",
+  "stage": "candidate",
+  "role": "arid-island grazing herbivore",
+  "habitats": ["arid seasonal lowland", "coastal scrub"],
+  "realWorldReferents": [
+    "Conolophus subcristatus for blunt head, dewlap, nuchal-dorsal crest, and squat herbivore plan",
+    "Conolophus pallidus for ochre-to-gold arid palette"
+  ],
+  "silhouette": "A low barrel body on short limbs, blunt snout, dewlap, sagittal crest of spines, and a long tapering tail.",
+  "paletteFamily": "epoch-iguana-ochre",
+  "scaleMeters": { "min": 0.9, "max": 1.5 },
+  "traits": {
+    "continuous": [
+      { "name": "bodyMass", "driver": "forage availability and energetic reserve", "range": [0, 1] },
+      { "name": "legLength", "driver": "inundation depth and rough terrain", "range": [0, 1] },
+      { "name": "footWidth", "driver": "soft substrate and persistent inundation", "range": [0, 1] },
+      { "name": "insulation", "driver": "temperature and exposure", "range": [0, 1] },
+      { "name": "hornLength", "driver": "open-habitat competition and defense, expressed as crest height", "range": [0, 1] },
+      { "name": "coatWarmth", "driver": "habitat palette and exposure", "range": [0, 1] },
+      { "name": "coatLightness", "driver": "habitat palette and solar exposure", "range": [0, 1] }
+    ],
+    "discrete": [
+      {
+        "name": "footPlan",
+        "driver": "persistent inundation",
+        "variants": ["compact clawed foot", "splayed wet-ground foot"]
+      }
+    ]
+  },
+  "source": {
+    "tool": "deterministic Node.js topology generator",
+    "files": [
+      "source/generate-land-iguana.mjs",
+      "source/land-iguana.geometry.json"
+    ],
+    "procedure": "Run node assets/ecosystem/galapagos-land-iguana/source/generate-land-iguana.mjs. Topology-stable morphs are required for InstancedMesh trait expression; Foxel remeshing cannot prove that contract."
+  },
+  "previews": [
+    "previews/front.png",
+    "previews/side.png",
+    "previews/top.png",
+    "previews/game-distance.png",
+    "previews/landing-showcase.png"
+  ],
+  "exports": ["exports/land-iguana.runtime.json"],
+  "lods": [
+    { "name": "near", "file": "exports/land-iguana.runtime.json", "maxTriangles": 1500 }
+  ],
+  "animations": { "required": ["idle", "walk"] },
+  "showcase": "previews/landing-showcase.png",
+  "acceptance": { "verdict": "" }
+}

@@ -75,6 +75,13 @@ export const GOLDEN_SHOTS = {
    * as the two skirts meet, then erodes back under it.
    */
   "w2k-chain-saddle": { position: [-212, 96, 430], target: [-212, 5, 20] },
+
+  /**
+   * Near look at the land-iguana founder showcase (WU-4a). Seated at the
+   * candidate herd point (17, 9) near the starting-island summit. Added;
+   * existing cameras are unedited.
+   */
+  "proof-founder": { position: [33, 52, 26], target: [17, 28, 9] },
 } as const;
 
 export type GoldenShotName = keyof typeof GOLDEN_SHOTS;

@@ -144,6 +144,16 @@ const SHOT_SETS = {
     { label: "07-storm", query: "shot=storm&years=1000&time=42" },
     { label: "08-storm-wave-height", query: "shot=wave-height&seaState=storm&years=1000&time=42" },
   ],
+  // WU-4a land-iguana founder family. New set; existing comparison sets are
+  // unedited. Creature-preview shots set captureReady after renderer.init().
+  proofFounder: [
+    { label: "01-front", path: "/creature-preview.html", query: "view=front" },
+    { label: "02-side", path: "/creature-preview.html", query: "view=side" },
+    { label: "03-top", path: "/creature-preview.html", query: "view=top" },
+    { label: "04-game-distance", path: "/creature-preview.html", query: "view=game-distance" },
+    { label: "05-landing-showcase", query: "shot=proof-founder&herd=candidate&years=10000&time=42" },
+    { label: "06-established-proof", query: "shot=proof-founder&founders=drifter&plume=active&years=1000000&jumps=2&time=42" },
+  ],
   // UI/HUD review runs WITHOUT capture mode, because `?shot=` hides every
   // panel. These are the surfaces a new player actually sees first.
   ui: [
@@ -266,7 +276,8 @@ async function capture(args) {
     page.on("pageerror", (err) => consoleErrors.push(`pageerror: ${err.message}`));
 
     for (const shot of shots) {
-      const url = shot.query ? `${origin}/?${shot.query}` : origin;
+      const pagePath = shot.path ?? "/";
+      const url = shot.query ? `${origin}${pagePath}?${shot.query}` : `${origin}${pagePath}`;
       const started = Date.now();
       await page.goto(url, { waitUntil: "load", timeout: 120_000 });
 
