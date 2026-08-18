@@ -1027,10 +1027,6 @@ cameraDockEl.addEventListener("focusin", cancelCameraDockAutoCollapse);
 cameraDockEl.addEventListener("focusout", scheduleCameraDockAutoCollapse);
 scheduleCameraDockAutoCollapse();
 
-if (!captureMode && !proofReplay) {
-  applyEmptyStart(startingWorldPreset(DEFAULT_STARTING_WORLD_ID));
-}
-
 startingWorldEl.addEventListener("change", () => {
   const preset = startingWorldPreset(startingWorldEl.value);
   endStroke();
@@ -1330,6 +1326,14 @@ async function start() {
       );
     }
   });
+}
+
+// The default empty start has to be seated after the renderer-state bindings
+// above (`rendererReady`, `oceanCache`) exist: `applyEmptyStart` calls
+// `applyOceanForces`, and running it earlier in module evaluation hits the
+// temporal dead zone and kills the whole module before `start()` ever runs.
+if (!captureMode && !proofReplay) {
+  applyEmptyStart(startingWorldPreset(DEFAULT_STARTING_WORLD_ID));
 }
 
 start();

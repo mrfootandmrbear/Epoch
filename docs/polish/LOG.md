@@ -1737,6 +1737,18 @@ lineages across five 1 Myr jumps, under both the preset's wet/warm climate and
 2 / 3. The resolver was not retuned. Inhabited Test worlds therefore replay
 the weathered proof recipe.
 
-**Verdict.** Ready for owner look. Not accepted. Player default and the picker
-need a live WebGPU check. The volcano founder gap is recorded as an open
-defect.
+**Verdict.** **Accepted 2026-08-18.** The owner recorded a pass on the player
+default and the Test worlds picker, checked live on the WebGPU backend.
+
+The look could not be taken against the shipped build: WU-7 also introduced a
+boot-order crash that left every non-capture URL as GUI over a black canvas
+(`applyEmptyStart` ran above the `rendererReady` binding, so module evaluation
+threw in the temporal dead zone and `start()` never ran). Fixed by moving the
+default-start block below those bindings, immediately before `start()`. The
+pass is recorded against that fixed build.
+
+`npm test` passed with the crash in place — no test evaluates `src/main.ts`
+boot order, so a browser load is the only check that catches it.
+
+The volcano founder gap remains recorded as an open defect and is out of scope
+for this verdict.

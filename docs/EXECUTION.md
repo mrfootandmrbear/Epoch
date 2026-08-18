@@ -24,16 +24,15 @@ look need local WebGPU.
 
 | Next | Brief | Gate |
 |---|---|---|
-| **Now** | Owner look — [WU-7](briefs/WU-7-default-worlds.md) player default and Test worlds picker | Ready for owner verdict |
-| After WU-7 look | [WU-M1](briefs/WU-M1-intertidal-crab.md) — splash-zone crab occupancy | Owner visual verdict |
+| **Now** | [WU-M1](briefs/WU-M1-intertidal-crab.md) — splash-zone crab occupancy | Owner visual verdict |
 | Later, one per session | [WU-M2](briefs/WU-M2-marine-iguana.md) marine iguana → [WU-M3](briefs/WU-M3-sea-lion.md) sea lion → [WU-M4](briefs/WU-M4-reef-urchin.md) urchin → [WU-M5](briefs/WU-M5-upwelling-bird.md) one upwelling bird | Owner visual verdict each |
 | Parallel, optional | [WU-P0-1](briefs/WU-P0-1-lockfile.md) — clean `npm install` | Tests on a fresh clone |
 
 Do not resume LW-6, LW-7, atmosphere identity, or unplanned extra fauna unless a
 proof capture shows the sequence fails without them. The parked water-life
-program (M1–M5) is the dispatched shoreline fill; do not start M1 until the
-WU-7 look is recorded, and do not start M2–M5 in the same session as another
-family. It is splash-to-shelf occupancy, not FFT / water-surface polish.
+program (M1–M5) is the dispatched shoreline fill; the WU-7 look is recorded
+(accepted 2026-08-18), so M1 is unblocked. Do not start M2–M5 in the same
+session as another family. It is splash-to-shelf occupancy, not FFT / water-surface polish.
 
 ## Order of work
 
@@ -262,7 +261,12 @@ family. It is splash-to-shelf occupancy, not FFT / water-surface polish.
   because the default founder does not establish on that landform (0 living
   lineages across five 1 Myr jumps, including under `DEFAULT_CLIMATE`). Do not
   retune forage or establishment from this unit. `DEFAULT_CLIMATE` itself was
-  not changed. Ready for owner look; not accepted.
+  not changed.
+
+  **Accepted 2026-08-18** on the owner's look, after the boot-order crash the
+  unit shipped with was fixed (see Open defects). Scope of the verdict is the
+  empty-start default, the Test worlds picker, and the pinning of existing
+  proof URLs — not founder viability on Young volcano.
 6. Resume water composition, herd embodiment verdicts, freshwater transitions,
    and broader ecology only where the integrated proof exposes a need.
 
@@ -362,9 +366,9 @@ family. It is splash-to-shelf occupancy, not FFT / water-surface polish.
   prompt was the defect. Causal acceptance stays the product bar, judged in
   play. [WU-6](briefs/WU-6-causal-reveal.md) is not a unit.
 - **Player default and test landings, 2026-08-18** — [WU-7](briefs/WU-7-default-worlds.md)
-  ready for owner look. Fresh load is Young volcano. Test worlds picker loads
-  the three inhabited proof landings. Proof URLs without `world=` stay on
-  weathered-island. Not accepted.
+  **accepted.** Owner recorded a pass. Fresh load is Young volcano. Test worlds
+  picker loads the three inhabited proof landings. Proof URLs without `world=`
+  stay on weathered-island.
 
   **Scope.** Empty-start default, climate/plume matching that preset, Test
   worlds picker, and pinning of existing proof URLs.
@@ -373,7 +377,32 @@ family. It is splash-to-shelf occupancy, not FFT / water-surface polish.
   landform currently cannot establish the default founder; inhabited fixtures
   stay on the weathered proof recipe until a later unit is dispatched.
 
+  **The owner look was blocked** by a boot-order crash the unit shipped with —
+  see "Fresh load rendered the GUI over a black canvas" under Open defects. The
+  pass was recorded against the fixed build, not the shipped one.
+
 ## Open defects
+
+- ~~**Fresh load rendered the GUI over a black canvas, 2026-08-18.**~~
+  **Fixed 2026-08-18.** WU-7 seated the default empty start with a top-level
+  `applyEmptyStart(startingWorldPreset(DEFAULT_STARTING_WORLD_ID))` placed
+  *above* the `let rendererReady` / `oceanCache` bindings in `src/main.ts`.
+  `applyEmptyStart` calls `applyOceanForces`, which reads `rendererReady`, so
+  module evaluation threw `ReferenceError: Cannot access 'rendererReady' before
+  initialization` in the temporal dead zone. The throw killed the rest of the
+  module — including the `start()` call that runs `renderer.init()` — so the
+  HTML shell painted, the canvas stayed black, and `status` never left
+  "loading…". Any URL without `capture` or a proof replay was affected; capture
+  and proof URLs skipped the block and were unaffected, which is why the WU-5
+  proof captures still looked right.
+
+  The fix moves the default-start block below those bindings, immediately
+  before `start()`, with a comment naming the ordering constraint. No
+  behavioural change beyond boot order.
+
+  **Not covered by tests.** `npm test` passed with the crash in place — 63
+  files, 440 tests, none of which evaluate `src/main.ts` boot order. A browser
+  load is currently the only check that catches this class of defect.
 
 - ~~**Zooming in on creatures bogs the framerate down, 2026-08-16.**~~
   **Closed as stale 2026-08-18 (WU-D1).** The owner measured the D1 fixture
