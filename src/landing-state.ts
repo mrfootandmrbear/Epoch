@@ -81,7 +81,12 @@ import { DEFAULT_RENDER_DIAG, FAR_LOD_VIEW_OFFSET, type RenderDiagOptions } from
 import { resolveVolcanicAccretion } from "./volcanism";
 import { VOLCANIC_OUTPUTS, type PlumeVigor, type VolcanicOutput } from "./volcanism";
 import { createVolcanicHotSpotMarker } from "./volcanic-hotspot-marker";
-import { startingWorldPreset, type StartingWorldPreset } from "./starting-world-presets";
+import {
+  DEFAULT_STARTING_WORLD_ID,
+  startingVentForPreset,
+  startingWorldPreset,
+  type StartingWorldPreset,
+} from "./starting-world-presets";
 import { createFishRenderer } from "./fish-renderer";
 import { createDistantDrifterRenderer, drifterArrivalPosition } from "./distant-drifter-renderer";
 import {
@@ -135,7 +140,7 @@ function makeTerrain(
   for (let i = 0; i < positions.count; i++) {
     const x = positions.getX(i);
     const z = positions.getZ(i);
-    const y = startingWorldPreset("weathered-island").heightAt(x, z);
+    const y = startingWorldPreset(DEFAULT_STARTING_WORLD_ID).heightAt(x, z);
     positions.setY(i, y);
     color.copy(formedTerrainColor(y, x, z));
     colors[i * 3] = color.r;
@@ -536,7 +541,7 @@ export function createLandingState(
   scene.add(distantDrifter.group);
   scene.add(life);
   let revealed = false;
-  let activeClimate: ClimateForces = { ...DEFAULT_CLIMATE };
+  let activeClimate: ClimateForces = { ...startingWorldPreset(DEFAULT_STARTING_WORLD_ID).climate };
   let lastElapsed = 0;
   let lastSnowElapsed = 0;
   let frameIndex = 0;
@@ -551,7 +556,12 @@ export function createLandingState(
   for (let i = 0; i < terrainPositions.count; i++) initialHeights[i] = terrainPositions.getY(i);
   // Coastal animals recruit from the sea and birds arrive under their own
   // power. Non-flying terrestrial animals require an over-water drifter.
-  const initialWorld = createInitialWorldState(initialHeights, TERRAIN_SIDE, TERRAIN_SIZE);
+  const initialWorld = createInitialWorldState(
+    initialHeights,
+    TERRAIN_SIDE,
+    TERRAIN_SIZE,
+    startingVentForPreset(startingWorldPreset(DEFAULT_STARTING_WORLD_ID)),
+  );
   let worldHistory = initialWorld.history;
 
   function syncTerrainMaterialState(): void {
@@ -1156,7 +1166,7 @@ export function createLandingState(
         elevations,
         TERRAIN_SIDE,
         TERRAIN_SIZE,
-        preset.plume ? { ...preset.plume, vigor: preset.plumeVigor } : undefined,
+        startingVentForPreset(preset),
       ).history;
       if (!preset.plume) {
         // No authored hotspot, but the plume setting still has to be the one the

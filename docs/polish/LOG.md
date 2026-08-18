@@ -1717,3 +1717,26 @@ run (Playwright is not installed in this environment); it is ready for item 5.
 visual history) can now proceed — the fixtures define exactly which populations
 need to be visible, at what abundance, on which islands, with what trait
 differences. Item 5 (capture and verdicts) has the `proofSequence` set ready.
+
+## WU-7 · Default volcano world and test landings (2026-08-18)
+
+**Hypothesis.** The player still opened on Weathered island while inhabited
+work lived on Young volcano plus proof URLs. A Test worlds picker that
+replays the same `advance` path would let testers load populations without
+query strings.
+
+**Change.** Young volcano is the canonical empty start (preset order, first
+mesh, boot climate/plume, HTML defaults). `DEFAULT_CLIMATE` was not changed.
+Proof URLs without `world=` stay on weathered-island + origin plume +
+`DEFAULT_CLIMATE`. A Test worlds picker loads Established / Speciated /
+Diversified; another jump is allowed after load.
+
+**Findings.** Young volcano does not establish the default founder: 0 living
+lineages across five 1 Myr jumps, under both the preset's wet/warm climate and
+`DEFAULT_CLIMATE`. The proof recipe on weathered-island still reads 0 / 1 / 2 /
+2 / 3. The resolver was not retuned. Inhabited Test worlds therefore replay
+the weathered proof recipe.
+
+**Verdict.** Ready for owner look. Not accepted. Player default and the picker
+need a live WebGPU check. The volcano founder gap is recorded as an open
+defect.

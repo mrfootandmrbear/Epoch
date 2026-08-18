@@ -718,25 +718,30 @@
       <details class="shell-section" open>
         <summary>Starting world</summary>
         <div class="actions"><select id="starting-world" aria-label="Starting world preset"></select></div>
-        <p class="preset-copy" id="starting-world-description">An old, varied island with a high spine and established drainage.</p>
+        <p class="preset-copy" id="starting-world-description">A steep basalt shield, active source, and little inherited relief.</p>
+      </details>
+      <details class="shell-section">
+        <summary>Test worlds</summary>
+        <div class="actions"><select id="test-world" aria-label="Inhabited test landing"></select></div>
+        <p class="preset-copy" id="test-world-description">Load an inhabited proof landing with living populations. Same resolver path as a player jump. These replay the weathered-island proof recipe — Young volcano does not currently establish the default founder.</p>
       </details>
       <details class="shell-section" open>
         <summary>Forces</summary>
       <div class="actions force-actions" aria-label="Climate forces">
         <select id="rainfall" aria-label="Rainfall regime">
           <option value="arid">Rain: Arid</option>
-          <option value="temperate" selected>Rain: Temperate</option>
-          <option value="wet">Rain: Wet</option>
+          <option value="temperate">Rain: Temperate</option>
+          <option value="wet" selected>Rain: Wet</option>
         </select>
         <select id="temperature" aria-label="Temperature regime">
           <option value="cold">Temperature: Cold</option>
-          <option value="mild" selected>Temperature: Mild</option>
-          <option value="warm">Temperature: Warm</option>
+          <option value="mild">Temperature: Mild</option>
+          <option value="warm" selected>Temperature: Warm</option>
         </select>
         <select id="wind" aria-label="Prevailing wind">
           <option value="calm">Wind: Calm</option>
-          <option value="westerly" selected>Wind: West</option>
-          <option value="easterly">Wind: East</option>
+          <option value="westerly">Wind: West</option>
+          <option value="easterly" selected>Wind: East</option>
         </select>
         <select id="sea-level" aria-label="Sea level">
           <option value="low">Sea level: Low</option>

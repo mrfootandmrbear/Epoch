@@ -1,8 +1,12 @@
 import type { ClimateForces } from "./climate";
 import { AUTHORED_SCALE, RENDER_SCALE } from "./render-scale";
 import type { PlumeVigor } from "./volcanism";
+import type { StartingVent } from "./world-history";
 
 export type StartingWorldPresetId = "weathered-island" | "young-volcano" | "drowned-ridges";
+
+/** The empty world a fresh session loads. Proof capture URLs are pinned separately. */
+export const DEFAULT_STARTING_WORLD_ID: StartingWorldPresetId = "young-volcano";
 
 export interface StartingWorldPreset {
   readonly id: StartingWorldPresetId;
@@ -112,14 +116,6 @@ function drownedRidges(x: number, z: number): number {
 
 export const STARTING_WORLD_PRESETS: readonly StartingWorldPreset[] = [
   {
-    id: "weathered-island",
-    name: "Weathered island",
-    description: "An old, varied island with a high spine and established drainage.",
-    climate: { rainfall: "temperate", temperature: "mild", wind: "westerly", seaLevel: "present" },
-    plumeVigor: "active",
-    heightAt: weatheredIsland,
-  },
-  {
     id: "young-volcano",
     name: "Young volcano",
     description: "A steep basalt shield, active source, and little inherited relief.",
@@ -133,6 +129,14 @@ export const STARTING_WORLD_PRESETS: readonly StartingWorldPreset[] = [
     heightAt: youngVolcano,
   },
   {
+    id: "weathered-island",
+    name: "Weathered island",
+    description: "An old, varied island with a high spine and established drainage.",
+    climate: { rainfall: "temperate", temperature: "mild", wind: "westerly", seaLevel: "present" },
+    plumeVigor: "active",
+    heightAt: weatheredIsland,
+  },
+  {
     id: "drowned-ridges",
     name: "Drowned ridges",
     description: "Two exposed uplands divided by a flooded central passage.",
@@ -144,4 +148,8 @@ export const STARTING_WORLD_PRESETS: readonly StartingWorldPreset[] = [
 
 export function startingWorldPreset(id: string): StartingWorldPreset {
   return STARTING_WORLD_PRESETS.find((preset) => preset.id === id) ?? STARTING_WORLD_PRESETS[0]!;
+}
+
+export function startingVentForPreset(preset: StartingWorldPreset): StartingVent | undefined {
+  return preset.plume ? { ...preset.plume, vigor: preset.plumeVigor } : undefined;
 }

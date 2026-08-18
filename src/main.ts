@@ -67,7 +67,7 @@ import { resolveOceanSeaState } from "./ocean-sea-state";
 import { isPlumeVigor, type PlumeVigor, type VolcanicOutput } from "./volcanism";
 import { isVolcanicLifecyclePhase, volcanicLifecyclePrefix } from "./volcanic-lifecycle";
 import { ENVIRONMENT_FIXTURES, isEnvironmentFixtureName } from "./environment-fixtures";
-import { STARTING_WORLD_PRESETS, startingWorldPreset } from "./starting-world-presets";
+import { STARTING_WORLD_PRESETS, startingWorldPreset, DEFAULT_STARTING_WORLD_ID } from "./starting-world-presets";
 import { drifterArrivalPosition } from "./distant-drifter-renderer";
 import {
   DEFAULT_FOUNDER_CHOICES,
@@ -78,6 +78,12 @@ import {
   type FounderSizeBand,
 } from "./founder-profile";
 import { founderMatchReadout } from "./founder-match";
+import {
+  landingReplayFromQuery,
+  TEST_WORLD_FIXTURES,
+  testWorldFixture,
+  type LandingReplay,
+} from "./playable-worlds";
 
 const statusEl = document.getElementById("status")!;
 const lineagePanelEl = document.getElementById("lineage-panel")!;
@@ -116,6 +122,8 @@ const cameraDockEl = document.getElementById("camera-dock")!;
 const cameraDockToggleEl = document.getElementById("camera-dock-toggle") as HTMLButtonElement;
 const startingWorldEl = document.getElementById("starting-world") as HTMLSelectElement;
 const startingWorldDescriptionEl = document.getElementById("starting-world-description")!;
+const testWorldEl = document.getElementById("test-world") as HTMLSelectElement;
+const testWorldDescriptionEl = document.getElementById("test-world-description")!;
 const screensaverEnabledEl = document.getElementById("screensaver-enabled") as HTMLInputElement;
 const screensaverDelayEl = document.getElementById("screensaver-delay") as HTMLSelectElement;
 
@@ -124,6 +132,16 @@ for (const preset of STARTING_WORLD_PRESETS) {
   option.value = preset.id;
   option.textContent = preset.name;
   startingWorldEl.appendChild(option);
+}
+const emptyTestWorld = document.createElement("option");
+emptyTestWorld.value = "";
+emptyTestWorld.textContent = "Choose a landing…";
+testWorldEl.appendChild(emptyTestWorld);
+for (const fixture of TEST_WORLD_FIXTURES) {
+  const option = document.createElement("option");
+  option.value = fixture.id;
+  option.textContent = fixture.name;
+  testWorldEl.appendChild(option);
 }
 
 for (const option of revealTreatmentOptions()) {
@@ -521,7 +539,7 @@ const capturePlume: PlumeVigor | null = (() => {
   if (legacy && legacy in LEGACY_VOLCANO_VIGOR) return LEGACY_VOLCANO_VIGOR[legacy];
   return null;
 })();
-if ((captureMode || proofReplay) && capturePlume) {
+if (captureMode && capturePlume) {
   const hotSpot = captureFixture && "hotSpot" in captureFixture
     ? captureFixture.hotSpot
     : { x: 0, z: 0 };
@@ -659,6 +677,104 @@ function writeClimate(forces: Readonly<ClimateForces>): void {
   windEl.value = forces.wind;
   seaLevelEl.value = forces.seaLevel;
   climate = { ...forces };
+}
+
+function applyEmptyStart(preset: ReturnType<typeof startingWorldPreset>): void {
+  landingState.resetStartingWorld(preset);
+  writeClimate(preset.climate);
+  plumeVigorEl.value = preset.plumeVigor;
+  committedClimate = { ...preset.climate };
+  applyCommittedHeightFog();
+  applyOceanForces(preset.climate);
+  startingWorldEl.value = preset.id;
+  startingWorldEl.disabled = false;
+  startingWorldDescriptionEl.textContent = preset.description;
+  testWorldEl.value = "";
+  totalYears = 0;
+  jumped = false;
+  experienceEl.classList.remove("committed");
+  worldAgeEl.textContent = "Year 0";
+  epochCardEl.classList.remove("visible");
+  lineagePanelEl.classList.remove("visible");
+  lineagePanelEl.innerHTML = "";
+  formTitleEl.textContent = "Shape the island";
+  distantDrifterEl.textContent = "Distant Drifter";
+  distantDrifterEl.classList.remove("active");
+  distantDrifterEl.disabled = false;
+  drifterFoodEl.disabled = false;
+  drifterSizeEl.disabled = false;
+  drifterClimateEl.disabled = false;
+  updateDrifterPreview();
+}
+
+function presentLandingReport(
+  recipe: LandingReplay,
+  lastReport: ReturnType<typeof landingState.advance>,
+  previousAge: number,
+  hint: string,
+  allowFurtherJump: boolean,
+): void {
+  committedClimate = { ...recipe.climate };
+  applyCommittedHeightFog();
+  applyOceanForces(committedClimate);
+  if (jumpYearsEl.querySelector(`option[value="${recipe.years}"]`)) {
+    jumpYearsEl.value = String(recipe.years);
+    jumpButtonEl.textContent = `Jump ${formatYears(recipe.years)}`;
+  }
+  startingWorldEl.value = recipe.presetId;
+  startingWorldEl.disabled = true;
+  startingWorldDescriptionEl.textContent = startingWorldPreset(recipe.presetId).description;
+  experienceEl.classList.toggle("committed", !allowFurtherJump);
+  worldAgeEl.textContent = `Year ${totalYears.toLocaleString()}`;
+  const gotoSites = landingState.lineageFocusTargets();
+  renderLineageReport(
+    lastReport.changes,
+    lastReport.marineChanges,
+    gotoSites,
+    lastReport.populations,
+    lastReport.traitDistance,
+  );
+  const hasEstablished = lastReport.changes.some((change) => change.status === "active");
+  landingSummaryEl.textContent = landingSummary(totalYears, committedClimate, hasEstablished);
+  epochStoryEl.textContent = buildEpochStory(
+    previousAge,
+    lastReport.changes,
+    committedClimate,
+    lastReport.marineChanges,
+  );
+  epochCardEl.classList.add("visible");
+  jumped = !allowFurtherJump;
+  formTitleEl.textContent = "Shape what remains";
+  setTool("look");
+  formHintEl.textContent = hint;
+  distantDrifterEl.textContent = "Distant Drifter";
+  distantDrifterEl.classList.remove("active");
+  distantDrifterEl.disabled = false;
+  drifterFoodEl.disabled = false;
+  drifterSizeEl.disabled = false;
+  drifterClimateEl.disabled = false;
+  updateDrifterPreview();
+}
+
+function applyLandingReplay(recipe: LandingReplay, allowFurtherJump: boolean, hint: string): void {
+  const preset = startingWorldPreset(recipe.presetId);
+  landingState.resetStartingWorld(preset);
+  writeClimate(recipe.climate);
+  plumeVigorEl.value = recipe.placeOriginPlume ?? preset.plumeVigor;
+  if (recipe.placeOriginPlume) {
+    landingState.placePlume(new Vector3(0, 0, 0), { x: 1, z: 0 }, recipe.placeOriginPlume);
+  }
+  landingState.introduceDistantDrifter(0, DEFAULT_FOUNDER_CHOICES);
+  let lastReport: ReturnType<typeof landingState.advance> | undefined;
+  let previousAge = 0;
+  totalYears = 0;
+  for (let jump = 1; jump <= recipe.jumps; jump++) {
+    previousAge = totalYears;
+    totalYears = recipe.years * jump;
+    lastReport = landingState.advance(recipe.years, totalYears, recipe.climate);
+  }
+  if (!lastReport) return;
+  presentLandingReport(recipe, lastReport, previousAge, hint, allowFurtherJump);
 }
 
 function setTool(tool: FormTool): void {
@@ -911,20 +1027,32 @@ cameraDockEl.addEventListener("focusin", cancelCameraDockAutoCollapse);
 cameraDockEl.addEventListener("focusout", scheduleCameraDockAutoCollapse);
 scheduleCameraDockAutoCollapse();
 
+if (!captureMode && !proofReplay) {
+  applyEmptyStart(startingWorldPreset(DEFAULT_STARTING_WORLD_ID));
+}
+
 startingWorldEl.addEventListener("change", () => {
   const preset = startingWorldPreset(startingWorldEl.value);
   endStroke();
   setTool("look");
-  landingState.resetStartingWorld(preset);
-  writeClimate(preset.climate);
-  plumeVigorEl.value = preset.plumeVigor;
-  committedClimate = { ...preset.climate };
-  applyCommittedHeightFog();
-  applyOceanForces(preset.climate);
-  startingWorldDescriptionEl.textContent = preset.description;
+  applyEmptyStart(preset);
   formHintEl.textContent = `${preset.name} loaded. Shape it further or set the forces for its first jump.`;
   syncBrushControls();
-  updateDrifterPreview();
+});
+
+testWorldEl.addEventListener("change", () => {
+  const fixture = testWorldFixture(testWorldEl.value);
+  if (!fixture) return;
+  endStroke();
+  setTool("look");
+  applyLandingReplay(
+    fixture,
+    true,
+    `${fixture.name} loaded. Explore, click a lineage to fly to its herd, or jump again.`,
+  );
+  testWorldEl.value = fixture.id;
+  testWorldDescriptionEl.textContent = fixture.description;
+  syncBrushControls();
 });
 
 jumpYearsEl.addEventListener("change", () => {
@@ -1108,7 +1236,9 @@ async function start() {
   rendererReady = true;
   const captureClimate: ClimateForces = captureFixture
     ? { ...captureFixture.climate }
-    : { ...DEFAULT_CLIMATE };
+    : proofReplay
+      ? landingReplayFromQuery(captureParams).climate
+      : { ...committedClimate };
   applyOceanForces(captureClimate);
   if (liveHerdShowcase || liveHerdContrast) {
     landingState.advance(10_000, 10_000, DEFAULT_CLIMATE);
@@ -1117,50 +1247,13 @@ async function start() {
     presentation.applyShot(liveHerdContrast ? "herd-contrast" : "herd");
   }
   if (proofReplay) {
-    landingState.introduceDistantDrifter(0, DEFAULT_FOUNDER_CHOICES);
-    const proofYears = Number(captureParams.get("years") ?? 1_000_000);
-    const proofJumps = Math.max(1, Math.min(16, Number(captureParams.get("jumps") ?? 1)));
-    let lastReport: ReturnType<typeof landingState.advance> | undefined;
-    let previousAge = 0;
-    for (let jump = 1; jump <= proofJumps; jump++) {
-      previousAge = totalYears;
-      totalYears = proofYears * jump;
-      lastReport = landingState.advance(proofYears, totalYears, DEFAULT_CLIMATE);
-    }
-    committedClimate = { ...DEFAULT_CLIMATE };
-    applyCommittedHeightFog();
-    applyOceanForces(committedClimate);
-    if (jumpYearsEl.querySelector(`option[value="${proofYears}"]`)) {
-      jumpYearsEl.value = String(proofYears);
-      jumpButtonEl.textContent = `Jump ${formatYears(proofYears)}`;
-    }
-    startingWorldEl.disabled = true;
-    experienceEl.classList.add("committed");
-    worldAgeEl.textContent = `Year ${totalYears.toLocaleString()}`;
-    if (lastReport) {
-      const gotoSites = landingState.lineageFocusTargets();
-      renderLineageReport(
-        lastReport.changes,
-        lastReport.marineChanges,
-        gotoSites,
-        lastReport.populations,
-        lastReport.traitDistance,
-      );
-      const hasEstablished = lastReport.changes.some((change) => change.status === "active");
-      landingSummaryEl.textContent = landingSummary(totalYears, committedClimate, hasEstablished);
-      epochStoryEl.textContent = buildEpochStory(
-        previousAge,
-        lastReport.changes,
-        committedClimate,
-        lastReport.marineChanges,
-      );
-      epochCardEl.classList.add("visible");
-    }
-    jumped = true;
-    formTitleEl.textContent = "Shape what remains";
-    setTool("look");
-    formHintEl.textContent = "Proof fixture. Click a living lineage to fly to its herd — match island and count to the report.";
-    presentation.applyShot(proofOverviewShot(proofJumps));
+    const recipe = landingReplayFromQuery(captureParams);
+    applyLandingReplay(
+      recipe,
+      false,
+      "Proof fixture. Click a living lineage to fly to its herd — match island and count to the report.",
+    );
+    presentation.applyShot(proofOverviewShot(recipe.jumps));
   }
   if (captureMode) {
     const captureYears = Number(captureParams.get("years") ?? captureFixture?.years ?? 10_000);

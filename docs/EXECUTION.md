@@ -24,7 +24,7 @@ look need local WebGPU.
 
 | Next | Brief | Gate |
 |---|---|---|
-| **Now** | Owner dispatch — WU-5 visuals are recorded; the WU-5 causal exam is withdrawn ([WU-6](briefs/WU-6-causal-reveal.md) is not a unit) | Recorded in this file |
+| **Now** | Owner look — [WU-7](briefs/WU-7-default-worlds.md) player default and Test worlds picker | Ready for owner verdict |
 | Parallel, optional | [WU-P0-1](briefs/WU-P0-1-lockfile.md) — clean `npm install` | Tests on a fresh clone |
 
 Do not resume LW-6, LW-7, extra fauna, or atmosphere identity unless a proof
@@ -240,10 +240,24 @@ capture shows the sequence fails without them.
    causal trio. Do not rewrite the epoch story or lineage report to make
    those answers match item 3.
 
-   Live URLs (UI visible — not `?shot=`):
-   - Established: `?founders=drifter&plume=active&years=1000000&jumps=2`
-   - Speciated: `?founders=drifter&plume=active&years=1000000&jumps=3`
-   - Diversified: `?founders=drifter&plume=active&years=1000000&jumps=5`
+  Live URLs (UI visible — not `?shot=`):
+  - Established: `?founders=drifter&plume=active&years=1000000&jumps=2`
+  - Speciated: `?founders=drifter&plume=active&years=1000000&jumps=3`
+  - Diversified: `?founders=drifter&plume=active&years=1000000&jumps=5`
+
+  Optional `world=young-volcano` on those URLs uses the player-default landform
+  and climate instead. Do not rewrite existing `proofGates` queries.
+
+  *WU-7 landed 2026-08-18.* Fresh load (no URL) is **Young volcano**: wet /
+  warm / easterly, active plume already placed. Weathered island and Drowned
+  ridges remain other empty starts. A **Test worlds** picker loads Established /
+  Speciated / Diversified through the same `advance` loop as the proof URLs, and
+  another jump is allowed after load. Those inhabited fixtures replay
+  weathered-island + `DEFAULT_CLIMATE` + origin plume — not Young volcano —
+  because the default founder does not establish on that landform (0 living
+  lineages across five 1 Myr jumps, including under `DEFAULT_CLIMATE`). Do not
+  retune forage or establishment from this unit. `DEFAULT_CLIMATE` itself was
+  not changed. Ready for owner look; not accepted.
 6. Resume water composition, herd embodiment verdicts, freshwater transitions,
    and broader ecology only where the integrated proof exposes a need.
 
@@ -336,6 +350,17 @@ capture shows the sequence fails without them.
 - **WU-5 causal exam, 2026-08-18** — **withdrawn.** Not a recorded fail. The
   prompt was the defect. Causal acceptance stays the product bar, judged in
   play. [WU-6](briefs/WU-6-causal-reveal.md) is not a unit.
+- **Player default and test landings, 2026-08-18** — [WU-7](briefs/WU-7-default-worlds.md)
+  ready for owner look. Fresh load is Young volcano. Test worlds picker loads
+  the three inhabited proof landings. Proof URLs without `world=` stay on
+  weathered-island. Not accepted.
+
+  **Scope.** Empty-start default, climate/plume matching that preset, Test
+  worlds picker, and pinning of existing proof URLs.
+
+  **It is explicitly not** a pass of founder viability on Young volcano. That
+  landform currently cannot establish the default founder; inhabited fixtures
+  stay on the weathered proof recipe until a later unit is dispatched.
 
 ## Open defects
 
@@ -381,6 +406,13 @@ capture shows the sequence fails without them.
   it. Isolate by comparing the shipping landing's elevations against the
   readout's at that shield's cell — the two run slightly different
   post-accretion steps.
+- **Young volcano does not establish the default founder.** Recorded 2026-08-18
+  (WU-7). The player empty start is now that preset (wet / warm / easterly,
+  authored plume). A Distant Drifter with `DEFAULT_FOUNDER_CHOICES` is extinct
+  after every 1 Myr landing through jump 5, under both the preset climate and
+  `DEFAULT_CLIMATE`. The inhabited proof still lives on weathered-island. Do
+  not retune forage or establishment unless a unit is dispatched for it. Test
+  worlds therefore replay the weathered proof recipe.
 
 ## What the resize left open
 
@@ -444,7 +476,7 @@ members consequences.
 
 | Area | Current state | Next gate |
 |---|---|---|
-| Form → jump → reveal loop | Implemented | Preserve while replacing isolated duration shots with one inherited sequence. |
+| Form → jump → reveal loop | Implemented. Fresh load is Young volcano (WU-7). Inhabited Test worlds replay the weathered proof landings. | Preserve. Young-volcano founder establishment is an open defect, not this unit. |
 | World scale | **Accepted** 2026-08-15 — 2,000 m extent at 401×401 cells (5.0 m/cell); shield mean flank measured at 6.6° | None. Do not reopen without a demonstrated failure. Prior captures are not a valid A/B. |
 | Multi-shield archipelago record | Implemented renderer-independent in `archipelago-history.ts` with 40 tests; shield zero is the authored island | Preserve. The record advances every jump and validates as part of `WorldHistory` v9. |
 | Emergent island grouping and connectivity | Implemented in `island-geography.ts` with 35 tests — land components, shield-pair saddles, `SeaLevelHistory`, dated connection episodes, and an `islandAt` point query | Both consumers done: terrain (accretion) and population (gene flow) now read it. Preserve. |
