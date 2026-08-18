@@ -19,4 +19,23 @@ describe("marine lineage report", () => {
     expect(html).toContain("population 50%");
     expect(html).toContain("streamlining +0.200");
   });
+
+  it("marks marine lineages with sites as fly-to bookmarks", () => {
+    const change: MarineLineageChange = {
+      id: "coastal-forager:0", previousStatus: "active", status: "active", moved: 0, event: "established",
+    };
+    const gotoSites = new Map([[change.id, { x: 104, y: -3, z: 116 }]]);
+    const html = buildMarineLineageReportHtml([change], gotoSites);
+    expect(html).toContain(`data-lineage-id="${change.id}"`);
+    expect(html).toContain("lineage-node-goto");
+    expect(html).toContain('role="button"');
+  });
+
+  it("does not mark marine lineages without goto sites as interactive", () => {
+    const change: MarineLineageChange = {
+      id: "coastal-forager:0", previousStatus: "not-established", status: "not-established", moved: 0,
+    };
+    const html = buildMarineLineageReportHtml([change]);
+    expect(html).not.toContain("lineage-node-goto");
+  });
 });

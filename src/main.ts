@@ -28,9 +28,17 @@ import { createLandingState } from "./landing-state";
 import { loadTreeGeometryAssets } from "./tree-geometry-assets";
 import { loadSeagrassGeometryAssets } from "./seagrass-geometry-assets";
 import type { LineageChange } from "./lineage-history";
-import { buildLineageReportHtml } from "./lineage-report";
+import { buildLineageReportHtml, type LineageGotoSites } from "./lineage-report";
 import { buildMarineLineageReportHtml } from "./marine-lineage-report";
 import type { MarineLineageChange } from "./marine-lineage";
+import type { PopulationOutcome } from "./outcome-resolver";
+import {
+  CAMERA_EASE_MS,
+  flyTargetHalfZoom,
+  flyTargetLineageInspection,
+  LINEAGE_INSPECTION_DISTANCE,
+  smoothstep as cameraSmoothstep,
+} from "./camera-focus";
 import { buildEpochStory } from "./epoch-story";
 import { createPresentationController, isGoldenShotName, proofOverviewShot } from "./presentation";
 import {
@@ -195,38 +203,43 @@ controls.touches.TWO = TOUCH.DOLLY_ROTATE;
 renderer.domElement.addEventListener("contextmenu", (event) => event.preventDefault());
 
 // Double-click zooms smoothly toward the terrain point under the cursor,
-// like Google Earth. The orbit target moves to the clicked point and the
-// camera closes half the remaining distance in a short ease.
-const DBLCLICK_EASE_MS = 600;
-let dblClickAnim: { start: number; fromPos: Vector3; fromTarget: Vector3; toPos: Vector3; toTarget: Vector3 } | null = null;
+// like Google Earth. Lineage rows use the same ease at mid-inspection distance.
+let cameraFlyAnim: {
+  start: number;
+  fromPos: Vector3;
+  fromTarget: Vector3;
+  toPos: Vector3;
+  toTarget: Vector3;
+} | null = null;
+
+function startCameraFly(toPos: Vector3, toTarget: Vector3): void {
+  cameraFlyAnim = {
+    start: performance.now(),
+    fromPos: camera.position.clone(),
+    fromTarget: controls.target.clone(),
+    toPos: toPos.clone(),
+    toTarget: toTarget.clone(),
+  };
+}
+
+function updateCameraFly(): void {
+  if (!cameraFlyAnim) return;
+  const t = Math.min(1, (performance.now() - cameraFlyAnim.start) / CAMERA_EASE_MS);
+  const ease = cameraSmoothstep(t);
+  camera.position.lerpVectors(cameraFlyAnim.fromPos, cameraFlyAnim.toPos, ease);
+  controls.target.lerpVectors(cameraFlyAnim.fromTarget, cameraFlyAnim.toTarget, ease);
+  if (t >= 1) cameraFlyAnim = null;
+}
+
 renderer.domElement.addEventListener("dblclick", (event) => {
   if (captureMode || formTool !== "look") return;
   pointer.set((event.clientX / window.innerWidth) * 2 - 1, -(event.clientY / window.innerHeight) * 2 + 1);
   raycaster.setFromCamera(pointer, camera);
   const hits = raycaster.intersectObject(landingState.terrain, false);
   if (!hits.length) return;
-  const hit = hits[0].point;
-  const toTarget = hit.clone();
-  toTarget.y = Math.max(hit.y, 0);
-  const direction = camera.position.clone().sub(toTarget).normalize();
-  const currentDist = camera.position.distanceTo(controls.target);
-  const toPos = toTarget.clone().addScaledVector(direction, Math.max(currentDist * 0.5, controls.minDistance));
-  dblClickAnim = {
-    start: performance.now(),
-    fromPos: camera.position.clone(),
-    fromTarget: controls.target.clone(),
-    toPos,
-    toTarget,
-  };
+  const { toPos, toTarget } = flyTargetHalfZoom(camera.position, controls.target, hits[0].point, controls.minDistance);
+  startCameraFly(toPos, toTarget);
 });
-function updateDblClickZoom(): void {
-  if (!dblClickAnim) return;
-  const t = Math.min(1, (performance.now() - dblClickAnim.start) / DBLCLICK_EASE_MS);
-  const ease = t * t * (3 - 2 * t);
-  camera.position.lerpVectors(dblClickAnim.fromPos, dblClickAnim.toPos, ease);
-  controls.target.lerpVectors(dblClickAnim.fromTarget, dblClickAnim.toTarget, ease);
-  if (t >= 1) dblClickAnim = null;
-}
 
 const captureParams = new URLSearchParams(window.location.search);
 const captureShot = captureParams.get("shot");
@@ -342,12 +355,20 @@ function updateArrivalBeat(): void {
   camera.updateMatrixWorld();
 }
 
+function eventFromHud(event: Event): boolean {
+  const target = event.target;
+  return target instanceof Element && Boolean(
+    target.closest("#lineage-panel, #experience, #camera-dock, #epoch-card, #jump-veil, #status"),
+  );
+}
+
 for (const eventName of ["pointerdown", "wheel", "keydown", "touchstart"] as const) {
-  window.addEventListener(eventName, () => {
+  window.addEventListener(eventName, (event) => {
     lastInteraction = performance.now() / 1000;
     if (presentation.active) presentation.setActive(false);
+    if (eventFromHud(event)) return;
     arrivalBeat = null;
-    dblClickAnim = null;
+    cameraFlyAnim = null;
   }, { passive: true });
 }
 
@@ -568,10 +589,54 @@ function landingSummary(years: number, forces: ClimateForces, hasTerrestrialFoun
   return `Ancient descendants · ${climateLabel(forces)} deep-time coast`;
 }
 
-function renderLineageReport(changes: readonly LineageChange[], marineChanges: readonly MarineLineageChange[], traitDistance?: number): void {
-  lineagePanelEl.innerHTML = buildLineageReportHtml(changes, traitDistance) + buildMarineLineageReportHtml(marineChanges);
+let lineageGotoSites: LineageGotoSites = new Map();
+
+function canFlyToLineage(): boolean {
+  if (captureMode) return false;
+  if (formTool === "look") return true;
+  return experienceEl.classList.contains("committed");
+}
+
+function flyToLineage(lineageId: string): void {
+  if (!canFlyToLineage()) return;
+  const site = landingState.populationFocusTarget(lineageId)
+    ?? lineageGotoSites.get(lineageId);
+  if (!site) return;
+  const { toPos, toTarget } = flyTargetLineageInspection(
+    camera.position,
+    site,
+    LINEAGE_INSPECTION_DISTANCE,
+    controls.minDistance,
+  );
+  startCameraFly(toPos, toTarget);
+}
+
+function renderLineageReport(
+  changes: readonly LineageChange[],
+  marineChanges: readonly MarineLineageChange[],
+  gotoSites: LineageGotoSites,
+  populations: readonly PopulationOutcome[],
+  traitDistance?: number,
+): void {
+  lineageGotoSites = gotoSites;
+  lineagePanelEl.innerHTML = buildLineageReportHtml(changes, traitDistance, gotoSites, populations)
+    + buildMarineLineageReportHtml(marineChanges, gotoSites);
   lineagePanelEl.classList.add("visible");
 }
+
+lineagePanelEl.addEventListener("click", (event) => {
+  const node = (event.target as HTMLElement).closest<HTMLElement>("[data-lineage-id]");
+  if (!node?.classList.contains("lineage-node-goto")) return;
+  flyToLineage(node.dataset.lineageId!);
+});
+
+lineagePanelEl.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  const node = (event.target as HTMLElement).closest<HTMLElement>(".lineage-node-goto");
+  if (!node) return;
+  event.preventDefault();
+  flyToLineage(node.dataset.lineageId!);
+});
 
 function readClimate(): ClimateForces {
   return {
@@ -601,7 +666,7 @@ function setTool(tool: FormTool): void {
   });
   formHintEl.textContent =
     tool === "look"
-      ? "Drag to pan the world. Right-drag to orbit. Scroll to zoom. Double-click to fly to a spot."
+      ? "Drag to pan the world. Right-drag to orbit. Scroll to zoom. Double-click to fly to a spot. Click a lineage to fly to its herd."
       : tool === "raise"
         ? "Drag across the land to build ridges and refuges — right-drag to orbit, scroll to zoom."
         : tool === "carve"
@@ -931,7 +996,16 @@ jumpButtonEl.addEventListener("click", () => {
     const previousAge = totalYears;
     totalYears += jumpYears;
     const lineageReport = landingState.advance(jumpYears, totalYears, committedClimate);
-    renderLineageReport(lineageReport.changes, lineageReport.marineChanges, lineageReport.traitDistance);
+    const gotoSites = landingState.lineageFocusTargets();
+    renderLineageReport(
+      lineageReport.changes,
+      lineageReport.marineChanges,
+      gotoSites,
+      lineageReport.populations,
+      lineageReport.traitDistance,
+    );
+    setTool("look");
+    formHintEl.textContent = "Explore the landing state, reshape it, or choose another span of time. Click a lineage to fly to its herd.";
     applyOceanForces(committedClimate);
     worldAgeEl.textContent = `Year ${totalYears.toLocaleString()}`;
     const hasEstablishedTerrestrialPopulation = lineageReport.changes.some((change) => change.status === "active");
@@ -1058,7 +1132,14 @@ async function start() {
     experienceEl.classList.add("committed");
     worldAgeEl.textContent = `Year ${totalYears.toLocaleString()}`;
     if (lastReport) {
-      renderLineageReport(lastReport.changes, lastReport.marineChanges, lastReport.traitDistance);
+      const gotoSites = landingState.lineageFocusTargets();
+      renderLineageReport(
+        lastReport.changes,
+        lastReport.marineChanges,
+        gotoSites,
+        lastReport.populations,
+        lastReport.traitDistance,
+      );
       const hasEstablished = lastReport.changes.some((change) => change.status === "active");
       landingSummaryEl.textContent = landingSummary(totalYears, committedClimate, hasEstablished);
       epochStoryEl.textContent = buildEpochStory(
@@ -1069,8 +1150,10 @@ async function start() {
       );
       epochCardEl.classList.add("visible");
     }
+    jumped = true;
     formTitleEl.textContent = "Shape what remains";
-    formHintEl.textContent = "Proof fixture replayed through the same jump path. Match the herds to the lineage report.";
+    setTool("look");
+    formHintEl.textContent = "Proof fixture. Click a living lineage to fly to its herd — match island and count to the report.";
     presentation.applyShot(proofOverviewShot(proofJumps));
   }
   if (captureMode) {
@@ -1120,8 +1203,8 @@ async function start() {
     landingState.update(elapsed, camera.position);
     presentation.update(elapsed);
     updateArrivalBeat();
-    updateDblClickZoom();
-    if (!presentation.active && !arrivalBeat && !dblClickAnim) controls.update();
+    updateCameraFly();
+    if (!presentation.active && !arrivalBeat && !cameraFlyAnim) controls.update();
     updateShadowCoverage();
     const callsBeforeRender = renderer.info.render.calls;
     renderPipeline!.render();

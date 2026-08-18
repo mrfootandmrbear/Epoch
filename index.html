@@ -155,6 +155,16 @@
         border-radius: 0 0 0 6px;
       }
       .lineage-node.extinct { opacity: .48; border-left-color: rgba(212,142,119,.6); }
+      .lineage-node.lineage-node-goto {
+        cursor: pointer;
+        transition: background 120ms ease;
+      }
+      .lineage-node.lineage-node-goto:hover,
+      .lineage-node.lineage-node-goto:focus-visible {
+        background: rgba(255,255,255,.08);
+        outline: 1px solid rgba(173,204,161,.45);
+        outline-offset: 1px;
+      }
       .lineage-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
       .lineage-heading strong { color: #f5f0e5; font: 600 11px/1.35 system-ui, sans-serif; }
       .lineage-event { color: rgba(190,218,176,.85); font-size: 9px; text-align: right; }
@@ -674,7 +684,7 @@
     <nav id="camera-dock" aria-label="Camera controls">
       <button class="camera-mode active" data-tool="look" aria-pressed="true">Explore</button>
       <div class="camera-help" aria-label="Explore camera gestures">
-        <span class="mouse-help"><kbd>Mouse</kbd><small>Drag pan · Right orbit · Scroll zoom · Double-click fly-to</small></span>
+        <span class="mouse-help"><kbd>Mouse</kbd><small>Drag pan · Right orbit · Scroll zoom · Double-click fly-to · Lineage click herd</small></span>
         <span class="touch-help"><kbd>Touch</kbd><small>Drag pan · Pinch zoom+orbit</small></span>
       </div>
       <button id="camera-dock-toggle" class="camera-dock-toggle" aria-expanded="true" aria-label="Minimize Explore controls" title="Minimize Explore controls">−</button>
@@ -698,7 +708,7 @@
         <div id="form-title">Shape the island</div>
         <button id="shell-toggle" class="shell-toggle" aria-expanded="true">Compact</button>
       </div>
-      <p id="form-hint">Drag to pan the world. Right-drag to orbit. Scroll to zoom. Double-click to fly to a spot.</p>
+      <p id="form-hint">Drag to pan the world. Right-drag to orbit. Scroll to zoom. Double-click to fly to a spot. Click a lineage to fly to its herd.</p>
       <div class="shell-body">
       <details class="shell-section" open>
         <summary>Starting world</summary>

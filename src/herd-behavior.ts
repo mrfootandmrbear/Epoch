@@ -62,15 +62,15 @@ export function deriveHerdBehavior(traits: Readonly<PopulationTraits>): HerdBeha
   // Light short-legged ones pivot almost in place.
   const turnRate = 2.7 - mass * 1.35 - leg * 0.55;
 
-  // Bigger bodies need more room; insulation pulls the whole group tighter,
-  // so cold-adapted herds pack and hot-climate grazers string out.
-  const spacing = (3.0 + mass * 3.6) * (1.18 - insulation * 0.36);
+  // Neighbour distance for a ~1.2 m land iguana, not the retired grazer.
+  // Mass still owns how much room a body needs; insulation tightens the pack.
+  const spacing = (1.5 + mass) * (1.06 - insulation * 0.12);
   const cohesionStrength = 0.15 + insulation * 0.21;
 
   // A cohesion radius inside the separation distance would leave the two
   // forces fighting each other in place, which reads as jitter rather than as
   // a tight herd. The group's holding distance is always the looser of the two.
-  const cohesionRadius = Math.max(24 - insulation * 13, spacing * 1.9);
+  const cohesionRadius = Math.max(6.4 - insulation * 3.2, spacing * 1.9);
 
   return {
     strideSpeed,

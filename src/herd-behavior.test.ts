@@ -84,10 +84,20 @@ describe("trait-driven herd behavior", () => {
     }
   });
 
+  it("keeps neighbour distance in the iguana-scale band", () => {
+    for (const mass of [bodyMass.min, 1, bodyMass.max]) {
+      for (const coat of [insulation.min, 0.5, insulation.max]) {
+        const { spacing } = deriveHerdBehavior(withTraits({ bodyMass: mass, insulation: coat }));
+        expect(spacing).toBeGreaterThanOrEqual(1.4);
+        expect(spacing).toBeLessThanOrEqual(2.7);
+      }
+    }
+  });
+
   it("separates two plausible archetypes far enough to read at mid distance", () => {
     // Rung 7 asks that two populations be distinguishable from movement alone.
     // The contrast that matters is the ecological one: a heavy, short-legged,
-    // well-insulated cold grazer against a light, long-legged, bare-coated
+    // well-insulated cold specialist against a light, long-legged, bare-coated
     // one. A difference under roughly a third would not survive the viewing
     // distance, so the mapping is held to that on every channel.
     const coldHeavy = deriveHerdBehavior(withTraits({

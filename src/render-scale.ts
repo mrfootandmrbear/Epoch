@@ -38,6 +38,11 @@ export const RENDER_SCALE = Object.freeze({
   oceanExtent: 7000,
   oceanPatch: 1000,
   typicalTreeHeight: 6,
+  /**
+   * Leftover grazer-era shoulder height. Do not drive land-iguana cameras,
+   * occupancy marks, or herd spacing from this. The founder hip is ~0.26 m;
+   * inspection fly is `LINEAGE_INSPECTION_DISTANCE` (38 m) in camera-focus.
+   */
   grazerShoulderHeight: 2.1,
   seagrassHeight: Object.freeze({ min: 0.35, max: 1.4 }),
   swellAmplitudeScale: 0.22,

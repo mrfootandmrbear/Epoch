@@ -1,4 +1,5 @@
 import type { LineageChange } from "./lineage-history";
+import type { PopulationOutcome } from "./outcome-resolver";
 import { populationArchetype } from "./population-archetypes";
 import { POPULATION_TRAIT_KEYS, type PopulationTraits } from "./population-traits";
 
@@ -26,12 +27,15 @@ function signed(value: number): string {
   return `${value >= 0 ? "+" : ""}${value.toFixed(3)}`;
 }
 
-function habitatLabel(change: LineageChange): string | undefined {
+function habitatLabel(change: LineageChange, island?: string): string | undefined {
   const habitat = change.habitat;
-  if (!habitat) return undefined;
-  const moisture = habitat.moisture > 0.68 ? "wet" : habitat.moisture < 0.35 ? "dry" : "temperate";
-  const terrain = habitat.slope > 0.7 ? "steep" : habitat.exposure > 0.58 ? "exposed" : "sheltered";
-  return `${moisture} · ${terrain}`;
+  const climate = habitat
+    ? `${habitat.moisture > 0.68 ? "wet" : habitat.moisture < 0.35 ? "dry" : "temperate"} · ${
+      habitat.slope > 0.7 ? "steep" : habitat.exposure > 0.58 ? "exposed" : "sheltered"
+    }`
+    : undefined;
+  if (island && climate) return `${island} · ${climate}`;
+  return island ?? climate;
 }
 
 function eventLabel(change: LineageChange): string {
@@ -70,6 +74,36 @@ function populationState(change: LineageChange): string {
   return `<div class="lineage-population"><span>population ${abundance}%</span><span>energy ${energy}%</span></div>`;
 }
 
+const PLACEHOLDER_ROOT_IDS = new Set(["sheltered-grazer:0", "ridge-grazer:0"]);
+
+/** Synthetic `:0` slots never seeded by a raft stay out of the report. */
+export function shouldShowLineageChange(change: LineageChange): boolean {
+  if (!PLACEHOLDER_ROOT_IDS.has(change.id)) return true;
+  return !(change.status === "not-established" && !change.event);
+}
+
+function syntheticLineageChange(population: PopulationOutcome): LineageChange {
+  return {
+    id: population.id,
+    identity: population.identity,
+    previousStatus: population.status,
+    status: population.status,
+    moved: 0,
+    ...(population.status === "active" ? { event: "established" as const } : {}),
+  };
+}
+
+export function populationDisplayName(change: LineageChange, changes: readonly LineageChange[]): string {
+  const archetype = populationArchetype(change.identity);
+  if (change.parentId) return `Descendant ${change.id.split("/").at(-1)}`;
+  const identityRoots = changes.filter((entry) => !entry.parentId && entry.identity === change.identity);
+  const featuredRoot = identityRoots.find((entry) => entry.status === "active")
+    ?? identityRoots.find((entry) => entry.event === "established");
+  if (featuredRoot?.id === change.id) return archetype.label;
+  const ordinal = change.id.split(":")[1]?.split("/")[0];
+  return ordinal && ordinal !== "0" ? `${archetype.label} ${ordinal}` : `${archetype.label} (vacant)`;
+}
+
 function lineageDepth(change: LineageChange, byId: ReadonlyMap<string, LineageChange>): number {
   let depth = 0;
   let parentId = change.parentId;
@@ -82,14 +116,54 @@ function lineageDepth(change: LineageChange, byId: ReadonlyMap<string, LineageCh
   return depth;
 }
 
+export interface LineageFocusSite {
+  readonly x: number;
+  readonly y: number;
+  readonly z: number;
+  readonly island?: string;
+}
+
+export type LineageGotoSites = ReadonlyMap<string, LineageFocusSite>;
+
+function isLineageGoto(
+  change: LineageChange,
+  gotoSites?: LineageGotoSites,
+  populations?: readonly PopulationOutcome[],
+): boolean {
+  if (gotoSites?.has(change.id)) return true;
+  const population = populations?.find((entry) => entry.id === change.id);
+  return population?.status === "active" && population.visible && population.site !== undefined;
+}
+
+function lineageNodeAttrs(
+  change: LineageChange,
+  gotoSites?: LineageGotoSites,
+  populations?: readonly PopulationOutcome[],
+): string {
+  const attrs = [`data-lineage-id="${escapeHtml(change.id)}"`];
+  if (isLineageGoto(change, gotoSites, populations)) {
+    attrs.push('role="button"', 'tabindex="0"');
+  }
+  return attrs.join(" ");
+}
+
 export function buildLineageReportHtml(
   changes: readonly LineageChange[],
   traitDistance?: number,
+  gotoSites?: LineageGotoSites,
+  populations?: readonly PopulationOutcome[],
 ): string {
-  const byId = new Map(changes.map((change) => [change.id, change]));
-  const roots = changes.filter((change) => !change.parentId || !byId.has(change.parentId));
+  const visible = changes.filter(shouldShowLineageChange);
+  const visibleIds = new Set(visible.map((change) => change.id));
+  for (const population of populations ?? []) {
+    if (population.status !== "active" || !population.visible || visibleIds.has(population.id)) continue;
+    visible.push(syntheticLineageChange(population));
+    visibleIds.add(population.id);
+  }
+  const byId = new Map(visible.map((change) => [change.id, change]));
+  const roots = visible.filter((change) => !change.parentId || !byId.has(change.parentId));
   const children = new Map<string, LineageChange[]>();
-  for (const change of changes) {
+  for (const change of visible) {
     if (!change.parentId || !byId.has(change.parentId)) continue;
     const siblings = children.get(change.parentId) ?? [];
     siblings.push(change);
@@ -103,12 +177,11 @@ export function buildLineageReportHtml(
   roots.forEach(visit);
 
   const rows = ordered.map((change) => {
-    const archetype = populationArchetype(change.identity);
-    const isRoot = change.id === `${change.identity}:0`;
-    const name = isRoot ? archetype.label : `Descendant ${change.id.split("/").at(-1)}`;
-    const habitat = habitatLabel(change);
+    const name = populationDisplayName(change, visible);
+    const habitat = habitatLabel(change, gotoSites?.get(change.id)?.island);
     const depth = lineageDepth(change, byId);
-    return `<section class="lineage-node ${escapeHtml(change.status)}" style="--depth:${depth}">`
+    const gotoClass = isLineageGoto(change, gotoSites, populations) ? " lineage-node-goto" : "";
+    return `<section class="lineage-node ${escapeHtml(change.status)}${gotoClass}" ${lineageNodeAttrs(change, gotoSites, populations)} style="--depth:${depth}">`
       + `<div class="lineage-heading"><strong>${escapeHtml(name)}</strong>`
       + `<span class="lineage-event ${escapeHtml(change.event ?? change.status)}">${escapeHtml(eventLabel(change))}</span></div>`
       + `<span class="lineage-id">${escapeHtml(change.id)}</span>`
@@ -120,5 +193,9 @@ export function buildLineageReportHtml(
   const divergence = traitDistance === undefined ? "" : (
     `<footer>founder trait distance <strong>${traitDistance.toFixed(3)}</strong></footer>`
   );
-  return `<header><span>Lineage history</span><strong>${changes.length} branches</strong></header>${rows}${divergence}`;
+  const canFly = ordered.some((change) => isLineageGoto(change, gotoSites, populations));
+  const heading = canFly
+    ? `<header><span>Lineage history</span><strong>click to view</strong></header>`
+    : `<header><span>Lineage history</span><strong>${visible.length} branches</strong></header>`;
+  return `${heading}${rows}${divergence}`;
 }

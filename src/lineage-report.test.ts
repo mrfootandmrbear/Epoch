@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { LineageChange } from "./lineage-history";
-import { buildLineageReportHtml } from "./lineage-report";
+import { buildLineageReportHtml, populationDisplayName, shouldShowLineageChange } from "./lineage-report";
 
 const root: LineageChange = {
   id: "sheltered-grazer:0",
@@ -54,5 +54,106 @@ describe("lineage report", () => {
     }]);
     expect(html).toContain("population 42%");
     expect(html).toContain("energy 31%");
+  });
+
+  it("marks active populations with sites as fly-to bookmarks", () => {
+    const gotoSites = new Map([[root.id, { x: 10, y: 5, z: -20, island: "island-0" }]]);
+    const html = buildLineageReportHtml([root], undefined, gotoSites);
+    expect(html).toContain(`data-lineage-id="${root.id}"`);
+    expect(html).toContain("lineage-node-goto");
+    expect(html).toContain('role="button"');
+    expect(html).toContain('tabindex="0"');
+    expect(html).toContain("click to view");
+    expect(html).toContain("island-0");
+  });
+
+  it("does not mark populations without a goto site as interactive", () => {
+    const html = buildLineageReportHtml([{ ...root, status: "not-established" }]);
+    expect(html).toContain(`data-lineage-id="${root.id}"`);
+    expect(html).not.toContain("lineage-node-goto");
+    expect(html).not.toContain('role="button"');
+  });
+
+  it("hides vacant placeholder roots that were never seeded", () => {
+    const vacant: LineageChange = {
+      id: "sheltered-grazer:0",
+      identity: "sheltered-grazer",
+      previousStatus: "not-established",
+      status: "not-established",
+      moved: 0,
+    };
+    const founder: LineageChange = {
+      id: "sheltered-grazer:2",
+      identity: "sheltered-grazer",
+      previousStatus: "not-established",
+      status: "active",
+      moved: 0,
+      event: "established",
+    };
+    expect(shouldShowLineageChange(vacant)).toBe(false);
+    expect(shouldShowLineageChange(founder)).toBe(true);
+    const html = buildLineageReportHtml([vacant, founder], undefined, new Map([[founder.id, { x: 1, y: 2, z: 3 }]]));
+    expect(html).not.toContain("sheltered-grazer:0");
+    expect(html).toContain("Sheltered grazer");
+    expect(html).toContain("lineage-node-goto");
+  });
+
+  it("includes active populations even when their change row was filtered", () => {
+    const vacant: LineageChange = {
+      id: "sheltered-grazer:0",
+      identity: "sheltered-grazer",
+      previousStatus: "not-established",
+      status: "not-established",
+      moved: 0,
+    };
+    const html = buildLineageReportHtml([vacant], undefined, new Map([["sheltered-grazer:2", { x: 1, y: 2, z: 3 }]]), [{
+      id: "sheltered-grazer:2",
+      identity: "sheltered-grazer",
+      status: "active",
+      visible: true,
+      site: { x: 1, y: 2, z: 3, habitat: {} as never },
+    }]);
+    expect(html).toContain("Sheltered grazer");
+    expect(html).toContain("sheltered-grazer:2");
+  });
+
+  it("names the living drifter root as the species label", () => {
+    const vacant: LineageChange = {
+      id: "sheltered-grazer:0",
+      identity: "sheltered-grazer",
+      previousStatus: "not-established",
+      status: "not-established",
+      moved: 0,
+    };
+    const founder: LineageChange = {
+      id: "sheltered-grazer:2",
+      identity: "sheltered-grazer",
+      previousStatus: "not-established",
+      status: "active",
+      moved: 0,
+      event: "established",
+    };
+    expect(populationDisplayName(founder, [vacant, founder])).toBe("Sheltered grazer");
+    expect(populationDisplayName(vacant, [vacant, founder])).toBe("Sheltered grazer (vacant)");
+  });
+
+  it("marks a row goto when the population is active even without a focus target", () => {
+    const change: LineageChange = {
+      id: "sheltered-grazer:2",
+      identity: "sheltered-grazer",
+      previousStatus: "not-established",
+      status: "active",
+      moved: 0,
+      event: "established",
+    };
+    const html = buildLineageReportHtml([change], undefined, new Map(), [{
+      id: "sheltered-grazer:2",
+      identity: "sheltered-grazer",
+      status: "active",
+      visible: true,
+      site: { x: 10, y: 5, z: -20, habitat: {} as never },
+    }]);
+    expect(html).toContain("lineage-node-goto");
+    expect(html).toContain('role="button"');
   });
 });

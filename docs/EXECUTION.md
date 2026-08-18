@@ -24,9 +24,7 @@ WebGPU.
 
 | Next | Brief | Gate |
 |---|---|---|
-| **Now** | [WU-4b](briefs/WU-4b-proof-placement.md) — placement ready for owner look | Owner: herds on the islands the lineage report names |
-| Then | [WU-4b2](briefs/WU-4b2-herd-presentation.md) — overview occupancy, iguana-scale spacing | Owner: inhabited islands at overview; herd mass at mid |
-| Then | [WU-4c](briefs/WU-4c-ancestry-split.md) — related specialists at mid/near | Owner: descendant readability |
+| **Now** | [WU-4c](briefs/WU-4c-ancestry-split.md) — related specialists at mid/near | Owner: descendant readability |
 | Then | Item 5 captures + visual and causal gates | Recorded in this file |
 | Parallel, optional | [WU-P0-1](briefs/WU-P0-1-lockfile.md) — clean `npm install` | Tests on a fresh clone |
 
@@ -164,29 +162,24 @@ capture shows the sequence fails without them.
    founders) uses that export. `hornLength` is a nuchal/dorsal crest. Owner:
    "the iguana model passes for now." Scope is the founder look, not placement
    (WU-4b) or descendant split (WU-4c).*
-   *WU-4b 2026-08-18: proof herds now seat through the same `advance` /
+   *WU-4b accepted 2026-08-18: proof herds seat through the same `advance` /
    `resolveLanding` path a player click uses. Abundance drives visible count;
    seats stay on the lineage's `islandAt` home and do not pack a full cap into
    an 11 m radius. Showcase herds are not used on the proof URLs. Capture set
    `proofPlacement` and cameras `proof-established-*` / `proof-speciated-*` /
    `proof-diversified-*` were added; existing `GOLDEN_SHOTS` are unedited.
-   **Ready for owner verdict. Do not treat placement as accepted.** A metre-true
-   land iguana (~1.2 m long, 0.26 m hip) is a few pixels on 2 km overview
-   cameras; `RENDER_SCALE.grazerShoulderHeight` (2.1 m) is leftover grazer
-   language and must not drive iguana framing. Owner agreement 2026-08-18: do
-   not enlarge the mesh or reopen world scale. Overview is occupancy; clicking
-   a living lineage flies to the seated herd at mid distance (~38 m). Near-camera
-   fps remains the separate open defect below — do not guess-tune it in 4b/4c.
-   Each living row names its `islandAt` id. Live look (lineage report visible,
-   overview framed; click a living lineage to inspect):
-   - Established — `?founders=drifter&plume=active&years=1000000&jumps=2`
-   - Speciated — same with `jumps=3` (two populations, separate islands)
-   - Diversified — `jumps=5` (three living populations across two islands)
-   Mid cameras: `shot=proof-established-mid`, `proof-speciated-parent-mid`,
-   `proof-speciated-branch-mid`, `proof-diversified-parent-mid`,
-   `proof-diversified-branch-mid`, `proof-diversified-child-mid` with the same
-   founders/plume/years/jumps query. Owner question: "On each fixture, are the
-   herds on the islands the lineage report names?"*
+   Owner: herds are on the islands the lineage report names. Scope is placement,
+   not occupancy/spacing (WU-4b2) or descendant split (WU-4c).*
+   *WU-4b2 accepted 2026-08-18: overview occupancy is one cheap disc per living
+   lineage, hidden inside 64 m so mid/near still show the herd.
+   `deriveHerdBehavior` neighbour distance is ~1.5–2.5 m for a metre-true land
+   iguana; wander stays inside cohesion so mid cameras read a cluster, not
+   pepper. The extra 0.9 `herdScale` squash is gone — package `scaleMeters` is
+   the player-facing size. Mesh size and world scale were not reopened.
+   Near-camera fps remains the separate open defect — do not guess-tune it in
+   4c. Owner: inhabited islands read at overview; each living lineage reads as
+   a herd at mid. Scope is occupancy and mid herd mass, not descendant
+   readability (WU-4c).*
 5. Capture the declared sequence, run automated checks, and obtain owner visual
    verdicts.
    *Attempted and retracted 2026-08-15, same day — see LOG.md "Correction".*
@@ -245,11 +238,26 @@ capture shows the sequence fails without them.
   The marsh-grazer remains on disk as prior evidence and is no longer the
   proof-path embodiment.
 
-  **It is explicitly not** a verdict on proof placement (WU-4b), descendant
-  readability (WU-4c), motion, regional cohesion, or reef-edge composition.
+  **It is explicitly not** a verdict on descendant readability (WU-4c), motion,
+  regional cohesion, or reef-edge composition.
   "For now" is the owner's qualifier: the family is good enough to carry the
   proof; later look work is allowed if a later capture shows the sequence
   failing without it.
+- **Proof placement, 2026-08-18** — herds sit on the islands the lineage report
+  names. WU-4b (`docs/briefs/WU-4b-proof-placement.md`). Covers seating live
+  lineages through `advance` / `resolveLanding`, abundance-driven counts, and
+  home-island seats. Inspection fly to ~38 m stays.
+
+  **It is explicitly not** a verdict on descendant readability (WU-4c), motion,
+  or the near-camera fps defect.
+- **Overview occupancy and mid herd mass, 2026-08-18** — inhabited islands read
+  at overview; each living lineage reads as a herd at mid. WU-4b2
+  (`docs/briefs/WU-4b2-herd-presentation.md`). Covers one occupancy disc per
+  living lineage, iguana-scale spacing (~1.5–2.5 m), and dropping the extra
+  0.9 herd squash. Inspection fly to ~38 m stays.
+
+  **It is explicitly not** a verdict on descendant readability (WU-4c), motion,
+  regional cohesion, reef-edge composition, or the near-camera fps defect.
 
 ## Open defects
 
@@ -341,7 +349,7 @@ members consequences.
 | Marine lineage and reef succession | Implemented as bounded proofs | Preserve; expand only for an integrated-proof consumer. |
 | Aerial persistence and wider food web | Partial or planned | Deferred behind the current objective. |
 | Landing-state renderer | Substantial WebGPU/TSL implementation | Regional multi-shield grammar and serialized proof captures. |
-| Ecosystem assets | Grazer, coral, and land-iguana founder family **accepted** (WU-4a, 2026-08-18); tree, seagrass, and fish remain candidates | WU-4b owner look, then WU-4b2 occupancy/spacing, then WU-4c at mid/near. |
+| Ecosystem assets | Grazer, coral, and land-iguana founder family **accepted** (WU-4a, 2026-08-18); proof placement **accepted** (WU-4b, 2026-08-18); overview occupancy and mid herd mass **accepted** (WU-4b2, 2026-08-18); tree, seagrass, and fish remain candidates | WU-4c descendant readability at mid/near. |
 | Jump transition | Production direction selected; depth remains secondary | Revisit after landing causality reads clearly. |
 
 “Implemented” means present with proportionate automated evidence. “Accepted”

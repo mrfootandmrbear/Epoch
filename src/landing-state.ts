@@ -19,7 +19,9 @@ import {
   Quaternion,
   Vector3,
 } from "three/webgpu";
-import { resolveLanding, type LandingOutcome } from "./outcome-resolver";
+import { resolveLanding, type LandingOutcome, type PopulationOutcome } from "./outcome-resolver";
+import type { LineageGotoSites } from "./lineage-report";
+import { visibleHerdCentroid } from "./population-focus";
 import { createDrifterFounderHistory, populationTraitDistance, type LineageChange } from "./lineage-history";
 import type { FounderChoices } from "./founder-profile";
 import { lineageSeed, type PopulationIdentity } from "./population-archetypes";
@@ -65,10 +67,11 @@ import {
   shieldVolcanicOutput,
 } from "./archipelago-history";
 import { packEnvironmentField, resolveEnvironmentField } from "./environment";
-import type { MarineLineageChange } from "./marine-lineage";
+import type { MarineLineageChange, MarinePopulationOutcome } from "./marine-lineage";
 import { findTerrainPath, isWalkable } from "./animal-navigation";
 import { approachHeading, deriveHerdBehavior, herdLayoutRadius, type HerdBehavior } from "./herd-behavior";
 import { sampleCoat } from "./coat-variation";
+import { createOccupancyMark, occupancyMarkVisible } from "./occupancy-mark";
 import {
   DEFAULT_CLIMATE,
   SEA_LEVEL,
@@ -278,6 +281,8 @@ interface LineageRenderState {
   readonly animals: readonly AnimalInstanceState[];
   readonly navigation: readonly AnimalNavigationState[];
   readonly previousSiteMarker: Mesh;
+  /** One overview occupancy disc per living lineage; hidden at mid/near. */
+  readonly occupancyMark: Mesh;
   /** Movement read off this lineage's trait means; replaced whenever they change. */
   behavior: HerdBehavior;
   /** Island the resolver seated this lineage on; wander must not leave it. */
@@ -324,6 +329,9 @@ function createLineageRenderState(
   previousSiteMarker.visible = false;
   previousSiteMarker.receiveShadow = true;
   scene.add(previousSiteMarker);
+  const occupancyMark = createOccupancyMark(markerColor);
+  occupancyMark.name = `occupancy:${id}`;
+  scene.add(occupancyMark);
   return {
     id,
     seed,
@@ -331,6 +339,7 @@ function createLineageRenderState(
     animals,
     navigation: animals.map(() => ({ path: [], waypoint: 0, journey: 0 })),
     previousSiteMarker,
+    occupancyMark,
     // Mid-range means until the lineage resolves its own.
     behavior: deriveHerdBehavior({
       bodyMass: 1, legLength: 1, footWidth: 1, insulation: 0.5,
@@ -342,7 +351,8 @@ function createLineageRenderState(
 
 const herdMatrix = new Matrix4();
 const herdRotation = new Quaternion();
-const herdScale = new Vector3(0.9, 0.9, 0.9);
+// Package `scaleMeters` 0.9–1.5 is the player-facing size. Do not squash again.
+const herdScale = new Vector3(1, 1, 1);
 const herdHidden = new Vector3(0, 0, 0);
 const HERD_UP = new Vector3(0, 1, 0);
 
@@ -436,6 +446,27 @@ function syncHerdMatrices(renderer: LineageRenderState): void {
   renderer.herd.computeBoundingSphere();
 }
 
+function syncOccupancyMark(
+  renderer: LineageRenderState,
+  viewPosition?: Readonly<Vector3>,
+): void {
+  const mark = renderer.occupancyMark;
+  const centroid = visibleHerdCentroid(renderer.animals);
+  // Showcase herds have no home island; occupancy is a live-lineage overview read.
+  if (!centroid || renderer.homeIsland === null) {
+    mark.visible = false;
+    return;
+  }
+  mark.position.set(centroid.x, centroid.y + 0.12, centroid.z);
+  if (!viewPosition) {
+    return;
+  }
+  mark.visible = occupancyMarkVisible(Math.hypot(
+    viewPosition.x - centroid.x,
+    viewPosition.z - centroid.z,
+  ));
+}
+
 function addAerialAnimals(scene: Group): Group[] {
   const plumage = new MeshStandardMaterial({ color: 0xf2ead8, roughness: 0.62 });
   return Array.from({ length: 12 }, (_, index) => {
@@ -490,6 +521,9 @@ export interface WorldExperience {
   showcaseHerdContrast: () => void;
   showcaseFish: () => void;
   advance: (years: number, totalYears: number, climate: ClimateForces) => LineageReport;
+  /** Where the renderer actually seated a living population — use for camera bookmarks. */
+  populationFocusTarget: (lineageId: string) => Readonly<{ x: number; y: number; z: number }> | undefined;
+  lineageFocusTargets: () => LineageGotoSites;
   /**
    * Track the sky the ocean renderer is already using, so the submerged
    * materials light and haze from the same sun rather than drifting out of
@@ -502,6 +536,8 @@ export interface WorldExperience {
 export interface LineageReport {
   changes: readonly LineageChange[];
   marineChanges: readonly MarineLineageChange[];
+  populations: readonly PopulationOutcome[];
+  marinePopulations: readonly MarinePopulationOutcome[];
   traitDistance?: number;
 }
 
@@ -953,8 +989,15 @@ export function createLandingState(scene: Scene): WorldExperience {
       syncHerdMatrices(renderer);
     }
     refreshFreshwater();
-    lineageRenderers.forEach(({ previousSiteMarker: marker }) => {
+    lineageRenderers.forEach((renderer) => {
+      const marker = renderer.previousSiteMarker;
       if (marker.visible) marker.position.y = heightAt(marker.position.x, marker.position.z) + 0.18;
+      if (renderer.occupancyMark.visible) {
+        renderer.occupancyMark.position.y = heightAt(
+          renderer.occupancyMark.position.x,
+          renderer.occupancyMark.position.z,
+        ) + 0.12;
+      }
     });
   }
 
@@ -986,6 +1029,65 @@ export function createLandingState(scene: Scene): WorldExperience {
     if (sculptCheckpointed) return;
     terrainEditHistory.checkpoint(captureTerrainEditSnapshot(worldHistory.terrain));
     sculptCheckpointed = true;
+  }
+
+  function populationFocusTarget(lineageId: string): Readonly<{ x: number; y: number; z: number }> | undefined {
+    const renderer = lineageRenderers.get(lineageId);
+    if (renderer) {
+      const centroid = visibleHerdCentroid(renderer.animals);
+      if (centroid) return centroid;
+      for (const animal of renderer.animals) {
+        if (animal.position.lengthSq() > 1) {
+          return { x: animal.position.x, y: animal.position.y, z: animal.position.z };
+        }
+      }
+    }
+    const population = currentOutcome?.populations.find((entry) => entry.id === lineageId);
+    if (population?.site && population.status === "active" && population.visible) {
+      return {
+        x: population.site.x,
+        y: population.site.y,
+        z: population.site.z,
+      };
+    }
+    const marine = currentOutcome?.marinePopulations.find((entry) => entry.id === lineageId);
+    if (marine?.site && marine.status === "active" && marine.visible) {
+      const sea = SEA_LEVEL[activeClimate.seaLevel];
+      const samples = currentOutcome?.coastalAnimals ?? [];
+      if (samples.length > 0) {
+        const shoal = visibleHerdCentroid(samples.map((sample) => ({
+          visible: true,
+          position: { x: sample.x, y: sample.y, z: sample.z },
+        })));
+        if (shoal) return { x: shoal.x, y: sea + 1.5, z: shoal.z };
+      }
+      return { x: marine.site.x, y: sea + 1.5, z: marine.site.z };
+    }
+    return undefined;
+  }
+
+  function lineageFocusTargets(): LineageGotoSites {
+    const targets = new Map<string, { x: number; y: number; z: number; island?: string }>();
+    for (const population of currentOutcome?.populations ?? []) {
+      if (population.status !== "active" || !population.visible || !population.site) continue;
+      const target = populationFocusTarget(population.id) ?? {
+        x: population.site.x,
+        y: population.site.y,
+        z: population.site.z,
+      };
+      const island = currentGeography
+        ? islandAt(currentGeography, target.x, target.z)
+          ?? islandAt(currentGeography, population.site.x, population.site.z)
+        : null;
+      targets.set(population.id, island ? { ...target, island } : target);
+    }
+    for (const population of currentOutcome?.marinePopulations ?? []) {
+      if (population.status !== "active" || !population.visible) continue;
+      if ((currentOutcome?.coastalAnimals.length ?? 0) === 0) continue;
+      const target = populationFocusTarget(population.id);
+      if (target) targets.set(population.id, target);
+    }
+    return targets;
   }
 
   return {
@@ -1309,6 +1411,7 @@ export function createLandingState(scene: Scene): WorldExperience {
           renderer.animals.forEach((animal) => { animal.visible = false; });
           syncHerdMatrices(renderer);
           renderer.previousSiteMarker.visible = false;
+          renderer.occupancyMark.visible = false;
         }
       }
       outcome.populations.forEach((lineage) => {
@@ -1319,6 +1422,7 @@ export function createLandingState(scene: Scene): WorldExperience {
           renderer.animals.forEach((animal) => { animal.visible = false; });
           syncHerdMatrices(renderer);
           renderer.previousSiteMarker.visible = false;
+          renderer.occupancyMark.visible = false;
           return;
         }
         renderer.behavior = deriveHerdBehavior(lineage.traits);
@@ -1355,6 +1459,7 @@ export function createLandingState(scene: Scene): WorldExperience {
         if (renderer.herd.morphTexture) renderer.herd.morphTexture.needsUpdate = true;
         if (renderer.herd.instanceColor) renderer.herd.instanceColor.needsUpdate = true;
         syncHerdMatrices(renderer);
+        syncOccupancyMark(renderer);
         const marker = renderer.previousSiteMarker;
         const previous = lineage.previousSite;
         marker.visible = lineage.visible && previous !== undefined && lineage.site !== undefined
@@ -1372,11 +1477,15 @@ export function createLandingState(scene: Scene): WorldExperience {
       return {
         changes: resolution.changes,
         marineChanges: resolution.marineChanges,
+        populations: outcome.populations,
+        marinePopulations: outcome.marinePopulations,
         traitDistance: first?.traits && second?.traits
           ? populationTraitDistance(first.traits, second.traits)
           : undefined,
       };
     },
+    populationFocusTarget,
+    lineageFocusTargets,
     setAtmosphere(sunDirection: Vector3, sunColor: Color) {
       reef.setLighting(sunDirection, sunColor, reefHazeColor(reefHaze, sunColor));
     },
@@ -1394,6 +1503,9 @@ export function createLandingState(scene: Scene): WorldExperience {
         // transition, when the herds are frozen and `revealed` is still false.
         marineSnow.update(elapsed - lastSnowElapsed, viewPosition);
         lastSnowElapsed = elapsed;
+        for (const renderer of lineageRenderers.values()) {
+          syncOccupancyMark(renderer, viewPosition);
+        }
       }
       flushTerrainChanges();
       if (!revealed) return;
@@ -1431,9 +1543,11 @@ export function createLandingState(scene: Scene): WorldExperience {
           let destination: Vector3 | undefined;
           for (let attempt = 0; attempt < 10 && !destination; attempt++) {
             const angle = hash(index + state.journey * 17, renderer.seed + attempt) * Math.PI * 2;
-            const radius = 18 + hash(index + attempt, state.journey + 44) * 35;
-            const x = animal.position.x + Math.cos(angle) * radius;
-            const z = animal.position.z + Math.sin(angle) * radius;
+            const radius = behavior.cohesionRadius * (
+              0.35 + hash(index + attempt, state.journey + 44) * 0.7
+            );
+            const x = centerX + Math.cos(angle) * radius;
+            const z = centerZ + Math.sin(angle) * radius;
             if (Math.hypot(x, z) < WANDER_LIMIT && staysOnHomeIsland(renderer, x, z)) {
               destination = new Vector3(x, heightAt(x, z), z);
             }
@@ -1519,6 +1633,7 @@ export function createLandingState(scene: Scene): WorldExperience {
         }
         });
         syncHerdMatrices(renderer);
+        syncOccupancyMark(renderer, viewPosition);
         if (posesWritten && renderer.herd.morphTexture) {
           renderer.herd.morphTexture.needsUpdate = true;
         }
