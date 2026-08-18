@@ -35,9 +35,12 @@ a ridge of spines, not a pair of horns.
 
 ## Family resemblance
 
-Every variant retains the same vertex topology, blunt head, dewlap, sagittal
-crest bases, long tail, ochre-gold palette family, and metre-true squat
-proportions. Habitat pulls silhouette and coat; ancestry stays obvious.
+Every variant retains the same vertex topology, blunt head, dewlap, dense
+sagittal crest, sprawling limbs, long tapering tail, ochre-gold palette family,
+and metre-true squat proportions. Habitat pulls silhouette and coat; ancestry
+stays obvious. Proportions follow the MarineIguana blockout's sprawl, tail
+length, and spine spacing, not that project's marine coloration or flattened
+swim tail.
 
 ## Rejected directions
 

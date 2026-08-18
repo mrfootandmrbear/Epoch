@@ -130,7 +130,7 @@ export function createDistantDrifterRenderer(): DistantDrifterRenderer {
       const scale = profile.size === "small" ? 0.42 : profile.size === "large" ? 0.62 : 0.52;
       cohortScale.setScalar(scale);
       cohortMatrix.compose(
-        new Vector3(-1.7 + index * 1.65, 0.42, -0.45 + (index % 2) * 0.92),
+        new Vector3(-1.7 + index * 1.65, 0.14, -0.45 + (index % 2) * 0.92),
         cohortRotation,
         cohortScale,
       );

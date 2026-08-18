@@ -64,7 +64,7 @@ export function createCreatureExpressionSpike(
 
   samples.forEach((sample, index) => {
     setCoatDetailAt(result, index, sample);
-    matrix.makeTranslation(index * 1.6, 0, 0);
+    matrix.makeTranslation(index * 2.0, 0, 0);
     result.setMatrixAt(index, matrix);
     probe.morphTargetInfluences!.fill(0);
     sample.shape.forEach((value, channel) => {

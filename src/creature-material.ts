@@ -40,19 +40,21 @@ export function createFounderHideMaterial(): MeshStandardNodeMaterial {
   const seed = coat.y.mul(37.4);
 
   const body = positionLocal.mul(1 / FOUNDER_HIP_HEIGHT);
-  const plate = mx_noise_float(body.mul(vec3(11, 9, 11)).add(seed));
-  const micro = mx_noise_float(body.mul(vec3(22, 18, 22)).add(seed.add(9.1)));
+  // Scale rows wrap the torso (high Y frequency) and run along the spine
+  // (lower X/Z), so the field reads as scutes instead of fur clumps.
+  const plate = mx_noise_float(body.mul(vec3(7, 20, 6)).add(seed));
+  const micro = mx_noise_float(body.mul(vec3(16, 28, 12)).add(seed.add(9.1)));
 
   const distance = cameraPosition.sub(positionWorld).length();
-  const microFade = float(1).sub(smoothstep(4, 14, distance));
-  const plateFade = float(1).sub(smoothstep(12, 36, distance));
+  const microFade = float(1).sub(smoothstep(3, 11, distance));
+  const plateFade = float(1).sub(smoothstep(10, 28, distance));
 
-  const scaleHeight = plate.mul(0.4).mul(plateFade)
-    .add(micro.mul(0.12).mul(microFade))
-    .mul(mix(float(0.22), float(0.65), insulation));
+  const scaleHeight = plate.mul(0.32).mul(plateFade)
+    .add(micro.mul(0.08).mul(microFade))
+    .mul(mix(float(0.18), float(0.55), insulation));
   material.normalNode = proceduralBump(
     scaleHeight,
-    float(1.15).mul(mix(float(0.4), float(0.85), insulation)).mul(float(1).sub(smoothstep(28, 72, distance))),
+    float(0.95).mul(mix(float(0.35), float(0.75), insulation)).mul(float(1).sub(smoothstep(22, 60, distance))),
   );
 
   const depth = plate.mul(0.5).add(0.5);

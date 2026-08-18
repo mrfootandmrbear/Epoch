@@ -37,7 +37,7 @@
       "source/generate-land-iguana.mjs",
       "source/land-iguana.geometry.json"
     ],
-    "procedure": "Run node assets/ecosystem/galapagos-land-iguana/source/generate-land-iguana.mjs. Topology-stable morphs are required for InstancedMesh trait expression; Foxel remeshing cannot prove that contract."
+    "procedure": "Run node assets/ecosystem/galapagos-land-iguana/source/generate-land-iguana.mjs. Topology-stable morphs are required for InstancedMesh trait expression; Foxel remeshing cannot prove that contract. Sprawl, tail length, and spine spacing follow the MarineIguana blockout proportions (not its GLB, marine charcoal, or flattened swim tail)."
   },
   "previews": [
     "previews/front.png",
@@ -48,7 +48,7 @@
   ],
   "exports": ["exports/land-iguana.runtime.json"],
   "lods": [
-    { "name": "near", "file": "exports/land-iguana.runtime.json", "maxTriangles": 1500 }
+    { "name": "near", "file": "exports/land-iguana.runtime.json", "maxTriangles": 2200 }
   ],
   "animations": { "required": ["idle", "walk"] },
   "showcase": "previews/landing-showcase.png",

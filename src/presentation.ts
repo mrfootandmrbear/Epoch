@@ -78,10 +78,11 @@ export const GOLDEN_SHOTS = {
 
   /**
    * Near look at the land-iguana founder showcase (WU-4a). Seated at the
-   * candidate herd point (17, 9) near the starting-island summit. Added;
-   * existing cameras are unedited.
+   * candidate herd point (17, 9). Weathered-island ground there is ~20.6 m;
+   * camera is ~4 m out at hip height so crest and sprawl read. Added; existing
+   * cameras are unedited.
    */
-  "proof-founder": { position: [33, 52, 26], target: [17, 28, 9] },
+  "proof-founder": { position: [23.5, 21.6, 10.2], target: [17.3, 20.85, 9.1] },
 } as const;
 
 export type GoldenShotName = keyof typeof GOLDEN_SHOTS;

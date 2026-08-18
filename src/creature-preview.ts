@@ -33,11 +33,18 @@ const samples = view === "game-distance"
   ? Array.from({ length: 12 }, (_, index) => [low, mean, high][index % 3]!)
   : [low, mean, high];
 const herd = createCreatureExpressionSpike(samples);
-const gap = 1.45;
+const gap = 1.9;
 if (view === "front") {
   const matrix = new Matrix4();
   for (let index = 0; index < samples.length; index++) {
     matrix.makeTranslation(0, 0, (1 - index) * gap);
+    herd.setMatrixAt(index, matrix);
+  }
+  herd.instanceMatrix.needsUpdate = true;
+} else if (view === "side" || view === "top") {
+  const matrix = new Matrix4();
+  for (let index = 0; index < samples.length; index++) {
+    matrix.makeTranslation((index - 1) * 1.9, 0, 0);
     herd.setMatrixAt(index, matrix);
   }
   herd.instanceMatrix.needsUpdate = true;
@@ -46,7 +53,7 @@ if (view === "front") {
   for (let index = 0; index < samples.length; index++) {
     const row = Math.floor(index / 4);
     const column = index % 4;
-    matrix.makeTranslation(column * 1.55 - 2.3 + row * 0.18, 0, row * -1.45);
+    matrix.makeTranslation(column * 1.9 - 2.85 + row * 0.18, 0, row * -1.7);
     herd.setMatrixAt(index, matrix);
   }
   herd.instanceMatrix.needsUpdate = true;
@@ -67,14 +74,14 @@ sun.position.set(-8, 14, 9);
 sun.castShadow = true;
 scene.add(sun);
 
-if (view === "front") camera.position.set(6.4, 0.85, 0);
-if (view === "side") camera.position.set(1.55, 0.85, 6.6);
-if (view === "top") camera.position.set(1.55, 8.2, 0.12);
-if (view === "game-distance") camera.position.set(7.2, 4.4, 9.2);
+if (view === "front") camera.position.set(7.2, 0.95, 0);
+if (view === "side") camera.position.set(0, 0.95, 7.4);
+if (view === "top") camera.position.set(0, 9.4, 0.12);
+if (view === "game-distance") camera.position.set(8.4, 5.2, 10.6);
 camera.lookAt(
-  view === "front" ? 0 : view === "game-distance" ? 0.1 : 1.55,
+  view === "front" ? 0 : view === "game-distance" ? 0.1 : 0,
   view === "top" ? 0 : 0.22,
-  view === "game-distance" ? -0.8 : 0,
+  view === "game-distance" ? -1.0 : 0,
 );
 
 addEventListener("resize", () => {
