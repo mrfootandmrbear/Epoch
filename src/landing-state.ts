@@ -78,6 +78,7 @@ import {
   type ClimateForces,
 } from "./climate";
 import { RENDER_SCALE, creaturePoseInterval } from "./render-scale";
+import { DEFAULT_RENDER_DIAG, FAR_LOD_VIEW_OFFSET, type RenderDiagOptions } from "./render-diag";
 import { resolveVolcanicAccretion } from "./volcanism";
 import { VOLCANIC_OUTPUTS, type PlumeVigor, type VolcanicOutput } from "./volcanism";
 import { createVolcanicHotSpotMarker } from "./volcanic-hotspot-marker";
@@ -293,6 +294,7 @@ function createLineageRenderState(
   scene: Group,
   id: string,
   identity: PopulationIdentity,
+  flatHide: boolean,
 ): LineageRenderState {
   const seed = lineageSeed(identity, id);
   const animals = Array.from({ length: HERD_INSTANCE_COUNT }, (_, index): AnimalInstanceState => ({
@@ -308,7 +310,7 @@ function createLineageRenderState(
     coatLightness: 0.5,
     walkPhase: 0,
   };
-  const herd = createCreatureExpressionSpike(animals.map(() => emptySample));
+  const herd = createCreatureExpressionSpike(animals.map(() => emptySample), { flatHide });
   herd.name = `grazer-herd:${id}`;
   // A zero-count instanced morph mesh falls through Three.js's non-instanced
   // morph path, where no uniform influence array exists. Keep empty herds out
@@ -428,7 +430,7 @@ function expressionSample(
   };
 }
 
-function syncHerdMatrices(renderer: LineageRenderState): void {
+function syncHerdMatrices(renderer: LineageRenderState, hideHerds = false): void {
   // Hidden animals collapse to zero scale, but trailing hidden slots need not
   // be submitted at all: abundance fills the herd from index zero upward, so
   // trimming `count` keeps a sparse population off the vertex pipeline.
@@ -441,7 +443,7 @@ function syncHerdMatrices(renderer: LineageRenderState): void {
     renderer.herd.setMatrixAt(index, herdMatrix);
   });
   renderer.herd.count = drawn;
-  renderer.herd.visible = drawn > 0;
+  renderer.herd.visible = drawn > 0 && !hideHerds;
   renderer.herd.instanceMatrix.needsUpdate = true;
   renderer.herd.computeBoundingSphere();
 }
@@ -538,7 +540,10 @@ export interface LineageReport {
   traitDistance?: number;
 }
 
-export function createLandingState(scene: Scene): WorldExperience {
+export function createLandingState(
+  scene: Scene,
+  diag: RenderDiagOptions = DEFAULT_RENDER_DIAG,
+): WorldExperience {
   const terrainStateTexture = makeTerrainStateTexture();
   const volcanicTexture = makeVolcanicTexture();
   const environmentTexture = makeEnvironmentTexture();
@@ -576,6 +581,7 @@ export function createLandingState(scene: Scene): WorldExperience {
   let lastSnowElapsed = 0;
   let frameIndex = 0;
   const lastLodViewPosition = new Vector3(Number.POSITIVE_INFINITY, 0, 0);
+  const farLodViewPosition = new Vector3();
   let terrainDirty = false;
   let terrainStateDirty = false;
   const terrainEditHistory = new TerrainEditHistory();
@@ -683,10 +689,12 @@ export function createLandingState(scene: Scene): WorldExperience {
     lastLodViewPosition.copy(viewPosition);
     for (const renderer of lineageRenderers.values()) {
       for (const animal of renderer.animals) {
-        animal.poseInterval = creaturePoseInterval(Math.hypot(
-          animal.position.x - viewPosition.x,
-          animal.position.z - viewPosition.z,
-        ));
+        animal.poseInterval = diag.freezePose
+          ? 0
+          : creaturePoseInterval(Math.hypot(
+            animal.position.x - viewPosition.x,
+            animal.position.z - viewPosition.z,
+          ));
       }
     }
   }
@@ -804,7 +812,7 @@ export function createLandingState(scene: Scene): WorldExperience {
   function rendererFor(id: string, identity: PopulationIdentity): LineageRenderState {
     const existing = lineageRenderers.get(id);
     if (existing) return existing;
-    const created = createLineageRenderState(life, id, identity);
+    const created = createLineageRenderState(life, id, identity, diag.flatHide);
     lineageRenderers.set(id, created);
     return created;
   }
@@ -846,7 +854,7 @@ export function createLandingState(scene: Scene): WorldExperience {
     });
     if (renderer.herd.morphTexture) renderer.herd.morphTexture.needsUpdate = true;
     if (renderer.herd.instanceColor) renderer.herd.instanceColor.needsUpdate = true;
-    syncHerdMatrices(renderer);
+    syncHerdMatrices(renderer, diag.noHerd);
     // The herd has moved wholesale, so its LOD bands are stale whatever the
     // camera did. Same reason the vegetation renderer invalidates on setTrees.
     lastLodViewPosition.set(Number.POSITIVE_INFINITY, 0, 0);
@@ -983,7 +991,7 @@ export function createLandingState(scene: Scene): WorldExperience {
           renderer.navigation[index]!.waypoint = 0;
         }
       });
-      syncHerdMatrices(renderer);
+      syncHerdMatrices(renderer, diag.noHerd);
     }
     refreshFreshwater();
     lineageRenderers.forEach((renderer) => {
@@ -1170,7 +1178,7 @@ export function createLandingState(scene: Scene): WorldExperience {
         renderer.homeIsland = null;
         renderer.animals.forEach((animal) => { animal.visible = false; });
         renderer.previousSiteMarker.visible = false;
-        syncHerdMatrices(renderer);
+        syncHerdMatrices(renderer, diag.noHerd);
       });
       const positions = terrain.geometry.attributes.position;
       const elevations = new Float32Array(positions.count);
@@ -1401,7 +1409,7 @@ export function createLandingState(scene: Scene): WorldExperience {
         if (!outcome.populations.some((lineage) => lineage.id === renderer.id)) {
           renderer.homeIsland = null;
           renderer.animals.forEach((animal) => { animal.visible = false; });
-          syncHerdMatrices(renderer);
+          syncHerdMatrices(renderer, diag.noHerd);
           renderer.previousSiteMarker.visible = false;
           renderer.occupancyMark.visible = false;
         }
@@ -1412,7 +1420,7 @@ export function createLandingState(scene: Scene): WorldExperience {
         if (!site || !lineage.traits) {
           renderer.homeIsland = null;
           renderer.animals.forEach((animal) => { animal.visible = false; });
-          syncHerdMatrices(renderer);
+          syncHerdMatrices(renderer, diag.noHerd);
           renderer.previousSiteMarker.visible = false;
           renderer.occupancyMark.visible = false;
           return;
@@ -1450,7 +1458,7 @@ export function createLandingState(scene: Scene): WorldExperience {
         });
         if (renderer.herd.morphTexture) renderer.herd.morphTexture.needsUpdate = true;
         if (renderer.herd.instanceColor) renderer.herd.instanceColor.needsUpdate = true;
-        syncHerdMatrices(renderer);
+        syncHerdMatrices(renderer, diag.noHerd);
         syncOccupancyMark(renderer);
         const marker = renderer.previousSiteMarker;
         const previous = lineage.previousSite;
@@ -1487,10 +1495,13 @@ export function createLandingState(scene: Scene): WorldExperience {
       streams.update(elapsed);
       cascades.update(elapsed);
       if (viewPosition) {
-        vegetation.updateLod(viewPosition);
-        seagrass.update(elapsed, viewPosition);
+        const vegetationView = diag.farLod
+          ? farLodViewPosition.set(viewPosition.x, viewPosition.y, viewPosition.z + FAR_LOD_VIEW_OFFSET)
+          : viewPosition;
+        vegetation.updateLod(vegetationView);
+        seagrass.update(elapsed, vegetationView);
         updateCreatureLod(viewPosition);
-        reef.update(elapsed, viewPosition);
+        reef.update(elapsed, vegetationView);
         // Snow drifts on its own clock: it has to keep moving during the jump
         // transition, when the herds are frozen and `revealed` is still false.
         marineSnow.update(elapsed - lastSnowElapsed, viewPosition);
@@ -1613,7 +1624,7 @@ export function createLandingState(scene: Scene): WorldExperience {
         // snapping to wherever it was frozen.
         animal.walkPhase = (animal.walkPhase
           + delta * behavior.strideCadence * (0.9 + speed * 0.08)) % 1;
-        const interval = animal.poseInterval;
+        const interval = diag.freezePose ? 0 : animal.poseInterval;
         if (interval === 0 || (frameIndex + index) % interval !== 0) return;
         const morphData = renderer.herd.morphTexture?.source.data.data;
         if (morphData) {
@@ -1624,7 +1635,7 @@ export function createLandingState(scene: Scene): WorldExperience {
           posesWritten = true;
         }
         });
-        syncHerdMatrices(renderer);
+        syncHerdMatrices(renderer, diag.noHerd);
         syncOccupancyMark(renderer, viewPosition);
         if (posesWritten && renderer.herd.morphTexture) {
           renderer.herd.morphTexture.needsUpdate = true;

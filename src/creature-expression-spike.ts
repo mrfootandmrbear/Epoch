@@ -8,7 +8,7 @@ import {
   Mesh,
 } from "three/webgpu";
 import source from "../assets/ecosystem/galapagos-land-iguana/source/land-iguana.geometry.json";
-import { COAT_DETAIL_ATTRIBUTE, createFounderHideMaterial } from "./creature-material";
+import { COAT_DETAIL_ATTRIBUTE, createFlatHideMaterial, createFounderHideMaterial } from "./creature-material";
 
 export const GRAZER_SHAPE_CHANNELS = [
   "bodyMass",
@@ -47,9 +47,10 @@ export function createLandIguanaGeometry(): BufferGeometry {
 
 export function createCreatureExpressionSpike(
   samples: readonly CreatureExpressionSample[],
+  options?: { readonly flatHide?: boolean },
 ): InstancedMesh {
   const geometry = createLandIguanaGeometry();
-  const material = createFounderHideMaterial();
+  const material = options?.flatHide ? createFlatHideMaterial() : createFounderHideMaterial();
   // The hide material reads insulation per instance, which the morph texture
   // cannot supply to a fragment shader. One instanced attribute carries the
   // trait and a stable per-animal seed alongside it.

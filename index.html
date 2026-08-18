@@ -296,6 +296,11 @@
         visibility: hidden;
         transition: none;
       }
+      body.capture-mode.measure-hud #status {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: none;
+      }
       body.reveal-active #status,
       body.reveal-active #lineage-panel,
       body.reveal-active #epoch-card {

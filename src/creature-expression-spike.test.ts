@@ -1,4 +1,4 @@
-import { InstancedBufferAttribute, Mesh } from "three/webgpu";
+import { InstancedBufferAttribute, Mesh, MeshBasicMaterial } from "three/webgpu";
 import { describe, expect, it } from "vitest";
 import {
   createCreatureExpressionSpike,
@@ -64,5 +64,13 @@ describe("creature expression architecture spike", () => {
     });
 
     expect(spike.geometry.getAttribute(COAT_DETAIL_ATTRIBUTE).getX(0)).toBeCloseTo(0.87, 5);
+  });
+
+  it("swaps the founder hide for an unlit material when flatHide is set", () => {
+    const spike = createCreatureExpressionSpike(
+      [{ shape: [0.5, 0.5, 0.5, 0.5, 0.5], coatWarmth: 0.5, coatLightness: 0.5, walkPhase: 0 }],
+      { flatHide: true },
+    );
+    expect(spike.material).toBeInstanceOf(MeshBasicMaterial);
   });
 });

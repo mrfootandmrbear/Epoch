@@ -2,7 +2,7 @@
 
 > **Class:** Task. **Authority:** Below `docs/EXECUTION.md`. **Answers:** what this session implements. **Finish:** the Done when list, then stop.
 
-**Model:** local Agent. **Size:** medium. **Depends on:** WU-4a, WU-4b, and WU-4b2. **Blocks:** WU-5 visual/causal gates for descendant readability.
+**Model:** local Agent. **Size:** medium. **Depends on:** WU-4a, WU-4b, WU-4b2, and WU-D1 (near owner look only). **Blocks:** WU-5 visual/causal gates for descendant readability.
 
 **Owner visual verdict required** (descendant readability).
 
@@ -39,10 +39,13 @@ One family. Two (then three) specialists. A reviewer can guess habitat from silh
 - Mid and near proof cameras show parent vs branch side by side or in matched framings.
 - Cross-population split is obvious; within-population clones are not the remaining defect (desync in motion is acceptable; still-frame uniformity is not a reason to add a second mesh).
 - Tests, typecheck, and build pass.
+- Near owner look waits on WU-D1. If D1 names a failing cost, a fix unit lands
+  first. Do not guess-tune fps here.
 
 ## Explicitly not the goal
 
 WU-5 full capture matrix, lighting (LW-6), rough seas (LW-7), extra families.
+Guess-tuning hide, morph, or LOD for the zoom-fps defect.
 
 **End with:** evidence URLs, EXECUTION note that descendant readability is ready for owner verdict.
 

@@ -1,4 +1,4 @@
-import { MeshStandardNodeMaterial } from "three/webgpu";
+import { MeshBasicMaterial, MeshStandardNodeMaterial } from "three/webgpu";
 import {
   attribute,
   cameraPosition,
@@ -68,4 +68,9 @@ export function createFounderHideMaterial(): MeshStandardNodeMaterial {
   material.colorNode = vec3(shading, shading, shading);
 
   return material;
+}
+
+/** Unlit stand-in for `diag=flat-hide` — isolates hide-shader fill from the rest of the herd draw. */
+export function createFlatHideMaterial(): MeshBasicMaterial {
+  return new MeshBasicMaterial({ color: 0xffffff });
 }

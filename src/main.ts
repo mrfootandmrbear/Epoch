@@ -50,6 +50,7 @@ import {
 import { climateMood, cycleOriginForPhase, resolveAtmosphere, resolveHeightFog, sampleAtmosphere, type AtmosphereProfile } from "./atmosphere";
 import { createAtmosphereBackground } from "./atmosphere-renderer";
 import { createEpochRenderPipeline, readPostProcessingOptions } from "./post-processing";
+import { formatRenderHud, readRenderDiagOptions } from "./render-diag";
 import {
   DEFAULT_CLIMATE,
   SEA_LEVEL,
@@ -261,6 +262,8 @@ const captureVolcanicPhase = isVolcanicLifecyclePhase(requestedVolcanicPhase)
   ? requestedVolcanicPhase
   : null;
 const postProcessingOptions = readPostProcessingOptions(captureParams);
+const renderDiag = readRenderDiagOptions(captureParams);
+if (renderDiag.noShadow) renderer.shadowMap.enabled = false;
 let lastInteraction = performance.now() / 1000;
 // Deep-time jumps land in a readable morning instead of inheriting whichever
 // real-time solar phase happened to be active when the player clicked. Keep
@@ -283,6 +286,9 @@ const presentation = createPresentationController(camera, controls, (active) => 
 if (captureMode) {
   presentation.applyShot(captureShot);
   document.body.classList.add("capture-mode");
+  // Playwright captures hide the HUD. A human opening the same shot URL still
+  // needs backend · fps · draws · distance for WU-D1.
+  if (navigator.webdriver !== true) document.body.classList.add("measure-hud");
 }
 
 // LW-5: launching a raft used to hand the player a distant speck — the raft
@@ -387,7 +393,7 @@ screensaverDelayEl.addEventListener("change", () => {
 
 const sunLight = new DirectionalLight(new Color(0xfff2d9), 2.0);
 sunLight.position.copy(sunDirection).multiplyScalar(RENDER_SCALE.islandExtent * 1.1);
-sunLight.castShadow = true;
+sunLight.castShadow = !renderDiag.noShadow;
 // The shadow frustum covers the land, not the whole grid. At 2 km the world is
 // mostly open water, and sizing the map to the water would spend three
 // quarters of the texels on sea that casts and receives nothing — the map
@@ -461,7 +467,7 @@ function updateShadowCoverage(): void {
 }
 
 await Promise.all([loadTreeGeometryAssets(), loadSeagrassGeometryAssets()]);
-const landingState = createLandingState(scene);
+const landingState = createLandingState(scene, renderDiag);
 presentationTerrainHeightAt = landingState.heightAt;
 if (captureMode && captureVolcanicPhase) {
   landingState.resetStartingWorld(startingWorldPreset("young-volcano"));
@@ -1198,7 +1204,7 @@ async function start() {
     if (screensaverEnabled && !captureMode && !presentation.active && elapsed - lastInteraction >= screensaverDelay && formTool === "look" && !jumped) {
       presentation.setActive(true, elapsed);
     }
-    fftOcean?.update(elapsed);
+    if (!renderDiag.noFft) fftOcean?.update(elapsed);
     updateAtmosphere(captureMode ? elapsed : elapsed - atmosphereCycleOrigin);
     landingState.update(elapsed, camera.position);
     presentation.update(elapsed);
@@ -1220,7 +1226,15 @@ async function start() {
       const fps = Math.round((frameCount * 1000) / (now - fpsWindowStart));
       frameCount = 0;
       fpsWindowStart = now;
-      statusEl.textContent = `backend: ${(renderer.backend as { isWebGPUBackend?: boolean }).isWebGPUBackend ? "WebGPU" : "WebGL2"} · ${fps} fps · ${frameDraws} draws`;
+      const backend = (renderer.backend as { isWebGPUBackend?: boolean }).isWebGPUBackend
+        ? "WebGPU"
+        : "WebGL2";
+      statusEl.textContent = formatRenderHud(
+        backend,
+        fps,
+        frameDraws,
+        camera.position.distanceTo(controls.target),
+      );
     }
   });
 }

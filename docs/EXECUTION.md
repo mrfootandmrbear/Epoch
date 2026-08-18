@@ -19,13 +19,14 @@ without becoming arbitrary or converging on a predetermined bestiary.
 
 **How the remaining work is dispatched.** One brief per Cursor session, from
 `docs/briefs/`. Do not start the next brief in the same chat. Cloud Agents may
-run simulation and lockfile units; founder embodiment and owner look need local
-WebGPU.
+run simulation and lockfile units; founder embodiment, fps diagnostic, and owner
+look need local WebGPU.
 
 | Next | Brief | Gate |
 |---|---|---|
-| **Now** | [WU-4c](briefs/WU-4c-ancestry-split.md) — related specialists at mid/near | Owner: descendant readability |
-| Then | Item 5 captures + visual and causal gates | Recorded in this file |
+| **Now** | [WU-D1](briefs/WU-D1-near-fps.md) — name the near-camera fps cost | Owner: foreground WebGPU fps table |
+| Then | Fix unit only if D1 names a failing cost; else [WU-4c](briefs/WU-4c-ancestry-split.md) | Near playable, then descendant readability |
+| After that | Item 5 captures + visual and causal gates | Recorded in this file |
 | Parallel, optional | [WU-P0-1](briefs/WU-P0-1-lockfile.md) — clean `npm install` | Tests on a fresh clone |
 
 Do not resume LW-6, LW-7, extra fauna, or atmosphere identity unless a proof
@@ -177,8 +178,9 @@ capture shows the sequence fails without them.
    iguana; wander stays inside cohesion so mid cameras read a cluster, not
    pepper. The extra 0.9 `herdScale` squash is gone — package `scaleMeters` is
    the player-facing size. Mesh size and world scale were not reopened.
-   Near-camera fps remains the separate open defect — do not guess-tune it in
-   4c. Owner: inhabited islands read at overview; each living lineage reads as
+   Near-camera fps is [WU-D1](briefs/WU-D1-near-fps.md) — do not guess-tune it
+   in 4c. WU-4c's near owner look waits on D1 (and a fix unit if D1 names a
+   cost). Owner: inhabited islands read at overview; each living lineage reads as
    a herd at mid. Scope is occupancy and mid herd mass, not descendant
    readability (WU-4c).*
 5. Capture the declared sequence, run automated checks, and obtain owner visual
@@ -265,12 +267,12 @@ capture shows the sequence fails without them.
 
 - **Zooming in on creatures bogs the framerate down, 2026-08-16.** Owner
   report from live play on their own hardware (the only environment that can
-  produce a trustworthy performance reading — see "Performance target"
-  below). Not yet diagnosed: no readout script or profiling has isolated
-  whether this is herd/coat material cost, draw-call growth from WU-A2's
-  multi-raft/rootId work, LOD falloff, or something else. Needs a dedicated
-  diagnostic pass before any fix is attempted — do not guess-tune render
-  settings without evidence of the actual cost.
+  produce a trustworthy performance reading). Not yet diagnosed: no readout
+  script or profiling has isolated whether this is herd/coat material cost,
+  draw-call growth from WU-A2's multi-raft/rootId work, LOD falloff, or
+  something else. Dispatched as [WU-D1](briefs/WU-D1-near-fps.md). Do not
+  guess-tune render settings without evidence of the actual cost. WU-4c near
+  owner look waits on this table.
 - **The newest shield renders flat and unlit.** On real WebGPU as well as the
   fallback, the youngest shield in the chain draws as a dark disc with no
   relief, while `scripts/shield-chain-readout.ts` says that shield should carry
@@ -351,7 +353,7 @@ members consequences.
 | Marine lineage and reef succession | Implemented as bounded proofs | Preserve; expand only for an integrated-proof consumer. |
 | Aerial persistence and wider food web | Partial or planned | Deferred behind the current objective. |
 | Landing-state renderer | Substantial WebGPU/TSL implementation | Regional multi-shield grammar and serialized proof captures. |
-| Ecosystem assets | Grazer, coral, and land-iguana founder family **accepted** (WU-4a, 2026-08-18); proof placement **accepted** (WU-4b, 2026-08-18); overview occupancy and mid herd mass **accepted** (WU-4b2, 2026-08-18); tree, seagrass, and fish remain candidates | WU-4c descendant readability at mid/near. |
+| Ecosystem assets | Grazer, coral, and land-iguana founder family **accepted** (WU-4a, 2026-08-18); proof placement **accepted** (WU-4b, 2026-08-18); overview occupancy and mid herd mass **accepted** (WU-4b2, 2026-08-18); tree, seagrass, and fish remain candidates | WU-D1 near-camera fps name, then WU-4c descendant readability at mid/near. |
 | Jump transition | Production direction selected; depth remains secondary | Revisit after landing causality reads clearly. |
 
 “Implemented” means present with proportionate automated evidence. “Accepted”
