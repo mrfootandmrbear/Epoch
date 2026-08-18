@@ -62,6 +62,7 @@ export interface FFTWaterOptions {
 
 export type FFTWaterMesh = Mesh & {
   updateAtmosphere(state: ResolvedAtmosphere): void;
+  setCameraSubmergence(value: number): void;
 };
 
 export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): FFTWaterMesh {
@@ -161,6 +162,7 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
   const deepColor = uniform(new Color(0x041c26));
   const shallowColor = uniform(new Color(0x008ca7));
   const aerialDensity = uniform(1);
+  const cameraSubmergence = uniform(0);
   const zenithColor = uniform(new Color(0x4f8fb5));
   const horizonColor = uniform(options.atmosphere.fogColor.clone().offsetHSL(0, 0.01, 0.025));
   const foamColor = color(new Color(0xf3fbff));
@@ -187,9 +189,13 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
   const shallowTransmission = shallowFactor.mul(float(1).sub(surfaceFresnel));
   const surfaceOpacity = oceanMask.mul(float(1).sub(shallowTransmission.mul(0.62)));
   // From below this is a bright, translucent ceiling rather than a mirror of
-  // the sky above. Keep enough alpha to reveal the moving wave field without
-  // hiding the air-side world beyond it.
-  material.opacityNode = mix(oceanMask.mul(0.26), surfaceOpacity, frontShare);
+  // the sky above. Opacity rises with camera submergence so the surface reads
+  // as a ceiling without changing the above-water sheet.
+  material.opacityNode = mix(
+    oceanMask.mul(mix(float(0.26), float(0.78), cameraSubmergence)),
+    surfaceOpacity,
+    frontShare,
+  );
 
   const hash2 = Fn(([p]: [Node<"vec2">]) => {
     return fract(sin(dot(p, vec2(127.1, 311.7))).mul(43758.5453123));
@@ -347,7 +353,9 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
     const crestFoam = crest.mul(crestBreakup).mul(crestFoamStrength)
       .mul(float(1).sub(patchRim)).mul(float(1).sub(distFade.mul(0.35)));
 
-    return mix(mix(albedo, foamColor, max(shoreFoam, crestFoam)), distantWater, aerial);
+    const aerialTarget = mix(distantWater, mix(deepColor, shallowColor, float(0.4)), cameraSubmergence);
+    const aerialAmount = aerial.mul(float(1).sub(cameraSubmergence.mul(0.8)));
+    return mix(mix(albedo, foamColor, max(shoreFoam, crestFoam)), aerialTarget, aerialAmount);
   })();
 
   // The far-water skirt. The displaced patch is only 1400m across, so its own
@@ -359,7 +367,8 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
   farMaterial.side = DoubleSide;
   farMaterial.colorNode = Fn(() => {
     const { albedo, aerial } = openWater(vec3(0, 1, 0), float(0));
-    return mix(albedo, distantWater, aerial);
+    const aerialTarget = mix(distantWater, mix(deepColor, shallowColor, float(0.4)), cameraSubmergence);
+    return mix(albedo, aerialTarget, aerial.mul(float(1).sub(cameraSubmergence.mul(0.8))));
   })();
   const farGeometry = new RingGeometry(size * 0.44, 12000, 96, 1);
   farGeometry.rotateX(-Math.PI / 2);
@@ -385,5 +394,10 @@ export function createFFTOceanMesh(ocean: FFTOcean, options: FFTWaterOptions): F
     aerialDensity.value = state.mood.hazeDensityScale;
   };
 
-  return Object.assign(mesh, { updateAtmosphere });
+  return Object.assign(mesh, {
+    updateAtmosphere,
+    setCameraSubmergence(value: number) {
+      cameraSubmergence.value = value;
+    },
+  });
 }

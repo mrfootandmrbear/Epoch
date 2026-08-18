@@ -1022,16 +1022,15 @@ export function createLandingState(
     }
     const marine = currentOutcome?.marinePopulations.find((entry) => entry.id === lineageId);
     if (marine?.site && marine.status === "active" && marine.visible) {
-      const sea = SEA_LEVEL[activeClimate.seaLevel];
       const samples = currentOutcome?.coastalAnimals ?? [];
       if (samples.length > 0) {
         const shoal = visibleHerdCentroid(samples.map((sample) => ({
           visible: true,
           position: { x: sample.x, y: sample.y, z: sample.z },
         })));
-        if (shoal) return { x: shoal.x, y: sea + 1.5, z: shoal.z };
+        if (shoal) return shoal;
       }
-      return { x: marine.site.x, y: sea + 1.5, z: marine.site.z };
+      return { x: marine.site.x, y: marine.site.y, z: marine.site.z };
     }
     return undefined;
   }

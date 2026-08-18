@@ -122,6 +122,21 @@ export const GOLDEN_SHOTS = {
   "proof-diversified-parent-near": { position: [155.05, 11.85, -89.16], target: [150, 11, -92] },
   "proof-diversified-branch-near": { position: [-693.11, 5.35, -39.25], target: [-688, 4.5, -42] },
   "proof-diversified-child-near": { position: [-146.28, 9.35, 301.37], target: [-151, 8.5, 298] },
+
+  // ---------------------------------------------------------------------
+  // Underwater navigation (WU-N1). Added; existing cameras are unedited.
+  // Framed on the re-seated review shelf (`w2k-reef-above` target ≈ 280, -6,
+  // 313) so the owner look has seabed in frame. Polar of the look-up shot
+  // stays inside the submerged 120° cone.
+  // ---------------------------------------------------------------------
+  /** Shallows, camera ~−3 m, looking along the inner shelf. */
+  "w2k-underwater-shallow": { position: [268, -3, 300], target: [252, -4.5, 286] },
+  /** Shelf, camera ~−10 m, seaward of the review colonies. */
+  "w2k-underwater-shelf": { position: [312, -10, 348], target: [292, -12, 328] },
+  /** Slope, camera ~−25 m, looking back toward the shelf. */
+  "w2k-underwater-slope": { position: [398, -25, 446], target: [372, -28, 418] },
+  /** From the shelf, looking up at the underside of the surface. */
+  "w2k-underwater-look-up": { position: [290, -9, 325], target: [280, -1, 313] },
 } as const;
 
 export type GoldenShotName = keyof typeof GOLDEN_SHOTS;

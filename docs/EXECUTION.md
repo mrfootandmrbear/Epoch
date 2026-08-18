@@ -24,7 +24,8 @@ look need local WebGPU.
 
 | Next | Brief | Gate |
 |---|---|---|
-| **Now** | [WU-M1](briefs/WU-M1-intertidal-crab.md) — splash-zone crab occupancy | Owner visual verdict |
+| **Now** | [WU-N1](briefs/WU-N1-underwater-camera.md) — underwater camera navigation | Owner visual verdict |
+| Next | [WU-M1](briefs/WU-M1-intertidal-crab.md) — splash-zone crab occupancy | Owner visual verdict |
 | Later, one per session | [WU-M2](briefs/WU-M2-marine-iguana.md) marine iguana → [WU-M3](briefs/WU-M3-sea-lion.md) sea lion → [WU-M4](briefs/WU-M4-reef-urchin.md) urchin → [WU-M5](briefs/WU-M5-upwelling-bird.md) one upwelling bird | Owner visual verdict each |
 | Parallel, optional | [WU-P0-1](briefs/WU-P0-1-lockfile.md) — clean `npm install` | Tests on a fresh clone |
 
@@ -33,6 +34,17 @@ proof capture shows the sequence fails without them. The parked water-life
 program (M1–M5) is the dispatched shoreline fill; the WU-7 look is recorded
 (accepted 2026-08-18), so M1 is unblocked. Do not start M2–M5 in the same
 session as another family. It is splash-to-shelf occupancy, not FFT / water-surface polish.
+N1 (underwater camera) is implemented 2026-08-18 and awaiting owner verdict —
+M2 and M4 still cannot pass a visual gate until that look lands.
+
+*WU-N1 implemented 2026-08-18.* Double-click on water is a committed enter into
+the column at that hit (half-zoom from overview never reached the water).
+Arrow keys and WASD always fly the rig — look direction for forward/back,
+horizontal strafe for left/right — above and below the waterline. Polar limit
+interpolates from 88.2° to 120° across ±0.8 m; marine focus uses shoal/site
+depth; camera submergence drives haze, a surface-from-below ceiling, and sky
+suppression. Capture set `underwaterNav`. Awaiting owner visual verdict — not
+accepted. Do not start M2–M5 in this session.
 
 ## Order of work
 
@@ -272,9 +284,20 @@ session as another family. It is splash-to-shelf occupancy, not FFT / water-surf
 
    WU-5 reef-edge asked for “more” later — not a pass to start water-surface
    polish. The parked water-life program fills that shoreline vacancy in
-   order: splash crabs (M1), marine iguana (M2), sea-lion haul-out (M3),
-   benthic urchin graze (M4), one upwelling bird (M5). Do not add a second
-   coastal-forager fish or a tropical aquarium catalogue.
+   order: splash crabs (M1), underwater camera (N1), marine iguana (M2),
+   sea-lion haul-out (M3), benthic urchin graze (M4), one upwelling bird (M5).
+   Do not add a second coastal-forager fish or a tropical aquarium catalogue.
+
+   *N1 landed 2026-08-18, awaiting owner verdict.* Double-click the water to
+   enter the column at that hit. Arrows / WASD always fly the rig (look
+   direction; left/right strafe). Polar opens under the surface so the camera
+   can look up; haze and sky suppression are driven off camera depth against
+   `SEA_LEVEL`. Capture URLs:
+   `?shot=w2k-underwater-shallow&fixture=mature-warm-reef&time=42` (and
+   `w2k-underwater-shelf`, `w2k-underwater-slope`, `w2k-underwater-look-up`).
+   Live: any empty start. Owner question: "Can you swim the camera down to the
+   reef and back without fighting it, and does it read as underwater the whole
+   way?"
 
 ## Recorded owner verdicts
 

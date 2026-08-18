@@ -215,6 +215,16 @@ const SHOT_SETS = {
     { label: "18-diversified-branch-near", query: "shot=proof-diversified-branch-near&founders=drifter&plume=active&years=1000000&jumps=5&time=42" },
     { label: "19-diversified-child-near", query: "shot=proof-diversified-child-near&founders=drifter&plume=active&years=1000000&jumps=5&time=42" },
   ],
+  // WU-N1: underwater camera navigation. New set; existing comparison sets and
+  // GOLDEN_SHOTS are unedited. Fixture seats the review shelf so the stills
+  // have seabed in frame. Live look is any empty start — double-click the
+  // water and keep scrolling.
+  underwaterNav: [
+    { label: "01-shallow", query: "shot=w2k-underwater-shallow&fixture=mature-warm-reef&time=42" },
+    { label: "02-shelf", query: "shot=w2k-underwater-shelf&fixture=mature-warm-reef&time=42" },
+    { label: "03-slope", query: "shot=w2k-underwater-slope&fixture=mature-warm-reef&time=42" },
+    { label: "04-look-up", query: "shot=w2k-underwater-look-up&fixture=mature-warm-reef&time=42" },
+  ],
   // UI/HUD review runs WITHOUT capture mode, because `?shot=` hides every
   // panel. These are the surfaces a new player actually sees first.
   ui: [

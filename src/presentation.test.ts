@@ -51,6 +51,10 @@ describe("golden shots", () => {
       "proof-diversified-parent-near",
       "proof-diversified-branch-near",
       "proof-diversified-child-near",
+      "w2k-underwater-shallow",
+      "w2k-underwater-shelf",
+      "w2k-underwater-slope",
+      "w2k-underwater-look-up",
     ]);
   });
 
@@ -72,6 +76,18 @@ describe("golden shots", () => {
       expect([...shot.position, ...shot.target].every(Number.isFinite)).toBe(true);
       expect(shot.position).not.toEqual(shot.target);
     }
+  });
+
+  it("places the underwater look-up shot inside the submerged polar cone", () => {
+    const shot = GOLDEN_SHOTS["w2k-underwater-look-up"];
+    const [cx, cy, cz] = shot.position;
+    const [tx, ty, tz] = shot.target;
+    const dy = cy - ty;
+    const dist = Math.hypot(cx - tx, cy - ty, cz - tz);
+    const polar = Math.acos(Math.min(1, Math.max(-1, dy / dist)));
+    expect(cy).toBeLessThan(0);
+    expect(polar).toBeGreaterThan(Math.PI / 2);
+    expect(polar).toBeLessThanOrEqual(Math.PI * (120 / 180) + 1e-6);
   });
 });
 

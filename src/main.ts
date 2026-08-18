@@ -21,7 +21,19 @@ import {
   WebGPURenderer,
 } from "three/webgpu";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { exponentialHeightFogFactor, fog, positionWorld, smoothstep, uniform } from "three/tsl";
+import {
+  cameraPosition,
+  clamp,
+  exp,
+  exponentialHeightFogFactor,
+  float,
+  fog,
+  mix,
+  positionWorld,
+  positionWorldDirection,
+  smoothstep,
+  uniform,
+} from "three/tsl";
 import { FFTOcean } from "./fft-ocean";
 import { createFFTOceanMesh } from "./fft-water";
 import { createLandingState } from "./landing-state";
@@ -34,11 +46,17 @@ import type { MarineLineageChange } from "./marine-lineage";
 import type { PopulationOutcome } from "./outcome-resolver";
 import {
   CAMERA_EASE_MS,
-  flyTargetHalfZoom,
+  cameraSubmergence,
+  flyRigFloorLift,
+  flyRigSpeed,
+  flyRigTranslation,
+  flyTargetFromHit,
   flyTargetLineageInspection,
   LINEAGE_INSPECTION_DISTANCE,
+  polarLimitForDepth,
   smoothstep as cameraSmoothstep,
 } from "./camera-focus";
+import { reefHazeColor } from "./coral-material";
 import { buildEpochStory } from "./epoch-story";
 import { createPresentationController, isGoldenShotName, proofOverviewShot } from "./presentation";
 import {
@@ -163,20 +181,32 @@ const scene = new Scene();
 scene.fog = null;
 const initialAtmosphere = sampleAtmosphere(0, "day");
 const atmosphereBackground = createAtmosphereBackground(initialAtmosphere);
-scene.backgroundNode = atmosphereBackground.node;
 const heightFogColor = uniform(initialAtmosphere.fogColor.clone());
 const heightFogDensity = uniform(0.0002);
 const heightFogCeiling = uniform(10);
 const fogSeaLevel = uniform(SEA_LEVEL[DEFAULT_CLIMATE.seaLevel]);
+const underwaterFactor = uniform(0);
+const waterHazeColor = uniform(new Color(0x008ca8));
+const waterDeepColor = uniform(new Color(0x041c26));
 // Atmospheric moisture ends at the waterline. Submerged materials already
 // resolve spectral extinction and in-scatter; applying aerial fog again turns
-// clear tropical water into a grey-brown double-fogged volume.
+// clear tropical water into a grey-brown double-fogged volume. When the
+// camera itself is submerged, empty space (sky leak) and distant unshaded
+// ground still need a water-column fill — same haze colour the reef already
+// uses, blended across the waterline so a rise-and-break is not a snap.
 const aboveWaterFog = smoothstep(fogSeaLevel.sub(0.35), fogSeaLevel.add(0.35), positionWorld.y);
 const atmosphericFog = exponentialHeightFogFactor(heightFogDensity, heightFogCeiling) as Node<"float">;
+const waterColumnFog = float(1).sub(exp(cameraPosition.sub(positionWorld).length().mul(-0.012)));
 scene.fogNode = fog(
-  heightFogColor,
-  atmosphericFog.mul(aboveWaterFog),
+  mix(heightFogColor, waterHazeColor, underwaterFactor),
+  mix(atmosphericFog.mul(aboveWaterFog), waterColumnFog, underwaterFactor),
 );
+const waterBackground = mix(
+  waterDeepColor,
+  waterHazeColor,
+  clamp(positionWorldDirection.y.mul(0.55).add(0.4), 0, 1),
+);
+scene.backgroundNode = mix(atmosphereBackground.node, waterBackground, underwaterFactor);
 
 const camera = new PerspectiveCamera(
   55,
@@ -207,7 +237,7 @@ controls.enableDamping = true;
 controls.dampingFactor = 0.08;
 controls.minDistance = 3;
 controls.maxDistance = RENDER_SCALE.islandExtent * 1.6;
-controls.maxPolarAngle = Math.PI * 0.49;
+controls.maxPolarAngle = polarLimitForDepth(camera.position.y, SEA_LEVEL[DEFAULT_CLIMATE.seaLevel]);
 controls.screenSpacePanning = false;
 controls.zoomToCursor = true;
 controls.zoomSpeed = 1.0;
@@ -221,8 +251,9 @@ controls.touches.ONE = TOUCH.PAN;
 controls.touches.TWO = TOUCH.DOLLY_ROTATE;
 renderer.domElement.addEventListener("contextmenu", (event) => event.preventDefault());
 
-// Double-click zooms smoothly toward the terrain point under the cursor,
-// like Google Earth. Lineage rows use the same ease at mid-inspection distance.
+// Double-click on land half-zooms like Google Earth. Double-click on water
+// flies into the column at that hit — half remaining overview distance never
+// reaches the water. Lineage rows use the same ease at mid-inspection.
 let cameraFlyAnim: {
   start: number;
   fromPos: Vector3;
@@ -250,13 +281,57 @@ function updateCameraFly(): void {
   if (t >= 1) cameraFlyAnim = null;
 }
 
+const flyHeld = { forward: false, back: false, left: false, right: false };
+const flyLook = new Vector3();
+const flyRight = new Vector3();
+
+function flyAxis(event: KeyboardEvent, down: boolean): boolean {
+  switch (event.code) {
+    case "ArrowUp":
+    case "KeyW":
+      flyHeld.forward = down;
+      return true;
+    case "ArrowDown":
+    case "KeyS":
+      flyHeld.back = down;
+      return true;
+    case "ArrowLeft":
+    case "KeyA":
+      flyHeld.left = down;
+      return true;
+    case "ArrowRight":
+    case "KeyD":
+      flyHeld.right = down;
+      return true;
+    default:
+      return false;
+  }
+}
+
+function isTypingField(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  const tag = target.tagName;
+  if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA" || tag === "OPTION") return true;
+  return target.isContentEditable;
+}
+
+function flyHeldActive(): boolean {
+  return flyHeld.forward || flyHeld.back || flyHeld.left || flyHeld.right;
+}
+
 renderer.domElement.addEventListener("dblclick", (event) => {
   if (captureMode || formTool !== "look") return;
   pointer.set((event.clientX / window.innerWidth) * 2 - 1, -(event.clientY / window.innerHeight) * 2 + 1);
   raycaster.setFromCamera(pointer, camera);
   const hits = raycaster.intersectObject(landingState.terrain, false);
   if (!hits.length) return;
-  const { toPos, toTarget } = flyTargetHalfZoom(camera.position, controls.target, hits[0].point, controls.minDistance);
+  const { toPos, toTarget } = flyTargetFromHit(
+    camera.position,
+    controls.target,
+    hits[0].point,
+    controls.minDistance,
+    SEA_LEVEL[committedClimate.seaLevel],
+  );
   startCameraFly(toPos, toTarget);
 });
 
@@ -467,6 +542,8 @@ function updateAtmosphere(elapsed: number): void {
   // and the water haze in step with the surface instead of lighting the seabed
   // from a sun the water above it no longer has.
   landingState.setAtmosphere(state.sunDirection, state.sunColor);
+  reefHazeColor(waterHazeColor.value, state.sunColor);
+  waterDeepColor.value.set(0x041c26).multiply(state.mood.waterTint);
   ambientLight.color.copy(state.ambientColor);
   ambientLight.intensity = state.ambientIntensity;
   hemisphereLight.color.copy(state.ambientColor).offsetHSL(0.01, 0.04, 0.12);
@@ -631,6 +708,7 @@ function flyToLineage(lineageId: string): void {
     site,
     LINEAGE_INSPECTION_DISTANCE,
     controls.minDistance,
+    SEA_LEVEL[committedClimate.seaLevel],
   );
   startCameraFly(toPos, toTarget);
 }
@@ -986,6 +1064,24 @@ window.addEventListener("keydown", (event) => {
   syncBrushControls();
 });
 
+window.addEventListener("keydown", (event) => {
+  if (captureMode || event.metaKey || event.ctrlKey || event.altKey) return;
+  if (isTypingField(event.target)) return;
+  if (!flyAxis(event, true)) return;
+  event.preventDefault();
+});
+
+window.addEventListener("keyup", (event) => {
+  if (flyAxis(event, false)) event.preventDefault();
+});
+
+window.addEventListener("blur", () => {
+  flyHeld.forward = false;
+  flyHeld.back = false;
+  flyHeld.left = false;
+  flyHeld.right = false;
+});
+
 shellToggleEl.addEventListener("click", () => {
   const compact = playerShellEl.classList.toggle("compact");
   shellToggleEl.setAttribute("aria-expanded", String(!compact));
@@ -1172,6 +1268,49 @@ const oceanCache = new Map<string, {
   mesh: ReturnType<typeof createFFTOceanMesh>;
 }>();
 
+function syncUnderwaterCamera(): void {
+  const sea = SEA_LEVEL[committedClimate.seaLevel];
+  const sub = cameraSubmergence(camera.position.y, sea);
+  controls.maxPolarAngle = polarLimitForDepth(camera.position.y, sea);
+  underwaterFactor.value = sub;
+  oceanMesh?.setCameraSubmergence(sub);
+}
+
+function updateFlyRig(dt: number): void {
+  if (captureMode || !flyHeldActive() || dt <= 0) return;
+  const moveForward = (flyHeld.forward ? 1 : 0) + (flyHeld.back ? -1 : 0);
+  const moveRight = (flyHeld.right ? 1 : 0) + (flyHeld.left ? -1 : 0);
+  if (moveForward === 0 && moveRight === 0) return;
+  camera.getWorldDirection(flyLook);
+  flyRight.setFromMatrixColumn(camera.matrixWorld, 0);
+  const metres = flyRigSpeed(camera.position.distanceTo(controls.target)) * dt;
+  const delta = flyRigTranslation(
+    flyLook.x,
+    flyLook.y,
+    flyLook.z,
+    flyRight.x,
+    flyRight.z,
+    moveForward,
+    moveRight,
+    metres,
+  );
+  camera.position.x += delta.x;
+  camera.position.y += delta.y;
+  camera.position.z += delta.z;
+  controls.target.x += delta.x;
+  controls.target.y += delta.y;
+  controls.target.z += delta.z;
+  const lift = flyRigFloorLift(
+    camera.position.y,
+    landingState.heightAt(camera.position.x, camera.position.z),
+  );
+  if (lift > 0) {
+    camera.position.y += lift;
+    controls.target.y += lift;
+  }
+  lastInteraction = performance.now() / 1000;
+}
+
 function applyOceanForces(forces: ClimateForces, storm = captureStormSea): void {
   if (!rendererReady) return;
   if (oceanMesh) scene.remove(oceanMesh);
@@ -1287,10 +1426,14 @@ async function start() {
   let frameCount = 0;
   let fpsWindowStart = performance.now();
   let frameDraws = 0;
+  let lastFrameMs = performance.now();
 
   renderer.setAnimationLoop(() => {
     const elapsed = captureMode ? captureTime : performance.now() / 1000;
-    if (screensaverEnabled && !captureMode && !presentation.active && elapsed - lastInteraction >= screensaverDelay && formTool === "look" && !jumped) {
+    const nowMs = performance.now();
+    const dt = Math.min(0.05, Math.max(0, (nowMs - lastFrameMs) / 1000));
+    lastFrameMs = nowMs;
+    if (screensaverEnabled && !captureMode && !presentation.active && elapsed - lastInteraction >= screensaverDelay && formTool === "look" && !jumped && !flyHeldActive()) {
       presentation.setActive(true, elapsed);
     }
     if (!renderDiag.noFft) fftOcean?.update(elapsed);
@@ -1299,7 +1442,12 @@ async function start() {
     presentation.update(elapsed);
     updateArrivalBeat();
     updateCameraFly();
-    if (!presentation.active && !arrivalBeat && !cameraFlyAnim) controls.update();
+    if (flyHeldActive()) {
+      cameraFlyAnim = null;
+      updateFlyRig(dt);
+    }
+    syncUnderwaterCamera();
+    if (!presentation.active && !arrivalBeat && !cameraFlyAnim && !flyHeldActive()) controls.update();
     updateShadowCoverage();
     const callsBeforeRender = renderer.info.render.calls;
     renderPipeline!.render();
