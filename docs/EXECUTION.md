@@ -22,8 +22,7 @@ WebGPU.
 
 | Next | Brief | Gate |
 |---|---|---|
-| **Now** | [WU-4a](briefs/WU-4a-founder-family.md) — land-iguana founder family at **candidate**; awaiting owner verdict | Owner: does it read as that lineage, with crest—not horns—carrying `hornLength`? |
-| Then | [WU-4b](briefs/WU-4b-proof-placement.md) — herds on the islands the resolver named | Owner: placement matches the lineage report |
+| **Now** | [WU-4b](briefs/WU-4b-proof-placement.md) — herds on the islands the resolver named | Owner: placement matches the lineage report |
 | Then | [WU-4c](briefs/WU-4c-ancestry-split.md) — related specialists | Owner: descendant readability |
 | Then | Item 5 captures + visual and causal gates | Recorded in this file |
 | Parallel, optional | [WU-P0-1](briefs/WU-P0-1-lockfile.md) — clean `npm install` | Tests on a fresh clone |
@@ -157,11 +156,11 @@ capture shows the sequence fails without them.
    WU-4b (place proof populations), WU-4c (ancestry vs habitat split). The
    accepted marsh-grazer remains on disk as prior evidence; the proof path must
    stop using it as the founder look.*
-   *WU-4a implemented 2026-08-18: package `galapagos-land-iguana` is at
-   **candidate** with empty `acceptance.verdict`. The proof embodiment
-   (`createCreatureExpressionSpike`, landing herds, raft founders) now uses that
-   export. `hornLength` is a nuchal/dorsal crest. Not accepted — owner visual
-   verdict required.*
+   *WU-4a accepted 2026-08-18: package `galapagos-land-iguana` is **accepted**.
+   The proof embodiment (`createCreatureExpressionSpike`, landing herds, raft
+   founders) uses that export. `hornLength` is a nuchal/dorsal crest. Owner:
+   "the iguana model passes for now." Scope is the founder look, not placement
+   (WU-4b) or descendant split (WU-4c).*
 5. Capture the declared sequence, run automated checks, and obtain owner visual
    verdicts.
    *Attempted and retracted 2026-08-15, same day — see LOG.md "Correction".*
@@ -213,6 +212,18 @@ capture shows the sequence fails without them.
   throttled `requestAnimationFrame` on a backgrounded tab could not render
   the beat at usable speed); the owner confirmed it directly on their own
   machine instead.
+- **Land-iguana founder family, 2026-08-18** — "the iguana model passes for
+  now." WU-4a (`docs/briefs/WU-4a-founder-family.md`). Covers the founder look:
+  a recognizable Galápagos land-iguana family at gameplay distance, with
+  `hornLength` expressed as a nuchal/dorsal crest rather than mammal horns.
+  The marsh-grazer remains on disk as prior evidence and is no longer the
+  proof-path embodiment.
+
+  **It is explicitly not** a verdict on proof placement (WU-4b), descendant
+  readability (WU-4c), motion, regional cohesion, or reef-edge composition.
+  "For now" is the owner's qualifier: the family is good enough to carry the
+  proof; later look work is allowed if a later capture shows the sequence
+  failing without it.
 
 ## Open defects
 
@@ -304,7 +315,7 @@ members consequences.
 | Marine lineage and reef succession | Implemented as bounded proofs | Preserve; expand only for an integrated-proof consumer. |
 | Aerial persistence and wider food web | Partial or planned | Deferred behind the current objective. |
 | Landing-state renderer | Substantial WebGPU/TSL implementation | Regional multi-shield grammar and serialized proof captures. |
-| Ecosystem assets | Grazer and coral accepted; land-iguana founder family at **candidate** (WU-4a, 2026-08-18); tree, seagrass, and fish remain candidates | Owner verdict: does the founder read as a Galápagos land iguana, with crest—not horns—carrying `hornLength`? After that clears, WU-4b/4c, then add ancestral families one at a time. |
+| Ecosystem assets | Grazer, coral, and land-iguana founder family **accepted** (WU-4a, 2026-08-18); tree, seagrass, and fish remain candidates | WU-4b/4c, then add ancestral families one at a time. |
 | Jump transition | Production direction selected; depth remains secondary | Revisit after landing causality reads clearly. |
 
 “Implemented” means present with proportionate automated evidence. “Accepted”

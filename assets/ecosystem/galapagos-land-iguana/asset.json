@@ -3,7 +3,7 @@
   "id": "galapagos-land-iguana",
   "displayName": "Galápagos Land Iguana",
   "category": "animal",
-  "stage": "candidate",
+  "stage": "accepted",
   "role": "arid-island grazing herbivore",
   "habitats": ["arid seasonal lowland", "coastal scrub"],
   "realWorldReferents": [
@@ -52,5 +52,7 @@
   ],
   "animations": { "required": ["idle", "walk"] },
   "showcase": "previews/landing-showcase.png",
-  "acceptance": { "verdict": "" }
+  "acceptance": {
+    "verdict": "Accepted by the owner on 2026-08-18 as the Galápagos land-iguana founder family for the proof. Owner: \"the iguana model passes for now.\" Crest—not mammal horns—carries hornLength. Scope is the founder look at gameplay distance; not proof placement, descendant split, or motion."
+  }
 }
