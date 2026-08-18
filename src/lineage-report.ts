@@ -74,12 +74,20 @@ function populationState(change: LineageChange): string {
   return `<div class="lineage-population"><span>population ${abundance}%</span><span>energy ${energy}%</span></div>`;
 }
 
-const PLACEHOLDER_ROOT_IDS = new Set(["sheltered-grazer:0", "ridge-grazer:0"]);
+/**
+ * Synthetic `${identity}:0` slots from `createLineageHistory` stay out of the
+ * report until a raft actually seeds them. Identity names are not hardcoded —
+ * a new founder family should not reappear as a vacant row.
+ */
+function isVacantRootSlot(change: LineageChange): boolean {
+  if (change.parentId || change.event) return false;
+  if (change.status !== "not-established") return false;
+  if (change.abundance || change.energy || change.habitat || change.traits) return false;
+  return change.id === `${change.identity}:0`;
+}
 
-/** Synthetic `:0` slots never seeded by a raft stay out of the report. */
 export function shouldShowLineageChange(change: LineageChange): boolean {
-  if (!PLACEHOLDER_ROOT_IDS.has(change.id)) return true;
-  return !(change.status === "not-established" && !change.event);
+  return !isVacantRootSlot(change);
 }
 
 function syntheticLineageChange(population: PopulationOutcome): LineageChange {

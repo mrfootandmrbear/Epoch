@@ -171,7 +171,8 @@ capture shows the sequence fails without them.
    Owner: herds are on the islands the lineage report names. Scope is placement,
    not occupancy/spacing (WU-4b2) or descendant split (WU-4c).*
    *WU-4b2 accepted 2026-08-18: overview occupancy is one cheap disc per living
-   lineage, hidden inside 64 m so mid/near still show the herd.
+   lineage, hidden inside 64 m of 3D camera distance so mid/near still show the
+   herd. Horizontal-only distance hid the disc from an overhead overview.
    `deriveHerdBehavior` neighbour distance is ~1.5–2.5 m for a metre-true land
    iguana; wander stays inside cohesion so mid cameras read a cluster, not
    pepper. The extra 0.9 `herdScale` squash is gone — package `scaleMeters` is
@@ -254,7 +255,8 @@ capture shows the sequence fails without them.
   at overview; each living lineage reads as a herd at mid. WU-4b2
   (`docs/briefs/WU-4b2-herd-presentation.md`). Covers one occupancy disc per
   living lineage, iguana-scale spacing (~1.5–2.5 m), and dropping the extra
-  0.9 herd squash. Inspection fly to ~38 m stays.
+  0.9 herd squash. Inspection fly to ~38 m stays. Occupancy hide distance is
+  3D, so an overhead overview still reads inhabited islands.
 
   **It is explicitly not** a verdict on descendant readability (WU-4c), motion,
   regional cohesion, reef-edge composition, or the near-camera fps defect.

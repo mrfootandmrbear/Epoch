@@ -16,4 +16,10 @@ describe("population focus", () => {
       { visible: false, position: { x: 1, y: 2, z: 3 } },
     ])).toBeUndefined();
   });
+
+  it("treats origin-adjacent visible samples as a valid focus", () => {
+    expect(visibleHerdCentroid([
+      { visible: true, position: { x: 0.2, y: 0.4, z: 0.3 } },
+    ])).toEqual({ x: 0.2, y: 0.4, z: 0.3 });
+  });
 });

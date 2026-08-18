@@ -71,7 +71,7 @@ import type { MarineLineageChange, MarinePopulationOutcome } from "./marine-line
 import { findTerrainPath, isWalkable } from "./animal-navigation";
 import { approachHeading, deriveHerdBehavior, herdLayoutRadius, type HerdBehavior } from "./herd-behavior";
 import { sampleCoat } from "./coat-variation";
-import { createOccupancyMark, occupancyMarkVisible } from "./occupancy-mark";
+import { createOccupancyMark, occupancyMarkVisibleAt } from "./occupancy-mark";
 import {
   DEFAULT_CLIMATE,
   SEA_LEVEL,
@@ -461,10 +461,7 @@ function syncOccupancyMark(
   if (!viewPosition) {
     return;
   }
-  mark.visible = occupancyMarkVisible(Math.hypot(
-    viewPosition.x - centroid.x,
-    viewPosition.z - centroid.z,
-  ));
+  mark.visible = occupancyMarkVisibleAt(viewPosition, centroid);
 }
 
 function addAerialAnimals(scene: Group): Group[] {
@@ -1033,15 +1030,10 @@ export function createLandingState(scene: Scene): WorldExperience {
 
   function populationFocusTarget(lineageId: string): Readonly<{ x: number; y: number; z: number }> | undefined {
     const renderer = lineageRenderers.get(lineageId);
-    if (renderer) {
-      const centroid = visibleHerdCentroid(renderer.animals);
-      if (centroid) return centroid;
-      for (const animal of renderer.animals) {
-        if (animal.position.lengthSq() > 1) {
-          return { x: animal.position.x, y: animal.position.y, z: animal.position.z };
-        }
-      }
-    }
+    // Visible samples first; otherwise the resolver site. Do not treat the
+    // world origin as "unplaced" — shield zero sits there.
+    const centroid = renderer ? visibleHerdCentroid(renderer.animals) : undefined;
+    if (centroid) return centroid;
     const population = currentOutcome?.populations.find((entry) => entry.id === lineageId);
     if (population?.site && population.status === "active" && population.visible) {
       return {

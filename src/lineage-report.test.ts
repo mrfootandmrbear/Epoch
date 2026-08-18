@@ -82,6 +82,13 @@ describe("lineage report", () => {
       status: "not-established",
       moved: 0,
     };
+    const otherVacant: LineageChange = {
+      id: "ridge-grazer:0",
+      identity: "ridge-grazer",
+      previousStatus: "not-established",
+      status: "not-established",
+      moved: 0,
+    };
     const founder: LineageChange = {
       id: "sheltered-grazer:2",
       identity: "sheltered-grazer",
@@ -91,11 +98,25 @@ describe("lineage report", () => {
       event: "established",
     };
     expect(shouldShowLineageChange(vacant)).toBe(false);
+    expect(shouldShowLineageChange(otherVacant)).toBe(false);
     expect(shouldShowLineageChange(founder)).toBe(true);
     const html = buildLineageReportHtml([vacant, founder], undefined, new Map([[founder.id, { x: 1, y: 2, z: 3 }]]));
     expect(html).not.toContain("sheltered-grazer:0");
     expect(html).toContain("Sheltered grazer");
     expect(html).toContain("lineage-node-goto");
+  });
+
+  it("still shows a never-established raft that left founder evidence", () => {
+    const failed: LineageChange = {
+      id: "sheltered-grazer:0",
+      identity: "sheltered-grazer",
+      previousStatus: "not-established",
+      status: "not-established",
+      moved: 0,
+      abundance: { before: 0.018, after: 0.04 },
+      energy: { before: 0.38, after: 0.42 },
+    };
+    expect(shouldShowLineageChange(failed)).toBe(true);
   });
 
   it("includes active populations even when their change row was filtered", () => {

@@ -12,13 +12,28 @@ export const OCCUPANCY_MARK_RADIUS = 9;
 
 /**
  * Hide the mark once the camera is close enough that the herd itself is the
- * occupancy read. Mid proof cameras and the 38 m lineage fly sit well inside
+ * occupancy read. Distance is 3D: a camera sitting 300 m overhead must still
+ * see the disc. Mid proof cameras and the 38 m lineage fly sit well inside
  * this; overview cameras sit well outside it.
  */
 export const OCCUPANCY_HIDE_DISTANCE = 64;
 
+export function occupancyDistanceMeters(
+  view: Readonly<{ x: number; y: number; z: number }>,
+  site: Readonly<{ x: number; y: number; z: number }>,
+): number {
+  return Math.hypot(view.x - site.x, view.y - site.y, view.z - site.z);
+}
+
 export function occupancyMarkVisible(distanceMeters: number): boolean {
   return Number.isFinite(distanceMeters) && distanceMeters >= OCCUPANCY_HIDE_DISTANCE;
+}
+
+export function occupancyMarkVisibleAt(
+  view: Readonly<{ x: number; y: number; z: number }>,
+  site: Readonly<{ x: number; y: number; z: number }>,
+): boolean {
+  return occupancyMarkVisible(occupancyDistanceMeters(view, site));
 }
 
 export function createOccupancyMark(color: Color): Mesh {
