@@ -1,0 +1,18 @@
+---
+description: Epoch session ritual, live contracts, and owner-verdict gate
+alwaysApply: true
+---
+
+# Epoch sessions
+
+Read `PRODUCT.md`, `docs/ARCHITECTURE.md`, and `docs/EXECUTION.md`. If this chat names a brief, read that file next and stop. Do not re-explore the repo. `docs/polish/`, `THESIS.md`, roadmaps, and `tasks/` are archive unless a contract or brief cites a specific passage.
+
+One Work Unit per chat. Finish it. Do not start the next unit in the same session.
+
+Priority is only `docs/EXECUTION.md`. Do not resume isolated renderer polish (lighting, sea state, extra fauna, atmosphere identity) unless the integrated proof sequence demonstrates a failure that needs it.
+
+Say "ready for owner verdict," never "accepted," for pixels, motion, or assets. Automated tests do not pass visual or causal gates.
+
+WebGPU works on the owner's machine. Never conclude the renderer is broken from headless capture, a throttled browser pane, or `--enable-unsafe-webgpu`. Do not report fps from those environments.
+
+Install workaround until the lockfile unit lands: `npm install --no-package-lock --no-save`.

@@ -6,8 +6,9 @@ Start with [docs/README.md](docs/README.md). Product direction lives in
 [docs/EXECUTION.md](docs/EXECUTION.md). When older roadmaps, studies, or audits
 disagree, these three contracts win.
 
-Preserve unrelated working-tree changes and keep simulation state separate from
-rendering concerns.
+Work is dispatched as one brief in [docs/briefs/](docs/briefs/). Cursor project
+rules in `.cursor/rules/` apply on top of this file. Preserve unrelated
+working-tree changes and keep simulation state separate from rendering concerns.
 
 ## Ecosystem assets
 

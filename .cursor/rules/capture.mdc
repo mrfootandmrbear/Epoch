@@ -1,0 +1,13 @@
+---
+description: Preserve golden shots; add new evidence cameras
+globs: src/presentation.ts,scripts/capture.mjs
+alwaysApply: false
+---
+
+# Capture evidence
+
+Existing `GOLDEN_SHOTS` and existing shot sets are the comparison basis for prior evidence. Add new entries. Do not edit existing ones.
+
+`--webgl` captures are fallback-backend evidence. Treat visual scores from them as provisional until confirmed on real WebGPU.
+
+`--enable-unsafe-webgpu` is opt-in and not representative. Leave it off unless investigating that flag itself.

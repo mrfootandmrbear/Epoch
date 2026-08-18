@@ -1,14 +1,16 @@
 # Epoch — invariants for every session
 
 Auto-loaded context. This holds only what must survive a context reset. Product
-direction is `THESIS.md`; repo navigation is `docs/polish/MAP.md`; current work
-state is `docs/polish/BACKLOG.md` + `SCORECARD.md` + `LOG.md`.
+direction is `PRODUCT.md`; system ownership is `docs/ARCHITECTURE.md`; current
+priority is `docs/EXECUTION.md`. Dispatch lives in `docs/briefs/`. `THESIS.md`
+and `docs/polish/` are historical sources; they do not set priority.
 
 ## Session opening ritual
 
-Read `docs/polish/BACKLOG.md`, `docs/polish/SCORECARD.md`, and the tail of
-`docs/polish/LOG.md`. **Do not re-explore the repository** — that is what
-`MAP.md` is for. One Work Unit per session; never end mid-Work-Unit.
+If this chat names a brief, read that file and the contracts it lists. Otherwise
+read `docs/EXECUTION.md` only. **Do not re-explore the repository.** One Work
+Unit per session; never end mid-Work-Unit. Do not start the next brief in the
+same session.
 
 ## Art-direction bible
 
@@ -84,11 +86,11 @@ rate is not a gain.
 ## Commands
 
 ```bash
-npm install --no-package-lock --no-save   # plain `npm install` is broken, see BACKLOG P0-1
+npm install --no-package-lock --no-save   # until WU-P0-1 lands; see docs/briefs/WU-P0-1-lockfile.md
 npm run dev                                # Vite, port 5173
-npm run test                               # Vitest, 28 files / 94 tests
+npm run test                               # Vitest
 npx tsc --noEmit                           # typecheck
-node scripts/capture.mjs --set baseline --webgl   # contact sheet evidence
+node scripts/capture.mjs --set baseline --webgl   # contact sheet evidence (fallback backend)
 ```
 
 `--webgl` is needed for usable captures in GPU-less environments, which is a

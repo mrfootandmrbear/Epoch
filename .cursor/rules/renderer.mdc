@@ -1,0 +1,17 @@
+---
+description: WebGPU/TSL presentation invariants
+globs: src/**/*renderer*.ts,src/**/*material*.ts,src/**/fft-*.ts,src/**/post-processing.ts,src/**/atmosphere*.ts,src/**/cascade*.ts,src/**/reveal.ts,src/**/creature-*.ts,src/**/herd-*.ts,src/**/landing-state.ts,src/render-scale.ts
+alwaysApply: false
+---
+
+# Renderer
+
+Target is `WebGPURenderer` + TSL. Do not tune against the WebGL2 fallback.
+
+One world unit is one metre (`src/render-scale.ts`). Do not break scale locally for a shot.
+
+Before inventing GPU architecture, read `.agents/skills/design-webgpu-solutions/SKILL.md`.
+
+Capture mode stays deterministic: seed `0xe90c4`, frozen sim time, forced `day`, fixed cameras, UI hidden. Arrival beats and other motion must be inert under `body.capture-mode`.
+
+Stylization must make adaptation or change-across-a-jump more legible. Descendants share a rig and palette. No fantasy variants. Restraint: every effect needs a stated purpose.

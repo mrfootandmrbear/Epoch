@@ -1,0 +1,15 @@
+---
+description: Simulation owns world truth; renderers must not
+globs: src/**/*history*.ts,src/**/*resolver*.ts,src/**/*geography*.ts,src/**/founder-*.ts,src/**/population-*.ts,src/**/lineage-*.ts,src/**/gene-flow*.ts,src/**/volcanism.ts,src/**/climate.ts,src/**/terrain-history.ts,scripts/**/*readout*.ts
+alwaysApply: false
+---
+
+# Simulation ownership
+
+Persistent world, jump snapshots, and landing outcomes live here. Data may flow to rendering; meshes, materials, cameras, and instance IDs must not become authority for a later jump.
+
+Cover behavior with deterministic tests and readout scripts that use the same resolver a player click uses. Do not fabricate capture-only populations.
+
+Deep time resolves a landing directly. Do not add year-by-year playback.
+
+A new field needs a resolver that writes it and a named consumer that changes an outcome.

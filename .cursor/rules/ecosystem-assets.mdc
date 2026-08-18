@@ -1,0 +1,15 @@
+---
+description: One ecosystem asset family per task
+globs: assets/ecosystem/**
+alwaysApply: false
+---
+
+# Ecosystem assets
+
+Follow `.agents/skills/generate-ecosystem-asset/SKILL.md`. One bounded family per task. Package under `assets/ecosystem/<asset-id>/`.
+
+Run `npm run asset:check -- assets/ecosystem/<asset-id>` after every change. Do not hand-edit generated runtime JSON.
+
+Do not mark a package `accepted` without a recorded owner visual verdict. Do not modify simulation rules to justify an asset. Do not replace an existing accepted package without calling that out in the brief.
+
+Continuous traits are runtime parameters; discrete adaptations are authored variants. Family resemblance is required.

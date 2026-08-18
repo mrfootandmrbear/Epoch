@@ -1,7 +1,7 @@
 # Epoch execution direction
 
 > **Class:** Contract. **Authority:** Canonical source for current state and
-> priority. **Updated:** 2026-08-15. Update whenever a listed capability,
+> priority. **Updated:** 2026-08-17. Update whenever a listed capability,
 > priority, or verdict changes.
 
 ## Current objective
@@ -14,6 +14,22 @@ The founder must be a recognizable present-day Galápagos lineage, not a generic
 creature or an authored future species. This first proof must establish the
 inheritance rules that later allow the world to become radically different
 without becoming arbitrary or converging on a predetermined bestiary.
+
+**How the remaining work is dispatched.** One brief per Cursor session, from
+`docs/briefs/`. Do not start the next brief in the same chat. Cloud Agents may
+run simulation and lockfile units; founder embodiment and owner look need local
+WebGPU.
+
+| Next | Brief | Gate |
+|---|---|---|
+| **Now** | [WU-4a](briefs/WU-4a-founder-family.md) — land-iguana founder family | Owner: does it read as that lineage? |
+| Then | [WU-4b](briefs/WU-4b-proof-placement.md) — herds on the islands the resolver named | Owner: placement matches the lineage report |
+| Then | [WU-4c](briefs/WU-4c-ancestry-split.md) — related specialists | Owner: descendant readability |
+| Then | Item 5 captures + visual and causal gates | Recorded in this file |
+| Parallel, optional | [WU-P0-1](briefs/WU-P0-1-lockfile.md) — clean `npm install` | Tests on a fresh clone |
+
+Do not resume LW-6, LW-7, extra fauna, or atmosphere identity unless a proof
+capture shows the sequence fails without them.
 
 ## Order of work
 
@@ -137,6 +153,10 @@ without becoming arbitrary or converging on a predetermined bestiary.
    `proofSequence` added to `scripts/capture.mjs`.*
 4. Render the regional geology and both descendant populations with a shared
    inherited visual history rooted in the opening Galápagos grammar.
+   *Split 2026-08-17 into WU-4a (Galápagos land-iguana family, candidate),
+   WU-4b (place proof populations), WU-4c (ancestry vs habitat split). The
+   accepted marsh-grazer remains on disk as prior evidence; the proof path must
+   stop using it as the founder look.*
 5. Capture the declared sequence, run automated checks, and obtain owner visual
    verdicts.
    *Attempted and retracted 2026-08-15, same day — see LOG.md "Correction".*

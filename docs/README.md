@@ -12,7 +12,7 @@ When documents disagree, the higher row wins.
 | 1 | [PRODUCT.md](../PRODUCT.md) | What are we building, and what must remain true? |
 | 2 | [ARCHITECTURE.md](ARCHITECTURE.md) | How is the product divided, and which layer owns state? |
 | 3 | [EXECUTION.md](EXECUTION.md) | What is true now, what is next, and what proves completion? |
-| 4 | Active task in [`tasks/`](../tasks/) | What bounded change is being executed? |
+| 4 | Active brief in [`briefs/`](briefs/) | What bounded change is being executed? (`tasks/` is leftover dispatch, not the live path.) |
 | 5 | Reference or archive | Why was something explored, and what evidence remains useful? |
 
 Code and tests describe present mechanics but do not silently change product
