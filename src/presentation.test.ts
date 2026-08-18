@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GOLDEN_SHOTS, SCREENSAVER_SHOTS, isGoldenShotName, screensaverCameraHeight } from "./presentation";
+import { GOLDEN_SHOTS, SCREENSAVER_SHOTS, isGoldenShotName, proofOverviewShot, screensaverCameraHeight } from "./presentation";
 
 describe("golden shots", () => {
   it("provides the canonical visual review set", () => {
@@ -33,13 +33,31 @@ describe("golden shots", () => {
       "w2k-chain",
       "w2k-chain-saddle",
       "proof-founder",
+      // WU-4b proof placement. Added after proof-founder; earlier names stay
+      // in this order so existing captures keep their comparison basis.
+      "proof-established-overview",
+      "proof-established-mid",
+      "proof-speciated-overview",
+      "proof-speciated-parent-mid",
+      "proof-speciated-branch-mid",
+      "proof-diversified-overview",
+      "proof-diversified-parent-mid",
+      "proof-diversified-branch-mid",
+      "proof-diversified-child-mid",
     ]);
   });
 
   it("validates capture query names", () => {
     expect(isGoldenShotName("shoreline")).toBe(true);
+    expect(isGoldenShotName("proof-speciated-branch-mid")).toBe(true);
     expect(isGoldenShotName("not-a-shot")).toBe(false);
     expect(isGoldenShotName(null)).toBe(false);
+  });
+
+  it("frames the proof fixture overview from jump count", () => {
+    expect(proofOverviewShot(2)).toBe("proof-established-overview");
+    expect(proofOverviewShot(3)).toBe("proof-speciated-overview");
+    expect(proofOverviewShot(5)).toBe("proof-diversified-overview");
   });
 
   it("keeps every shot finite and distinct from its target", () => {

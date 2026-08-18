@@ -154,6 +154,25 @@ const SHOT_SETS = {
     { label: "05-landing-showcase", query: "shot=proof-founder&herd=candidate&years=10000&time=42" },
     { label: "06-established-proof", query: "shot=proof-founder&founders=drifter&plume=active&years=1000000&jumps=2&time=42" },
   ],
+  // WU-4b: live lineages on the islands the resolver named. New set; existing
+  // comparison sets and GOLDEN_SHOTS are unedited. Capture queries use the
+  // same advance path as the live proof URLs, without herd=candidate.
+  //
+  // Live look (UI + lineage report, overview framed):
+  //   Established:  ?founders=drifter&plume=active&years=1000000&jumps=2
+  //   Speciated:    ?founders=drifter&plume=active&years=1000000&jumps=3
+  //   Diversified:  ?founders=drifter&plume=active&years=1000000&jumps=5
+  proofPlacement: [
+    { label: "01-established-overview", query: "shot=proof-established-overview&founders=drifter&plume=active&years=1000000&jumps=2&time=42" },
+    { label: "02-established-mid", query: "shot=proof-established-mid&founders=drifter&plume=active&years=1000000&jumps=2&time=42" },
+    { label: "03-speciated-overview", query: "shot=proof-speciated-overview&founders=drifter&plume=active&years=1000000&jumps=3&time=42" },
+    { label: "04-speciated-parent-mid", query: "shot=proof-speciated-parent-mid&founders=drifter&plume=active&years=1000000&jumps=3&time=42" },
+    { label: "05-speciated-branch-mid", query: "shot=proof-speciated-branch-mid&founders=drifter&plume=active&years=1000000&jumps=3&time=42" },
+    { label: "06-diversified-overview", query: "shot=proof-diversified-overview&founders=drifter&plume=active&years=1000000&jumps=5&time=42" },
+    { label: "07-diversified-parent-mid", query: "shot=proof-diversified-parent-mid&founders=drifter&plume=active&years=1000000&jumps=5&time=42" },
+    { label: "08-diversified-branch-mid", query: "shot=proof-diversified-branch-mid&founders=drifter&plume=active&years=1000000&jumps=5&time=42" },
+    { label: "09-diversified-child-mid", query: "shot=proof-diversified-child-mid&founders=drifter&plume=active&years=1000000&jumps=5&time=42" },
+  ],
   // UI/HUD review runs WITHOUT capture mode, because `?shot=` hides every
   // panel. These are the surfaces a new player actually sees first.
   ui: [

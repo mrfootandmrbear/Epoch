@@ -32,7 +32,7 @@ import { buildLineageReportHtml } from "./lineage-report";
 import { buildMarineLineageReportHtml } from "./marine-lineage-report";
 import type { MarineLineageChange } from "./marine-lineage";
 import { buildEpochStory } from "./epoch-story";
-import { createPresentationController, isGoldenShotName } from "./presentation";
+import { createPresentationController, isGoldenShotName, proofOverviewShot } from "./presentation";
 import {
   createRevealController,
   isRevealTreatmentName,
@@ -233,6 +233,9 @@ const captureShot = captureParams.get("shot");
 const captureMode = isGoldenShotName(captureShot);
 const liveHerdShowcase = captureParams.get("showcase") === "herd";
 const liveHerdContrast = captureParams.get("showcase") === "herd-contrast";
+const proofReplay = !captureMode
+  && captureParams.get("founders") === "drifter"
+  && captureParams.has("jumps");
 const captureTime = Number(captureParams.get("time") ?? 42);
 const captureSky = captureParams.get("sky");
 const captureFixtureName = captureParams.get("fixture");
@@ -491,7 +494,7 @@ const capturePlume: PlumeVigor | null = (() => {
   if (legacy && legacy in LEGACY_VOLCANO_VIGOR) return LEGACY_VOLCANO_VIGOR[legacy];
   return null;
 })();
-if (captureMode && capturePlume) {
+if ((captureMode || proofReplay) && capturePlume) {
   const hotSpot = captureFixture && "hotSpot" in captureFixture
     ? captureFixture.hotSpot
     : { x: 0, z: 0 };
@@ -1032,6 +1035,43 @@ async function start() {
     if (liveHerdContrast) landingState.showcaseHerdContrast();
     else landingState.showcaseGrazerHerd();
     presentation.applyShot(liveHerdContrast ? "herd-contrast" : "herd");
+  }
+  if (proofReplay) {
+    landingState.introduceDistantDrifter(0, DEFAULT_FOUNDER_CHOICES);
+    const proofYears = Number(captureParams.get("years") ?? 1_000_000);
+    const proofJumps = Math.max(1, Math.min(16, Number(captureParams.get("jumps") ?? 1)));
+    let lastReport: ReturnType<typeof landingState.advance> | undefined;
+    let previousAge = 0;
+    for (let jump = 1; jump <= proofJumps; jump++) {
+      previousAge = totalYears;
+      totalYears = proofYears * jump;
+      lastReport = landingState.advance(proofYears, totalYears, DEFAULT_CLIMATE);
+    }
+    committedClimate = { ...DEFAULT_CLIMATE };
+    applyCommittedHeightFog();
+    applyOceanForces(committedClimate);
+    if (jumpYearsEl.querySelector(`option[value="${proofYears}"]`)) {
+      jumpYearsEl.value = String(proofYears);
+      jumpButtonEl.textContent = `Jump ${formatYears(proofYears)}`;
+    }
+    startingWorldEl.disabled = true;
+    experienceEl.classList.add("committed");
+    worldAgeEl.textContent = `Year ${totalYears.toLocaleString()}`;
+    if (lastReport) {
+      renderLineageReport(lastReport.changes, lastReport.marineChanges, lastReport.traitDistance);
+      const hasEstablished = lastReport.changes.some((change) => change.status === "active");
+      landingSummaryEl.textContent = landingSummary(totalYears, committedClimate, hasEstablished);
+      epochStoryEl.textContent = buildEpochStory(
+        previousAge,
+        lastReport.changes,
+        committedClimate,
+        lastReport.marineChanges,
+      );
+      epochCardEl.classList.add("visible");
+    }
+    formTitleEl.textContent = "Shape what remains";
+    formHintEl.textContent = "Proof fixture replayed through the same jump path. Match the herds to the lineage report.";
+    presentation.applyShot(proofOverviewShot(proofJumps));
   }
   if (captureMode) {
     const captureYears = Number(captureParams.get("years") ?? captureFixture?.years ?? 10_000);

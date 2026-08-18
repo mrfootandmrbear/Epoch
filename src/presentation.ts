@@ -83,12 +83,46 @@ export const GOLDEN_SHOTS = {
    * cameras are unedited.
    */
   "proof-founder": { position: [23.5, 21.6, 10.2], target: [17.3, 20.85, 9.1] },
+
+  // ---------------------------------------------------------------------
+  // Proof placement (WU-4b). Cameras frame the live lineages
+  // `scripts/founding-split-readout.ts` names for
+  // `?founders=drifter&plume=active&years=1000000&jumps=N`. Added; existing
+  // cameras are unedited. Sites are coastal, so mid shots sit on the landward
+  // side and keep water in frame.
+  // ---------------------------------------------------------------------
+
+  /** Jump 2: one established founder on island-0, site ≈ (-178, 4, -217). */
+  "proof-established-overview": { position: [-90, 92, -28], target: [-160, 6, -170] },
+  "proof-established-mid": { position: [-150, 16, -188], target: [-178, 5.5, -217] },
+  /**
+   * Jump 3: parent on island-0 ≈ (-256, 8, -118), branch on island-1 ≈
+   * (-638, 2.5, -72). Overview shows both shields.
+   */
+  "proof-speciated-overview": { position: [-430, 195, 470], target: [-430, 8, -40] },
+  "proof-speciated-parent-mid": { position: [-226, 20, -98], target: [-256, 9, -118] },
+  "proof-speciated-branch-mid": { position: [-662, 15, -58], target: [-638, 4, -72] },
+  /**
+   * Jump 5: parent island-0 east ≈ (150, 10, -92), child island-0 north ≈
+   * (-151, 7, 298), branch island-1 ≈ (-688, 3, -42).
+   */
+  "proof-diversified-overview": { position: [120, 210, 510], target: [-250, 10, 40] },
+  "proof-diversified-parent-mid": { position: [182, 22, -74], target: [150, 11, -92] },
+  "proof-diversified-branch-mid": { position: [-714, 15, -28], target: [-688, 4.5, -42] },
+  "proof-diversified-child-mid": { position: [-123, 20, 318], target: [-151, 8.5, 298] },
 } as const;
 
 export type GoldenShotName = keyof typeof GOLDEN_SHOTS;
 
 export function isGoldenShotName(value: string | null): value is GoldenShotName {
   return value !== null && value in GOLDEN_SHOTS;
+}
+
+/** Overview camera for a proof-fixture jump count. Live URLs keep the UI. */
+export function proofOverviewShot(jumps: number): GoldenShotName {
+  if (jumps >= 5) return "proof-diversified-overview";
+  if (jumps >= 3) return "proof-speciated-overview";
+  return "proof-established-overview";
 }
 
 /**

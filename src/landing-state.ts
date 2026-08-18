@@ -48,7 +48,8 @@ import { createStreamRenderer } from "./stream-renderer";
 import { createCascadeRenderer } from "./cascade-renderer";
 import { resolveFreshwaterField } from "./freshwater-basins";
 import { captureWorldSnapshot, type WorldSnapshot } from "./world-snapshot";
-import { resolveIslandGeography } from "./island-geography";
+import { islandAt, resolveIslandGeography, type IslandGeography } from "./island-geography";
+import { seatHerdOnIsland, visibleHerdCount } from "./herd-placement";
 import {
   createInitialWorldState,
   seedStartingPlume,
@@ -279,6 +280,8 @@ interface LineageRenderState {
   readonly previousSiteMarker: Mesh;
   /** Movement read off this lineage's trait means; replaced whenever they change. */
   behavior: HerdBehavior;
+  /** Island the resolver seated this lineage on; wander must not leave it. */
+  homeIsland: string | null;
 }
 
 function createLineageRenderState(
@@ -333,6 +336,7 @@ function createLineageRenderState(
       bodyMass: 1, legLength: 1, footWidth: 1, insulation: 0.5,
       coatLightness: 0.5, coatWarmth: 0.5, hornLength: 1,
     }),
+    homeIsland: null,
   };
 }
 
@@ -695,6 +699,13 @@ export function createLandingState(scene: Scene): WorldExperience {
   }
 
   let currentOutcome: LandingOutcome | undefined;
+  let currentGeography: IslandGeography | undefined;
+
+  function staysOnHomeIsland(renderer: LineageRenderState, x: number, z: number): boolean {
+    if (!isWalkable(heightAt, x, z, activeClimate)) return false;
+    if (renderer.homeIsland === null || currentGeography === undefined) return true;
+    return islandAt(currentGeography, x, z) === renderer.homeIsland;
+  }
 
   function currentSnapshot(totalYears = 0) {
     return captureWorldSnapshot(
@@ -931,8 +942,10 @@ export function createLandingState(scene: Scene): WorldExperience {
       renderer.animals.forEach((animal, index) => {
         animal.position.y = heightAt(animal.position.x, animal.position.z);
         const walkable = isWalkable(heightAt, animal.position.x, animal.position.z, activeClimate);
-        animal.visible = habitatVisible && walkable;
-        if (!walkable) {
+        const onHome = renderer.homeIsland === null || currentGeography === undefined
+          || islandAt(currentGeography, animal.position.x, animal.position.z) === renderer.homeIsland;
+        animal.visible = habitatVisible && walkable && onHome;
+        if (!walkable || !onHome) {
           renderer.navigation[index]!.path = [];
           renderer.navigation[index]!.waypoint = 0;
         }
@@ -1056,9 +1069,11 @@ export function createLandingState(scene: Scene): WorldExperience {
       revealed = false;
       life.visible = false;
       distantDrifter.hide();
+      currentGeography = undefined;
       activeClimate = { ...preset.climate };
       terrainEditHistory.clear();
       lineageRenderers.forEach((renderer) => {
+        renderer.homeIsland = null;
         renderer.animals.forEach((animal) => { animal.visible = false; });
         renderer.previousSiteMarker.visible = false;
         syncHerdMatrices(renderer);
@@ -1260,6 +1275,7 @@ export function createLandingState(scene: Scene): WorldExperience {
       );
       const { outcome } = resolution;
       currentOutcome = outcome;
+      currentGeography = geography;
       freshwater.setField(outcome.freshwaterField);
       const protectedTerrain = withVegetationProtection(worldHistory.terrain, outcome.trees);
       worldHistory = {
@@ -1289,6 +1305,7 @@ export function createLandingState(scene: Scene): WorldExperience {
       lastLodViewPosition.set(Number.POSITIVE_INFINITY, 0, 0);
       for (const renderer of lineageRenderers.values()) {
         if (!outcome.populations.some((lineage) => lineage.id === renderer.id)) {
+          renderer.homeIsland = null;
           renderer.animals.forEach((animal) => { animal.visible = false; });
           syncHerdMatrices(renderer);
           renderer.previousSiteMarker.visible = false;
@@ -1298,26 +1315,33 @@ export function createLandingState(scene: Scene): WorldExperience {
         const renderer = rendererFor(lineage.id, lineage.identity);
         const site = lineage.site;
         if (!site || !lineage.traits) {
+          renderer.homeIsland = null;
           renderer.animals.forEach((animal) => { animal.visible = false; });
           syncHerdMatrices(renderer);
           renderer.previousSiteMarker.visible = false;
           return;
         }
         renderer.behavior = deriveHerdBehavior(lineage.traits);
-        const visibleAnimals = Math.max(1, Math.ceil((lineage.abundance ?? 0.34) * renderer.animals.length));
-        // The site footprint grows with the number actually present, so a
-        // sparse population still reads as a loose band and a full herd is not
-        // crammed into the radius that seven animals used to occupy.
-        const siteRadius = 5 + Math.sqrt(visibleAnimals) * 2.4;
+        renderer.homeIsland = islandAt(geography, site.x, site.z);
+        const visibleAnimals = visibleHerdCount(lineage.abundance ?? 0.34, renderer.animals.length);
+        const seats = seatHerdOnIsland({
+          siteX: site.x,
+          siteZ: site.z,
+          visibleCount: visibleAnimals,
+          capacity: renderer.animals.length,
+          spacing: renderer.behavior.spacing,
+          seed: renderer.seed,
+          homeIsland: renderer.homeIsland,
+          query: {
+            islandAt: (x, z) => islandAt(geography, x, z),
+            walkable: (x, z) => isWalkable(heightAt, x, z, activeClimate),
+          },
+        });
         renderer.animals.forEach((animal, herdIndex) => {
-          const angle = herdIndex * 2.399963 + hash(herdIndex, renderer.seed + 92) * 0.6;
-          const radial = Math.sqrt((herdIndex + 0.5) / Math.max(1, visibleAnimals)) * siteRadius;
-          const radius = 4 + radial + hash(herdIndex, renderer.seed + 103) * 2.5;
-          const x = site.x + Math.cos(angle) * radius;
-          const z = site.z + Math.sin(angle) * radius;
-          animal.position.set(x, heightAt(x, z), z);
-          animal.visible = lineage.visible && herdIndex < visibleAnimals;
-          animal.rotationY = angle + Math.PI;
+          const seat = seats[herdIndex]!;
+          animal.position.set(seat.x, heightAt(seat.x, seat.z), seat.z);
+          animal.visible = lineage.visible && seat.visible;
+          animal.rotationY = seat.rotationY;
           setCreatureExpressionAt(
             renderer.herd,
             herdIndex,
@@ -1410,7 +1434,7 @@ export function createLandingState(scene: Scene): WorldExperience {
             const radius = 18 + hash(index + attempt, state.journey + 44) * 35;
             const x = animal.position.x + Math.cos(angle) * radius;
             const z = animal.position.z + Math.sin(angle) * radius;
-            if (Math.hypot(x, z) < WANDER_LIMIT && isWalkable(heightAt, x, z, activeClimate)) {
+            if (Math.hypot(x, z) < WANDER_LIMIT && staysOnHomeIsland(renderer, x, z)) {
               destination = new Vector3(x, heightAt(x, z), z);
             }
           }
@@ -1421,7 +1445,7 @@ export function createLandingState(scene: Scene): WorldExperience {
         }
         const target = state.path[state.waypoint];
         if (!target) return;
-        if (!isWalkable(heightAt, target.x, target.z, activeClimate)) {
+        if (!staysOnHomeIsland(renderer, target.x, target.z)) {
           state.path = [];
           state.waypoint = 0;
           return;
@@ -1469,7 +1493,7 @@ export function createLandingState(scene: Scene): WorldExperience {
         const step = Math.min(distance, speed * delta);
         const nextX = animal.position.x + headingX * step;
         const nextZ = animal.position.z + headingZ * step;
-        if (!isWalkable(heightAt, nextX, nextZ, activeClimate)) {
+        if (!staysOnHomeIsland(renderer, nextX, nextZ)) {
           state.path = [];
           state.waypoint = 0;
           return;

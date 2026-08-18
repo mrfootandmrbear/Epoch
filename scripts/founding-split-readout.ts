@@ -151,10 +151,19 @@ for (let jump = 1; jump <= JUMPS; jump++) {
   console.log(`  islands  ${islands || "none"}`);
   for (const lineage of resolution.nextHistory.lineages) {
     const island = lineage.site ? islandAt(geography, lineage.site.x, lineage.site.z) ?? "water" : "—";
+    const islandRecord = geography.islands.find((entry) => entry.id === island);
     const change = resolution.changes.find((c) => c.id === lineage.id);
+    const siteTag = lineage.site
+      ? `site (${lineage.site.x.toFixed(0)}, ${heightAt(lineage.site.x, lineage.site.z).toFixed(1)}, ${lineage.site.z.toFixed(0)})`
+      : "";
+    const centroidTag = islandRecord
+      ? `island centre (${islandRecord.centroidX.toFixed(0)}, ${islandRecord.centroidZ.toFixed(0)})`
+      : "";
     const tags = [
       `status ${lineage.status}`,
       `on ${island}`,
+      siteTag,
+      centroidTag,
       change?.event ? change.event : "",
       lineage.origin ? `isolated by ${lineage.origin.basis} @ ${lineage.origin.isolatedSinceYear.toLocaleString()} yr` : "",
       `abundance ${(lineage.abundance ?? 0).toFixed(3)}`,

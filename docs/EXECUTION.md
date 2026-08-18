@@ -22,7 +22,7 @@ WebGPU.
 
 | Next | Brief | Gate |
 |---|---|---|
-| **Now** | [WU-4b](briefs/WU-4b-proof-placement.md) — herds on the islands the resolver named | Owner: placement matches the lineage report |
+| **Now** | [WU-4b](briefs/WU-4b-proof-placement.md) — placement ready for owner look | Owner: herds on the islands the lineage report names |
 | Then | [WU-4c](briefs/WU-4c-ancestry-split.md) — related specialists | Owner: descendant readability |
 | Then | Item 5 captures + visual and causal gates | Recorded in this file |
 | Parallel, optional | [WU-P0-1](briefs/WU-P0-1-lockfile.md) — clean `npm install` | Tests on a fresh clone |
@@ -161,6 +161,22 @@ capture shows the sequence fails without them.
    founders) uses that export. `hornLength` is a nuchal/dorsal crest. Owner:
    "the iguana model passes for now." Scope is the founder look, not placement
    (WU-4b) or descendant split (WU-4c).*
+   *WU-4b 2026-08-18: proof herds now seat through the same `advance` /
+   `resolveLanding` path a player click uses. Abundance drives visible count;
+   seats stay on the lineage's `islandAt` home and do not pack a full cap into
+   an 11 m radius. Showcase herds are not used on the proof URLs. Capture set
+   `proofPlacement` and cameras `proof-established-*` / `proof-speciated-*` /
+   `proof-diversified-*` were added; existing `GOLDEN_SHOTS` are unedited.
+   **Ready for owner verdict. Do not treat placement as accepted.** Live look
+   (lineage report visible, overview framed):
+   - Established — `?founders=drifter&plume=active&years=1000000&jumps=2`
+   - Speciated — same with `jumps=3` (two populations, separate islands)
+   - Diversified — `jumps=5` (three living populations across two islands)
+   Mid cameras: `shot=proof-established-mid`, `proof-speciated-parent-mid`,
+   `proof-speciated-branch-mid`, `proof-diversified-parent-mid`,
+   `proof-diversified-branch-mid`, `proof-diversified-child-mid` with the same
+   founders/plume/years/jumps query. Owner question: "On each fixture, are the
+   herds on the islands the lineage report names?"*
 5. Capture the declared sequence, run automated checks, and obtain owner visual
    verdicts.
    *Attempted and retracted 2026-08-15, same day — see LOG.md "Correction".*
