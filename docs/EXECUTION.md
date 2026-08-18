@@ -25,10 +25,15 @@ look need local WebGPU.
 | Next | Brief | Gate |
 |---|---|---|
 | **Now** | Owner look — [WU-7](briefs/WU-7-default-worlds.md) player default and Test worlds picker | Ready for owner verdict |
+| After WU-7 look | [WU-M1](briefs/WU-M1-intertidal-crab.md) — splash-zone crab occupancy | Owner visual verdict |
+| Later, one per session | [WU-M2](briefs/WU-M2-marine-iguana.md) marine iguana → [WU-M3](briefs/WU-M3-sea-lion.md) sea lion → [WU-M4](briefs/WU-M4-reef-urchin.md) urchin → [WU-M5](briefs/WU-M5-upwelling-bird.md) one upwelling bird | Owner visual verdict each |
 | Parallel, optional | [WU-P0-1](briefs/WU-P0-1-lockfile.md) — clean `npm install` | Tests on a fresh clone |
 
-Do not resume LW-6, LW-7, extra fauna, or atmosphere identity unless a proof
-capture shows the sequence fails without them.
+Do not resume LW-6, LW-7, atmosphere identity, or unplanned extra fauna unless a
+proof capture shows the sequence fails without them. The parked water-life
+program (M1–M5) is the dispatched shoreline fill; do not start M1 until the
+WU-7 look is recorded, and do not start M2–M5 in the same session as another
+family. It is splash-to-shelf occupancy, not FFT / water-surface polish.
 
 ## Order of work
 
@@ -261,6 +266,12 @@ capture shows the sequence fails without them.
 6. Resume water composition, herd embodiment verdicts, freshwater transitions,
    and broader ecology only where the integrated proof exposes a need.
 
+   WU-5 reef-edge asked for “more” later — not a pass to start water-surface
+   polish. The parked water-life program fills that shoreline vacancy in
+   order: splash crabs (M1), marine iguana (M2), sea-lion haul-out (M3),
+   benthic urchin graze (M4), one upwelling bird (M5). Do not add a second
+   coastal-forager fish or a tropical aquarium catalogue.
+
 ## Recorded owner verdicts
 
 - **World scale, 2026-08-15** — "the scale is much better." Covers world scale
@@ -483,10 +494,10 @@ members consequences.
 | Persistent terrain and volcanic change | **Accepted** 2026-08-15 — "good initial first, it passes." Accretion runs off `resolveShieldVents`; the player fixes hotspot position and drift bearing at world formation and thereafter holds one three-way plume setting | None. See the verdict's scope below before treating any other gate as satisfied. |
 | Climate, hydrology, ocean, reef, and shared habitat sampling | Implemented in bounded forms | Reconcile fields with shield age, regional upwelling, and changing connectivity. |
 | Terrestrial population persistence | Implemented with trait means, energy, abundance, Distant Drifter establishment, and now island-driven gene flow, isolation branching, drift, and ancestry records (`gene-flow.test.ts`) | Deepen path-dependent selection and per-lineage variance only where the serialized proof (items 3–5) exposes a need. |
-| Marine lineage and reef succession | Implemented as bounded proofs | Preserve; expand only for an integrated-proof consumer. |
-| Aerial persistence and wider food web | Partial or planned | Deferred behind the current objective. |
+| Marine lineage and reef succession | Implemented as bounded proofs. `coastalAnimals` still instances extra fish, not crabs. `shorelineSubsidy` has no scavenger consumer. | After WU-7: [WU-M1](briefs/WU-M1-intertidal-crab.md). Then M2–M5, one family per session. |
+| Aerial persistence and wider food web | Partial (generic circling placeholders) | [WU-M5](briefs/WU-M5-upwelling-bird.md) after M1–M4. Penguin default; cormorant only if that brief is a flightlessness exam. |
 | Landing-state renderer | Substantial WebGPU/TSL implementation | Regional multi-shield grammar and serialized proof captures. |
-| Ecosystem assets | Grazer, coral, and land-iguana founder family **accepted** (WU-4a, 2026-08-18); proof placement **accepted** (WU-4b, 2026-08-18); overview occupancy and mid herd mass **accepted** (WU-4b2, 2026-08-18); descendant readability **accepted** (WU-4c, 2026-08-18); WU-5 visual: cohesion / organism / motion **accepted**, reef-edge **accepted with "more"**; tree, seagrass, and fish remain candidates | Causal exam withdrawn. Acceptance is `PRODUCT.md` play questions, not a chat quiz. Owner dispatches next. |
+| Ecosystem assets | Grazer, coral, and land-iguana founder family **accepted** (WU-4a, 2026-08-18); proof placement **accepted** (WU-4b, 2026-08-18); overview occupancy and mid herd mass **accepted** (WU-4b2, 2026-08-18); descendant readability **accepted** (WU-4c, 2026-08-18); WU-5 visual: cohesion / organism / motion **accepted**, reef-edge **accepted with "more"**; tree, seagrass, and fish remain candidates | After WU-7 look: splash crab [WU-M1](briefs/WU-M1-intertidal-crab.md), then M2–M5. Causal exam withdrawn. |
 | Jump transition | Production direction selected; depth remains secondary | Revisit after landing causality reads clearly. |
 
 “Implemented” means present with proportionate automated evidence. “Accepted”
@@ -527,11 +538,16 @@ them for migration detail, not priority.
 
 ## Deferred until this proof clears
 
-- Additional fauna families or unrelated biome breadth.
+- Unplanned extra fauna or unrelated biome breadth. The parked water-life
+  program (M1–M5) is the exception: splash crab, marine iguana, sea lion,
+  urchin, one upwelling bird — after WU-7, one family per session.
 - Authored speculative future species or predetermined evolutionary endpoints.
 - Individual-animal persistence.
-- Broad trophic catalogues and speculative cross-domain transitions.
+- Broad trophic catalogues, tropical-aquarium species, and speculative
+  cross-domain transitions beyond the marine-iguana terrestrial-transition
+  already reserved in `marine-lineage.ts`.
 - Renderer polish without a demonstrated failure in the integrated sequence.
+  M1–M5 are occupancy families, not FFT / sea-state work.
 - New documentation trackers or status systems.
 - The lightweight biodiversity/ecosystem-health indicator named in
   `PRODUCT.md` — needs species breadth beyond the current single grazer
