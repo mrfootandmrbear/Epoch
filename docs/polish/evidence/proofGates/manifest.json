@@ -1,0 +1,146 @@
+{
+  "set": "proofGates",
+  "capturedAt": "2026-08-18T18:54:28.487Z",
+  "viewport": {
+    "width": 1600,
+    "height": 900
+  },
+  "settleMs": 2500,
+  "contactSheet": "contact-sheet.png",
+  "consoleErrors": [],
+  "shots": [
+    {
+      "label": "01-established-overview",
+      "url": "http://localhost:5178/?shot=proof-established-overview&founders=drifter&plume=active&years=1000000&jumps=2&time=42",
+      "backend": "backend: WebGL2 · 0 fps · 15 draws · 180 m",
+      "ms": 56624,
+      "frame": "frames/01-established-overview.png"
+    },
+    {
+      "label": "02-established-shoreline",
+      "url": "http://localhost:5178/?shot=w2k-shoreline&founders=drifter&plume=active&years=1000000&jumps=2&time=42",
+      "backend": "backend: WebGL2 · 0 fps · 15 draws · 198 m",
+      "ms": 66652,
+      "frame": "frames/02-established-shoreline.png"
+    },
+    {
+      "label": "03-established-reef-edge",
+      "url": "http://localhost:5178/?shot=w2k-reef-above&founders=drifter&plume=active&years=1000000&jumps=2&time=42",
+      "backend": "backend: WebGL2 · 0 fps · 15 draws · 33 m",
+      "ms": 45730,
+      "frame": "frames/03-established-reef-edge.png"
+    },
+    {
+      "label": "04-established-mid",
+      "url": "http://localhost:5178/?shot=proof-established-mid&founders=drifter&plume=active&years=1000000&jumps=2&time=42",
+      "backend": "backend: WebGL2 · 0 fps · 15 draws · 42 m",
+      "ms": 61360,
+      "frame": "frames/04-established-mid.png"
+    },
+    {
+      "label": "05-established-near",
+      "url": "http://localhost:5178/?shot=proof-established-near&founders=drifter&plume=active&years=1000000&jumps=2&time=42",
+      "backend": "backend: WebGL2 · 0 fps · 15 draws · 6 m",
+      "ms": 60236,
+      "frame": "frames/05-established-near.png"
+    },
+    {
+      "label": "06-speciated-overview",
+      "url": "http://localhost:5178/?shot=proof-speciated-overview&founders=drifter&plume=active&years=1000000&jumps=3&time=42",
+      "backend": "backend: WebGL2 · 0 fps · 15 draws · 543 m",
+      "ms": 69529,
+      "frame": "frames/06-speciated-overview.png"
+    },
+    {
+      "label": "07-speciated-saddle",
+      "url": "http://localhost:5178/?shot=w2k-chain-saddle&founders=drifter&plume=active&years=1000000&jumps=3&time=42",
+      "backend": "backend: WebGL2 · 0 fps · 15 draws · 420 m",
+      "ms": 67903,
+      "frame": "frames/07-speciated-saddle.png"
+    },
+    {
+      "label": "08-speciated-parent-mid",
+      "url": "http://localhost:5178/?shot=proof-speciated-parent-mid&founders=drifter&plume=active&years=1000000&jumps=3&time=42",
+      "backend": "backend: WebGL2 · 0 fps · 15 draws · 38 m",
+      "ms": 61676,
+      "frame": "frames/08-speciated-parent-mid.png"
+    },
+    {
+      "label": "09-speciated-branch-mid",
+      "url": "http://localhost:5178/?shot=proof-speciated-branch-mid&founders=drifter&plume=active&years=1000000&jumps=3&time=42",
+      "backend": "backend: WebGL2 · 0 fps · 15 draws · 30 m",
+      "ms": 68467,
+      "frame": "frames/09-speciated-branch-mid.png"
+    },
+    {
+      "label": "10-speciated-parent-near",
+      "url": "http://localhost:5178/?shot=proof-speciated-parent-near&founders=drifter&plume=active&years=1000000&jumps=3&time=42",
+      "backend": "backend: WebGL2 · 0 fps · 15 draws · 6 m",
+      "ms": 63477,
+      "frame": "frames/10-speciated-parent-near.png"
+    },
+    {
+      "label": "11-speciated-branch-near",
+      "url": "http://localhost:5178/?shot=proof-speciated-branch-near&founders=drifter&plume=active&years=1000000&jumps=3&time=42",
+      "backend": "backend: WebGL2 · 0 fps · 15 draws · 6 m",
+      "ms": 67306,
+      "frame": "frames/11-speciated-branch-near.png"
+    },
+    {
+      "label": "12-diversified-overview",
+      "url": "http://localhost:5178/?shot=proof-diversified-overview&founders=drifter&plume=active&years=1000000&jumps=5&time=42",
+      "backend": "backend: WebGL2 · 0 fps · 15 draws · 631 m",
+      "ms": 55936,
+      "frame": "frames/12-diversified-overview.png"
+    },
+    {
+      "label": "13-diversified-reef-edge",
+      "url": "http://localhost:5178/?shot=w2k-reef-above&founders=drifter&plume=active&years=1000000&jumps=5&time=42",
+      "backend": "backend: WebGL2 · 0 fps · 15 draws · 33 m",
+      "ms": 47358,
+      "frame": "frames/13-diversified-reef-edge.png"
+    },
+    {
+      "label": "14-diversified-parent-mid",
+      "url": "http://localhost:5178/?shot=proof-diversified-parent-mid&founders=drifter&plume=active&years=1000000&jumps=5&time=42",
+      "backend": "backend: WebGL2 · 0 fps · 15 draws · 38 m",
+      "ms": 49627,
+      "frame": "frames/14-diversified-parent-mid.png"
+    },
+    {
+      "label": "15-diversified-branch-mid",
+      "url": "http://localhost:5178/?shot=proof-diversified-branch-mid&founders=drifter&plume=active&years=1000000&jumps=5&time=42",
+      "backend": "backend: WebGL2 · 0 fps · 15 draws · 31 m",
+      "ms": 54317,
+      "frame": "frames/15-diversified-branch-mid.png"
+    },
+    {
+      "label": "16-diversified-child-mid",
+      "url": "http://localhost:5178/?shot=proof-diversified-child-mid&founders=drifter&plume=active&years=1000000&jumps=5&time=42",
+      "backend": "backend: WebGL2 · 0 fps · 15 draws · 36 m",
+      "ms": 54168,
+      "frame": "frames/16-diversified-child-mid.png"
+    },
+    {
+      "label": "17-diversified-parent-near",
+      "url": "http://localhost:5178/?shot=proof-diversified-parent-near&founders=drifter&plume=active&years=1000000&jumps=5&time=42",
+      "backend": "backend: WebGL2 · 0 fps · 15 draws · 6 m",
+      "ms": 54458,
+      "frame": "frames/17-diversified-parent-near.png"
+    },
+    {
+      "label": "18-diversified-branch-near",
+      "url": "http://localhost:5178/?shot=proof-diversified-branch-near&founders=drifter&plume=active&years=1000000&jumps=5&time=42",
+      "backend": "backend: WebGL2 · 0 fps · 15 draws · 6 m",
+      "ms": 53954,
+      "frame": "frames/18-diversified-branch-near.png"
+    },
+    {
+      "label": "19-diversified-child-near",
+      "url": "http://localhost:5178/?shot=proof-diversified-child-near&founders=drifter&plume=active&years=1000000&jumps=5&time=42",
+      "backend": "backend: WebGL2 · 0 fps · 15 draws · 6 m",
+      "ms": 53744,
+      "frame": "frames/19-diversified-child-near.png"
+    }
+  ]
+}

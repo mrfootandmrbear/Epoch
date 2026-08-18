@@ -185,6 +185,36 @@ const SHOT_SETS = {
     { label: "06-diversified-branch-near", query: "shot=proof-diversified-branch-near&founders=drifter&plume=active&years=1000000&jumps=5&time=42" },
     { label: "07-diversified-child-near", query: "shot=proof-diversified-child-near&founders=drifter&plume=active&years=1000000&jumps=5&time=42" },
   ],
+  // WU-5: integrated proof gates. Same three landings as items 3–4. Reuses
+  // existing proof cameras plus the 2 km reef/shoreline/saddle framings; does
+  // not edit GOLDEN_SHOTS or prior proof sets. Capture mode freezes time
+  // (`time=42`); motion is a live WebGPU look, not these stills.
+  //
+  // Live look (UI + epoch story + lineage report — not `?shot=`):
+  //   Established:  ?founders=drifter&plume=active&years=1000000&jumps=2
+  //   Speciated:    ?founders=drifter&plume=active&years=1000000&jumps=3
+  //   Diversified:  ?founders=drifter&plume=active&years=1000000&jumps=5
+  proofGates: [
+    { label: "01-established-overview", query: "shot=proof-established-overview&founders=drifter&plume=active&years=1000000&jumps=2&time=42" },
+    { label: "02-established-shoreline", query: "shot=w2k-shoreline&founders=drifter&plume=active&years=1000000&jumps=2&time=42" },
+    { label: "03-established-reef-edge", query: "shot=w2k-reef-above&founders=drifter&plume=active&years=1000000&jumps=2&time=42" },
+    { label: "04-established-mid", query: "shot=proof-established-mid&founders=drifter&plume=active&years=1000000&jumps=2&time=42" },
+    { label: "05-established-near", query: "shot=proof-established-near&founders=drifter&plume=active&years=1000000&jumps=2&time=42" },
+    { label: "06-speciated-overview", query: "shot=proof-speciated-overview&founders=drifter&plume=active&years=1000000&jumps=3&time=42" },
+    { label: "07-speciated-saddle", query: "shot=w2k-chain-saddle&founders=drifter&plume=active&years=1000000&jumps=3&time=42" },
+    { label: "08-speciated-parent-mid", query: "shot=proof-speciated-parent-mid&founders=drifter&plume=active&years=1000000&jumps=3&time=42" },
+    { label: "09-speciated-branch-mid", query: "shot=proof-speciated-branch-mid&founders=drifter&plume=active&years=1000000&jumps=3&time=42" },
+    { label: "10-speciated-parent-near", query: "shot=proof-speciated-parent-near&founders=drifter&plume=active&years=1000000&jumps=3&time=42" },
+    { label: "11-speciated-branch-near", query: "shot=proof-speciated-branch-near&founders=drifter&plume=active&years=1000000&jumps=3&time=42" },
+    { label: "12-diversified-overview", query: "shot=proof-diversified-overview&founders=drifter&plume=active&years=1000000&jumps=5&time=42" },
+    { label: "13-diversified-reef-edge", query: "shot=w2k-reef-above&founders=drifter&plume=active&years=1000000&jumps=5&time=42" },
+    { label: "14-diversified-parent-mid", query: "shot=proof-diversified-parent-mid&founders=drifter&plume=active&years=1000000&jumps=5&time=42" },
+    { label: "15-diversified-branch-mid", query: "shot=proof-diversified-branch-mid&founders=drifter&plume=active&years=1000000&jumps=5&time=42" },
+    { label: "16-diversified-child-mid", query: "shot=proof-diversified-child-mid&founders=drifter&plume=active&years=1000000&jumps=5&time=42" },
+    { label: "17-diversified-parent-near", query: "shot=proof-diversified-parent-near&founders=drifter&plume=active&years=1000000&jumps=5&time=42" },
+    { label: "18-diversified-branch-near", query: "shot=proof-diversified-branch-near&founders=drifter&plume=active&years=1000000&jumps=5&time=42" },
+    { label: "19-diversified-child-near", query: "shot=proof-diversified-child-near&founders=drifter&plume=active&years=1000000&jumps=5&time=42" },
+  ],
   // UI/HUD review runs WITHOUT capture mode, because `?shot=` hides every
   // panel. These are the surfaces a new player actually sees first.
   ui: [

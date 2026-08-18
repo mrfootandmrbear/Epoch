@@ -24,7 +24,7 @@ look need local WebGPU.
 
 | Next | Brief | Gate |
 |---|---|---|
-| **Now** | Item 5 captures + visual and causal gates | Recorded in this file |
+| **Now** | Owner dispatch — WU-5 visuals are recorded; the WU-5 causal exam is withdrawn ([WU-6](briefs/WU-6-causal-reveal.md) is not a unit) | Recorded in this file |
 | Parallel, optional | [WU-P0-1](briefs/WU-P0-1-lockfile.md) — clean `npm install` | Tests on a fresh clone |
 
 Do not resume LW-6, LW-7, extra fauna, or atmosphere identity unless a proof
@@ -207,6 +207,43 @@ capture shows the sequence fails without them.
    by automated capture") is unblocked — `?founders=drifter&plume=active&
    years=1000000&jumps=2` reaches an established founder, `jumps=3` reaches
    speciation. Items 3–4 can now proceed.*
+   *WU-5 captured 2026-08-18.* Readout still holds the three fixtures (jump 2
+   established on island-0; jump 3 parent island-0 + branch island-1; jump 5
+   three living lineages on two islands). Capture set `proofGates` is at
+   `docs/polish/evidence/proofGates/` (`contact-sheet.png`, `manifest.json`).
+   Command: `node scripts/capture.mjs --set proofGates --webgl --out docs/polish/evidence/proofGates`.
+   Headless `--webgl` stills are fallback-backend evidence — provisional until
+   confirmed on real WebGPU. Capture mode freezes `time=42`; motion is a live
+   look. `npm test` (435), `npx tsc --noEmit`, and `npm run build` passed.
+   `w2k-reef-above` on this drifted chain looks into open water (known from the
+   resize notes); judge reef-edge from live shoreline / coastal mid, not those
+   two stills. The newest shield as a flat dark disc is the existing open
+   defect, not a new finding.
+
+   **Owner visual look, 2026-08-18 (verbatim).** 1. Regional cohesion: "Yes."
+   2. Reef-edge: "yes but with more." 3. Organism quality: "Yes." 4. Motion:
+   "Yes." Regional cohesion, organism quality, and motion are **accepted**.
+   Reef-edge is **accepted with qualifier** — composition makes sense; "more"
+   is not this capture unit (do not start LW-6 / LW-7 here).
+
+   **Owner notes from the WU-5 prompt, 2026-08-18 (verbatim, not a score).**
+   1. "The habitats are divided mostly by regional differences - lava, cliff,
+   etc. . Seeing regional location tells me to look for differences in
+   appearance." 2. "Seems like movement speed changes based on island habitat."
+   3. "the nature of new islands opening up less competiton"
+
+   **Causal exam withdrawn 2026-08-18.** Those three questions scored the owner
+   against an unpublished mapping. That is not `PRODUCT.md` causal acceptance
+   (what changed, why, what persisted, what new possibility — judged in play,
+   without a hidden key). The “failed” mark and [WU-6](briefs/WU-6-causal-reveal.md)
+   as a copy-to-pass-the-quiz unit are retracted. Do not re-ask the WU-5
+   causal trio. Do not rewrite the epoch story or lineage report to make
+   those answers match item 3.
+
+   Live URLs (UI visible — not `?shot=`):
+   - Established: `?founders=drifter&plume=active&years=1000000&jumps=2`
+   - Speciated: `?founders=drifter&plume=active&years=1000000&jumps=3`
+   - Diversified: `?founders=drifter&plume=active&years=1000000&jumps=5`
 6. Resume water composition, herd embodiment verdicts, freshwater transitions,
    and broader ecology only where the integrated proof exposes a need.
 
@@ -283,6 +320,22 @@ capture shows the sequence fails without them.
 
   **It is explicitly not** a verdict on motion, regional cohesion, reef-edge
   composition, organism quality as a separate gate, or the item 5 causal gate.
+- **Integrated proof visuals, 2026-08-18** — WU-5
+  (`docs/briefs/WU-5-proof-gates.md`), live WebGPU against the three proof
+  URLs plus `docs/polish/evidence/proofGates/` (fallback `--webgl`). Owner:
+  regional cohesion "Yes"; reef-edge "yes but with more"; organism quality
+  "Yes"; motion "Yes." Descendant readability was already accepted (WU-4c).
+
+  **Scope.** Regional cohesion, organism quality, and motion are accepted for
+  this sequence. Reef-edge is accepted as readable with a request for more
+  later — not a pass to start water polish from this sheet.
+
+  **It is explicitly not** a pass of `PRODUCT.md` causal acceptance. The WU-5
+  three-question exam is withdrawn (see item 5); do not treat those answers
+  as a failed gate.
+- **WU-5 causal exam, 2026-08-18** — **withdrawn.** Not a recorded fail. The
+  prompt was the defect. Causal acceptance stays the product bar, judged in
+  play. [WU-6](briefs/WU-6-causal-reveal.md) is not a unit.
 
 ## Open defects
 
@@ -401,7 +454,7 @@ members consequences.
 | Marine lineage and reef succession | Implemented as bounded proofs | Preserve; expand only for an integrated-proof consumer. |
 | Aerial persistence and wider food web | Partial or planned | Deferred behind the current objective. |
 | Landing-state renderer | Substantial WebGPU/TSL implementation | Regional multi-shield grammar and serialized proof captures. |
-| Ecosystem assets | Grazer, coral, and land-iguana founder family **accepted** (WU-4a, 2026-08-18); proof placement **accepted** (WU-4b, 2026-08-18); overview occupancy and mid herd mass **accepted** (WU-4b2, 2026-08-18); descendant readability **accepted** (WU-4c, 2026-08-18); tree, seagrass, and fish remain candidates | Item 5 visual gates still open: regional cohesion, reef-edge composition, organism quality, motion. Causal gate unrecorded. |
+| Ecosystem assets | Grazer, coral, and land-iguana founder family **accepted** (WU-4a, 2026-08-18); proof placement **accepted** (WU-4b, 2026-08-18); overview occupancy and mid herd mass **accepted** (WU-4b2, 2026-08-18); descendant readability **accepted** (WU-4c, 2026-08-18); WU-5 visual: cohesion / organism / motion **accepted**, reef-edge **accepted with "more"**; tree, seagrass, and fish remain candidates | Causal exam withdrawn. Acceptance is `PRODUCT.md` play questions, not a chat quiz. Owner dispatches next. |
 | Jump transition | Production direction selected; depth remains secondary | Revisit after landing causality reads clearly. |
 
 “Implemented” means present with proportionate automated evidence. “Accepted”
@@ -424,17 +477,20 @@ them for migration detail, not priority.
 - The explanation surface names the actual recorded causes and ancestry.
 - Simulation tests cover grouping, gene flow, variance, drift/selection, and
   branching invariants.
-- Fixed WebGPU captures cover overview, reef-edge composition, mid, and near
-  views for the sequence.
+- Fixed captures cover overview, reef-edge/shoreline, mid, and near views for
+  the sequence (`docs/polish/evidence/proofGates/`; `--webgl` fallback,
+  provisional until confirmed on real WebGPU).
 - **Visual gate:** the owner separately records verdicts for regional cohesion,
   reef-edge composition, organism quality, motion, and descendant readability.
-  Descendant readability is **accepted** 2026-08-18 (WU-4c). The other four
-  remain unrecorded.
-- **Causal gate:** without being told the intended mapping, a reviewer can use
-  only the landing and its player-facing history to identify the divided
-  habitats, associate the descendants' major adaptations with those habitats,
-  and recount the geology → isolation → adaptation chain. Record their answers
-  and any mistaken inference; an attractive screenshot cannot pass this gate.
+  Descendant readability is **accepted** 2026-08-18 (WU-4c). Regional cohesion,
+  organism quality, and motion are **accepted** 2026-08-18 (WU-5). Reef-edge
+  is **accepted with qualifier** ("yes but with more") — extra composition
+  waits owner dispatch; it is not blocked by a withdrawn exam.
+- **Causal gate:** `PRODUCT.md` player-facing quality bar — what changed, why,
+  what persisted, what new possibility — judged in play from the landing, not
+  from a hidden mapping and not from the WU-5 three-question exam (withdrawn
+  2026-08-18). Unrecorded until the owner says so in those terms. An attractive
+  screenshot cannot pass this gate.
 - `npm test`, `npm run build`, and all touched asset checks pass.
 
 ## Deferred until this proof clears
