@@ -10,6 +10,8 @@ Prove one inherited hotspot-archipelago sequence in which volcanic history
 changes land connectivity and habitat, a founder population loses gene flow,
 and later descendants become visibly related specialists. The sequence must be
 legible as geology → isolation → adaptation at overview, mid, and near scales.
+Overview is geology plus occupancy (which islands are inhabited). Individual
+bodies are an inspection subject: mid and near, reached by flying to a lineage.
 The founder must be a recognizable present-day Galápagos lineage, not a generic
 creature or an authored future species. This first proof must establish the
 inheritance rules that later allow the world to become radically different
@@ -23,7 +25,8 @@ WebGPU.
 | Next | Brief | Gate |
 |---|---|---|
 | **Now** | [WU-4b](briefs/WU-4b-proof-placement.md) — placement ready for owner look | Owner: herds on the islands the lineage report names |
-| Then | [WU-4c](briefs/WU-4c-ancestry-split.md) — related specialists | Owner: descendant readability |
+| Then | [WU-4b2](briefs/WU-4b2-herd-presentation.md) — overview occupancy, iguana-scale spacing | Owner: inhabited islands at overview; herd mass at mid |
+| Then | [WU-4c](briefs/WU-4c-ancestry-split.md) — related specialists at mid/near | Owner: descendant readability |
 | Then | Item 5 captures + visual and causal gates | Recorded in this file |
 | Parallel, optional | [WU-P0-1](briefs/WU-P0-1-lockfile.md) — clean `npm install` | Tests on a fresh clone |
 
@@ -167,8 +170,15 @@ capture shows the sequence fails without them.
    an 11 m radius. Showcase herds are not used on the proof URLs. Capture set
    `proofPlacement` and cameras `proof-established-*` / `proof-speciated-*` /
    `proof-diversified-*` were added; existing `GOLDEN_SHOTS` are unedited.
-   **Ready for owner verdict. Do not treat placement as accepted.** Live look
-   (lineage report visible, overview framed):
+   **Ready for owner verdict. Do not treat placement as accepted.** A metre-true
+   land iguana (~1.2 m long, 0.26 m hip) is a few pixels on 2 km overview
+   cameras; `RENDER_SCALE.grazerShoulderHeight` (2.1 m) is leftover grazer
+   language and must not drive iguana framing. Owner agreement 2026-08-18: do
+   not enlarge the mesh or reopen world scale. Overview is occupancy; clicking
+   a living lineage flies to the seated herd at mid distance (~38 m). Near-camera
+   fps remains the separate open defect below — do not guess-tune it in 4b/4c.
+   Each living row names its `islandAt` id. Live look (lineage report visible,
+   overview framed; click a living lineage to inspect):
    - Established — `?founders=drifter&plume=active&years=1000000&jumps=2`
    - Speciated — same with `jumps=3` (two populations, separate islands)
    - Diversified — `jumps=5` (three living populations across two islands)
@@ -331,7 +341,7 @@ members consequences.
 | Marine lineage and reef succession | Implemented as bounded proofs | Preserve; expand only for an integrated-proof consumer. |
 | Aerial persistence and wider food web | Partial or planned | Deferred behind the current objective. |
 | Landing-state renderer | Substantial WebGPU/TSL implementation | Regional multi-shield grammar and serialized proof captures. |
-| Ecosystem assets | Grazer, coral, and land-iguana founder family **accepted** (WU-4a, 2026-08-18); tree, seagrass, and fish remain candidates | WU-4b/4c, then add ancestral families one at a time. |
+| Ecosystem assets | Grazer, coral, and land-iguana founder family **accepted** (WU-4a, 2026-08-18); tree, seagrass, and fish remain candidates | WU-4b owner look, then WU-4b2 occupancy/spacing, then WU-4c at mid/near. |
 | Jump transition | Production direction selected; depth remains secondary | Revisit after landing causality reads clearly. |
 
 “Implemented” means present with proportionate automated evidence. “Accepted”

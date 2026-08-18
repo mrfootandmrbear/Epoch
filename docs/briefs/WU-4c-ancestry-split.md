@@ -2,7 +2,7 @@
 
 > **Class:** Task. **Authority:** Below `docs/EXECUTION.md`. **Answers:** what this session implements. **Finish:** the Done when list, then stop.
 
-**Model:** local Agent. **Size:** medium. **Depends on:** WU-4a and WU-4b. **Blocks:** WU-5 visual/causal gates for descendant readability.
+**Model:** local Agent. **Size:** medium. **Depends on:** WU-4a, WU-4b, and WU-4b2. **Blocks:** WU-5 visual/causal gates for descendant readability.
 
 **Owner visual verdict required** (descendant readability).
 
@@ -21,7 +21,7 @@ Do not explore beyond them. Do not add a second species mesh.
 
 ## Why this exists
 
-The causal gate fails if parent and branch look like two unrelated animals, or like clones. The resolver already records opposite adaptation directions (parent toward longer crest / warmer coat; branch on wet volcanic ground toward shorter crest, colder coat, less insulation). That split must read at overview, mid, and near on the WU-4a body.
+The causal gate fails if parent and branch look like two unrelated animals, or like clones. The resolver already records opposite adaptation directions (parent toward longer crest / warmer coat; branch on wet volcanic ground toward shorter crest, colder coat, less insulation). That split must read on the WU-4a body at mid and near. Overview occupancy (which islands are inhabited) is WU-4b2, not a silhouette gate.
 
 ## Goal
 
