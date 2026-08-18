@@ -44,6 +44,13 @@ describe("golden shots", () => {
       "proof-diversified-parent-mid",
       "proof-diversified-branch-mid",
       "proof-diversified-child-mid",
+      // WU-4c near cameras. Added after the WU-4b mids.
+      "proof-established-near",
+      "proof-speciated-parent-near",
+      "proof-speciated-branch-near",
+      "proof-diversified-parent-near",
+      "proof-diversified-branch-near",
+      "proof-diversified-child-near",
     ]);
   });
 

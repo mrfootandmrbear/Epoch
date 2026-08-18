@@ -11,8 +11,7 @@ import {
 import { RENDER_SCALE } from "./render-scale";
 import type { FounderProfile } from "./founder-profile";
 import { founderTraits } from "./founder-profile";
-import { POPULATION_TRAIT_BOUNDS, type PopulationTraits } from "./population-traits";
-import { createCreatureExpressionSpike, type CreatureExpressionSample } from "./creature-expression-spike";
+import { createCreatureExpressionSpike, expressionFromPopulationTraits } from "./creature-expression-spike";
 
 const COHORT_SIZE = 3;
 const UP = new Vector3(0, 1, 0);
@@ -27,30 +26,13 @@ function hash(seed: number, salt: number): number {
   return (value >>> 0) / 0x1_0000_0000;
 }
 
-function normalized(key: keyof PopulationTraits, value: number): number {
-  const bounds = POPULATION_TRAIT_BOUNDS[key];
-  return Math.max(0, Math.min(1, (value - bounds.min) / (bounds.max - bounds.min)));
-}
-
-function founderSample(profile: Readonly<FounderProfile>, index: number): CreatureExpressionSample {
-  const traits = founderTraits(profile);
-  const variation = (salt: number) => (hash(profile.generationSeed, index * 11 + salt) - 0.5) * 0.1;
-  const value = (key: keyof PopulationTraits, salt: number) => Math.max(
-    0,
-    Math.min(1, normalized(key, traits[key]) + variation(salt)),
+function founderSample(profile: Readonly<FounderProfile>, index: number) {
+  return expressionFromPopulationTraits(
+    founderTraits(profile),
+    index,
+    profile.generationSeed,
+    hash(profile.generationSeed, index + 20),
   );
-  return {
-    shape: [
-      value("bodyMass", 0),
-      value("legLength", 1),
-      value("footWidth", 2),
-      value("insulation", 3),
-      value("hornLength", 4),
-    ],
-    coatWarmth: value("coatWarmth", 5),
-    coatLightness: value("coatLightness", 6),
-    walkPhase: hash(profile.generationSeed, index + 20),
-  };
 }
 
 // The default camera approaches from the south-east. Keep the reveal in

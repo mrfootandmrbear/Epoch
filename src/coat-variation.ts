@@ -1,18 +1,12 @@
 /**
  * Within-herd coat variation.
  *
- * Two archetypes sharing one mesh made a large herd read as two clusters of
- * clones: every animal at a site carried the population's coat mean plus a
- * variation band too narrow to see. This widens the coat channels and gives
- * each site its own distribution, so one herd can be uniformly drab, another
- * split into a dark and a pale form, another graded from one to the other.
+ * Within-herd sampling around the two simulated coat means. Spread stays
+ * narrower than the isolation deltas WU-4c has to show: a bimodal or graded
+ * site must not paint one island's specialists as two unrelated colour forms.
  *
  * No new simulated axis is involved. The sim still stores exactly two coat
- * means and no variance; this is renderer-side sampling around them, the same
- * cosmetic-versus-simulated split the shape channels already observe. Shape
- * stays on its narrow band deliberately -- per-axis trait variance is a
- * simulation question the wildlife roadmap has not answered yet, while coat
- * colour is already documented as phenotype the renderer may sample.
+ * means and no variance; this is renderer-side sampling around them.
  */
 
 export type CoatDistribution = "uniform" | "bimodal" | "graded";
@@ -40,7 +34,7 @@ export function coatDistribution(seed: number): CoatDistribution {
 
 /** How wide this site spreads its coats around the population mean. */
 export function coatSpread(seed: number): number {
-  return 0.16 + hash(seed, 727) * 0.16;
+  return 0.02 + hash(seed, 727) * 0.025;
 }
 
 /**
@@ -66,7 +60,7 @@ export function sampleCoat(
     // weighted by the other's share so the herd mean lands on the population's.
     const paleShare = 0.3 + hash(seed, 839) * 0.4;
     const pale = hash(index * 7 + 3, seed + 941) < paleShare;
-    const offset = spread * 1.7;
+    const offset = spread * 1.0;
     const lightnessShift = pale ? offset * (1 - paleShare) : -offset * paleShare;
     // Warmth follows the same form but more weakly: the two morphs differ
     // mostly in how dark they are, not in hue.

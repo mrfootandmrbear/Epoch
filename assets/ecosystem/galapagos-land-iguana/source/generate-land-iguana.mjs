@@ -207,22 +207,22 @@ function scaleAround(point, center, scale) {
 
 const morphTargets = {
   bodyMass: morph((entry, point) => entry.kind === "body"
-    ? scaleAround(point, entry.center, [1.10, 1.16, 1.18])
+    ? scaleAround(point, entry.center, [1.16, 1.28, 1.32])
     : entry.kind === "head"
-      ? scaleAround(point, entry.center, [1.04, 1.06, 1.10])
+      ? scaleAround(point, entry.center, [1.06, 1.10, 1.16])
       : point),
   legLength: morph((entry, point) => {
-    if (entry.kind === "leg" || entry.kind === "hoof") return [point[0], point[1] * 1.28, point[2]];
-    return [point[0], point[1] + 0.06, point[2]];
+    if (entry.kind === "leg" || entry.kind === "hoof") return [point[0], point[1] * 1.48, point[2]];
+    return [point[0], point[1] + 0.10, point[2]];
   }),
   footWidth: morph((entry, point) => entry.kind === "hoof"
-    ? scaleAround(point, entry.center, [1.15, 1, 1.55]) : point),
+    ? scaleAround(point, entry.center, [1.22, 1, 2.05]) : point),
   insulation: morph((entry, point) => ["body", "head"].includes(entry.kind)
-    ? scaleAround(point, entry.center, [1.03, 1.08, 1.10]) : point),
+    ? scaleAround(point, entry.center, [1.05, 1.16, 1.18]) : point),
   hornLength: morph((entry, point) => {
     if (entry.kind !== "horn") return point;
     const base = [entry.center[0], entry.center[1] - 0.02, 0];
-    return scaleAround(point, base, [1.08, 1.48, 1.1]);
+    return scaleAround(point, base, [1.12, 2.35, 1.22]);
   }),
   walkA: morph((entry, point) => {
     if (entry.kind !== "leg" && entry.kind !== "hoof") return point;

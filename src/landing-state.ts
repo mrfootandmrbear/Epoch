@@ -26,9 +26,9 @@ import { createDrifterFounderHistory, populationTraitDistance, type LineageChang
 import type { FounderChoices } from "./founder-profile";
 import { lineageSeed, type PopulationIdentity } from "./population-archetypes";
 import type { PopulationTraits } from "./population-traits";
-import { POPULATION_TRAIT_BOUNDS } from "./population-traits";
 import {
   createCreatureExpressionSpike,
+  expressionFromPopulationTraits,
   setCreatureExpressionAt,
   type CreatureExpressionSample,
 } from "./creature-expression-spike";
@@ -70,7 +70,6 @@ import { packEnvironmentField, resolveEnvironmentField } from "./environment";
 import type { MarineLineageChange, MarinePopulationOutcome } from "./marine-lineage";
 import { findTerrainPath, isWalkable } from "./animal-navigation";
 import { approachHeading, deriveHerdBehavior, herdLayoutRadius, type HerdBehavior } from "./herd-behavior";
-import { sampleCoat } from "./coat-variation";
 import { createOccupancyMark, occupancyMarkVisibleAt } from "./occupancy-mark";
 import {
   DEFAULT_CLIMATE,
@@ -390,45 +389,6 @@ const CONTRAST_BULKY_TRAITS: PopulationTraits = {
   coatWarmth: 0.14,
   hornLength: 0.54,
 };
-
-function normalizedTrait(key: keyof PopulationTraits, value: number): number {
-  const bounds = POPULATION_TRAIT_BOUNDS[key];
-  return Math.max(0, Math.min(1, (value - bounds.min) / (bounds.max - bounds.min)));
-}
-
-function expressionSample(
-  traits: PopulationTraits,
-  index: number,
-  seed: number,
-  walkPhase: number,
-): CreatureExpressionSample {
-  const variation = (channel: number) => (hash(index * 13 + channel, seed + channel * 31) - 0.5) * 0.16;
-  const value = (key: keyof PopulationTraits, channel: number) => (
-    Math.max(0, Math.min(1, normalizedTrait(key, traits[key]) + variation(channel)))
-  );
-  // Shape keeps its narrow band: per-axis trait variance is a simulation
-  // question the wildlife roadmap has not answered. Coat colour is already
-  // documented as phenotype the renderer may sample, so it carries the
-  // site-specific spread that stops a herd reading as clones.
-  const coat = sampleCoat(
-    normalizedTrait("coatWarmth", traits.coatWarmth),
-    normalizedTrait("coatLightness", traits.coatLightness),
-    index,
-    seed,
-  );
-  return {
-    shape: [
-      value("bodyMass", 0),
-      value("legLength", 1),
-      value("footWidth", 2),
-      value("insulation", 3),
-      value("hornLength", 4),
-    ],
-    coatWarmth: coat.warmth,
-    coatLightness: coat.lightness,
-    walkPhase,
-  };
-}
 
 function syncHerdMatrices(renderer: LineageRenderState, hideHerds = false): void {
   // Hidden animals collapse to zero scale, but trailing hidden slots need not
@@ -843,7 +803,7 @@ export function createLandingState(
       setCreatureExpressionAt(
         renderer.herd,
         index,
-        expressionSample(traits, index, renderer.seed, animal.walkPhase),
+        expressionFromPopulationTraits(traits, index, renderer.seed, animal.walkPhase),
       );
       const navigation = renderer.navigation[index]!;
       // Routes are requested lazily under the per-frame budget; pathing
@@ -1449,7 +1409,7 @@ export function createLandingState(
           setCreatureExpressionAt(
             renderer.herd,
             herdIndex,
-            expressionSample(lineage.traits!, herdIndex, renderer.seed, animal.walkPhase),
+            expressionFromPopulationTraits(lineage.traits!, herdIndex, renderer.seed, animal.walkPhase),
           );
           const state = renderer.navigation[herdIndex]!;
           state.path = [];

@@ -24,8 +24,7 @@ look need local WebGPU.
 
 | Next | Brief | Gate |
 |---|---|---|
-| **Now** | [WU-4c](briefs/WU-4c-ancestry-split.md) — ancestry vs habitat split | Owner: descendant readability at mid/near |
-| After that | Item 5 captures + visual and causal gates | Recorded in this file |
+| **Now** | Item 5 captures + visual and causal gates | Recorded in this file |
 | Parallel, optional | [WU-P0-1](briefs/WU-P0-1-lockfile.md) — clean `npm install` | Tests on a fresh clone |
 
 Do not resume LW-6, LW-7, extra fauna, or atmosphere identity unless a proof
@@ -182,6 +181,18 @@ capture shows the sequence fails without them.
    look is unblocked. Owner: inhabited islands read at overview; each living lineage reads as
    a herd at mid. Scope is occupancy and mid herd mass, not descendant
    readability (WU-4c).*
+   *WU-4c accepted 2026-08-18: descendants stay one family; habitat can be
+   read from the body. Owner: yes to both questions; "it is subtle but can be
+   seen — good for evolution game." Same land-iguana topology and ochre palette;
+   isolation deltas are stylized onto existing morph and coat channels (crest,
+   limbs, feet, mass, insulation, gold-vs-drab hide). Lineage report says
+   "crest," not "horns." Capture set `proofAncestry` and `proof-*-near` cameras
+   were added; existing `GOLDEN_SHOTS` and `proofPlacement` are unedited.
+   Resolver math was not retuned. Subtlety is the owner's intended bar — do not
+   reopen to exaggerate the split unless a later proof capture shows the
+   sequence failing without it. Scope is descendant readability at mid/near,
+   not motion, regional cohesion, reef-edge composition, or the remaining
+   visual/causal gates in item 5.*
 5. Capture the declared sequence, run automated checks, and obtain owner visual
    verdicts.
    *Attempted and retracted 2026-08-15, same day — see LOG.md "Correction".*
@@ -261,6 +272,17 @@ capture shows the sequence fails without them.
 
   **It is explicitly not** a verdict on descendant readability (WU-4c), motion,
   regional cohesion, reef-edge composition, or the near-camera fps defect.
+- **Descendant readability, 2026-08-18** — yes to both owner questions: they
+  stay one family, and habitat can be read from the body. Owner: "it is subtle
+  but can be seen — good for evolution game." WU-4c
+  (`docs/briefs/WU-4c-ancestry-split.md`). Covers the shared land-iguana rig
+  and ochre palette with habitat expressed through existing morph and coat
+  channels (crest, limbs, feet, mass, insulation, gold-vs-drab hide) at mid
+  and near. Subtlety is accepted; do not reopen to exaggerate the split unless
+  a later proof capture shows the sequence failing without it.
+
+  **It is explicitly not** a verdict on motion, regional cohesion, reef-edge
+  composition, organism quality as a separate gate, or the item 5 causal gate.
 
 ## Open defects
 
@@ -379,7 +401,7 @@ members consequences.
 | Marine lineage and reef succession | Implemented as bounded proofs | Preserve; expand only for an integrated-proof consumer. |
 | Aerial persistence and wider food web | Partial or planned | Deferred behind the current objective. |
 | Landing-state renderer | Substantial WebGPU/TSL implementation | Regional multi-shield grammar and serialized proof captures. |
-| Ecosystem assets | Grazer, coral, and land-iguana founder family **accepted** (WU-4a, 2026-08-18); proof placement **accepted** (WU-4b, 2026-08-18); overview occupancy and mid herd mass **accepted** (WU-4b2, 2026-08-18); tree, seagrass, and fish remain candidates | WU-4c descendant readability at mid/near (near-camera fps closed as stale, WU-D1, 2026-08-18). |
+| Ecosystem assets | Grazer, coral, and land-iguana founder family **accepted** (WU-4a, 2026-08-18); proof placement **accepted** (WU-4b, 2026-08-18); overview occupancy and mid herd mass **accepted** (WU-4b2, 2026-08-18); descendant readability **accepted** (WU-4c, 2026-08-18); tree, seagrass, and fish remain candidates | Item 5 visual gates still open: regional cohesion, reef-edge composition, organism quality, motion. Causal gate unrecorded. |
 | Jump transition | Production direction selected; depth remains secondary | Revisit after landing causality reads clearly. |
 
 “Implemented” means present with proportionate automated evidence. “Accepted”
@@ -406,6 +428,8 @@ them for migration detail, not priority.
   views for the sequence.
 - **Visual gate:** the owner separately records verdicts for regional cohesion,
   reef-edge composition, organism quality, motion, and descendant readability.
+  Descendant readability is **accepted** 2026-08-18 (WU-4c). The other four
+  remain unrecorded.
 - **Causal gate:** without being told the intended mapping, a reviewer can use
   only the landing and its player-facing history to identify the divided
   habitats, associate the descendants' major adaptations with those habitats,

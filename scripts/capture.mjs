@@ -173,6 +173,18 @@ const SHOT_SETS = {
     { label: "08-diversified-branch-mid", query: "shot=proof-diversified-branch-mid&founders=drifter&plume=active&years=1000000&jumps=5&time=42" },
     { label: "09-diversified-child-mid", query: "shot=proof-diversified-child-mid&founders=drifter&plume=active&years=1000000&jumps=5&time=42" },
   ],
+  // WU-4c: matched mid/near framings of parent vs branch so ancestry and
+  // habitat split can be judged on the shared iguana rig. New set; existing
+  // comparison sets are unedited.
+  proofAncestry: [
+    { label: "01-speciated-parent-mid", query: "shot=proof-speciated-parent-mid&founders=drifter&plume=active&years=1000000&jumps=3&time=42" },
+    { label: "02-speciated-branch-mid", query: "shot=proof-speciated-branch-mid&founders=drifter&plume=active&years=1000000&jumps=3&time=42" },
+    { label: "03-speciated-parent-near", query: "shot=proof-speciated-parent-near&founders=drifter&plume=active&years=1000000&jumps=3&time=42" },
+    { label: "04-speciated-branch-near", query: "shot=proof-speciated-branch-near&founders=drifter&plume=active&years=1000000&jumps=3&time=42" },
+    { label: "05-diversified-parent-near", query: "shot=proof-diversified-parent-near&founders=drifter&plume=active&years=1000000&jumps=5&time=42" },
+    { label: "06-diversified-branch-near", query: "shot=proof-diversified-branch-near&founders=drifter&plume=active&years=1000000&jumps=5&time=42" },
+    { label: "07-diversified-child-near", query: "shot=proof-diversified-child-near&founders=drifter&plume=active&years=1000000&jumps=5&time=42" },
+  ],
   // UI/HUD review runs WITHOUT capture mode, because `?shot=` hides every
   // panel. These are the surfaces a new player actually sees first.
   ui: [

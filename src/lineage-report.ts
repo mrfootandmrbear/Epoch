@@ -10,7 +10,7 @@ const TRAIT_LABELS = {
   insulation: "insulation",
   coatLightness: "coat lightness",
   coatWarmth: "coat warmth",
-  hornLength: "horns",
+  hornLength: "crest",
 } as const satisfies Record<keyof PopulationTraits, string>;
 
 function escapeHtml(value: string): string {

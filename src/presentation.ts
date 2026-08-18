@@ -110,6 +110,18 @@ export const GOLDEN_SHOTS = {
   "proof-diversified-parent-mid": { position: [182, 22, -74], target: [150, 11, -92] },
   "proof-diversified-branch-mid": { position: [-714, 15, -28], target: [-688, 4.5, -42] },
   "proof-diversified-child-mid": { position: [-123, 20, 318], target: [-151, 8.5, 298] },
+
+  // ---------------------------------------------------------------------
+  // Ancestry split (WU-4c). Same targets as the WU-4b mid cameras, pulled in
+  // along the mid azimuth to ~5.8 m so crest, feet, and coat read. Added;
+  // existing cameras are unedited.
+  // ---------------------------------------------------------------------
+  "proof-established-near": { position: [-173.97, 6.35, -212.83], target: [-178, 5.5, -217] },
+  "proof-speciated-parent-near": { position: [-251.17, 9.85, -114.78], target: [-256, 9, -118] },
+  "proof-speciated-branch-near": { position: [-643.01, 4.85, -69.08], target: [-638, 4, -72] },
+  "proof-diversified-parent-near": { position: [155.05, 11.85, -89.16], target: [150, 11, -92] },
+  "proof-diversified-branch-near": { position: [-693.11, 5.35, -39.25], target: [-688, 4.5, -42] },
+  "proof-diversified-child-near": { position: [-146.28, 9.35, 301.37], target: [-151, 8.5, 298] },
 } as const;
 
 export type GoldenShotName = keyof typeof GOLDEN_SHOTS;

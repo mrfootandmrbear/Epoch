@@ -60,12 +60,14 @@ describe("within-herd coat variation", () => {
     }
   });
 
-  it("spreads a herd wide enough to see", () => {
-    // The old band was +/-0.08 on lightness, which at this mesh's tonal range
-    // is close to invisible across a herd. Every site must beat it clearly.
+  it("spreads a herd without drowning the population mean", () => {
+    // Isolation deltas on the proof fixtures are often ~0.04–0.10. Within-herd
+    // spread has to stay below that or parent and branch read as one mixed coat.
     for (let seed = 0; seed < 60; seed++) {
       const coats = herdCoats(0.5, 0.5, seed);
-      expect(spreadOf(coats.map((coat) => coat.lightness)), `seed ${seed}`).toBeGreaterThan(0.16);
+      const spread = spreadOf(coats.map((coat) => coat.lightness));
+      expect(spread, `seed ${seed}`).toBeGreaterThan(0.02);
+      expect(spread, `seed ${seed}`).toBeLessThan(0.11);
     }
   });
 
@@ -85,7 +87,7 @@ describe("within-herd coat variation", () => {
       const dark = lightness.slice(0, Math.floor(lightness.length / 3));
       const pale = lightness.slice(-Math.floor(lightness.length / 3));
       // The two forms are distinct, not a single continuous cloud.
-      expect(mean(pale) - mean(dark), `seed ${seed}`).toBeGreaterThan(0.12);
+      expect(mean(pale) - mean(dark), `seed ${seed}`).toBeGreaterThan(0.02);
     }
   });
 

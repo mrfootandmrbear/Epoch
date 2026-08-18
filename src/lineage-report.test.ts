@@ -42,6 +42,19 @@ describe("lineage report", () => {
     expect(html).not.toContain("mass +0.010");
   });
 
+  it("names hornLength as crest, matching the iguana expression", () => {
+    const html = buildLineageReportHtml([{
+      ...root,
+      traits: {
+        hornLength: { before: 0.88, after: 1.12 },
+        bodyMass: { before: 1, after: 1.01 },
+        coatWarmth: { before: 0.5, after: 0.51 },
+      },
+    }]);
+    expect(html).toContain("crest +0.240");
+    expect(html).not.toContain("horns");
+  });
+
   it("escapes lineage identifiers before rendering", () => {
     expect(buildLineageReportHtml([{ ...root, id: "<unsafe>" }])).toContain("&lt;unsafe&gt;");
   });

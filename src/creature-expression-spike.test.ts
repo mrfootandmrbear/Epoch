@@ -1,8 +1,9 @@
-import { InstancedBufferAttribute, Mesh, MeshBasicMaterial } from "three/webgpu";
+import { Color, InstancedBufferAttribute, Mesh, MeshBasicMaterial } from "three/webgpu";
 import { describe, expect, it } from "vitest";
 import {
   createCreatureExpressionSpike,
   createLandIguanaGeometry,
+  expressionFromPopulationTraits,
   setCreatureExpressionAt,
   GRAZER_MORPH_CHANNELS,
 } from "./creature-expression-spike";
@@ -64,6 +65,41 @@ describe("creature expression architecture spike", () => {
     });
 
     expect(spike.geometry.getAttribute(COAT_DETAIL_ATTRIBUTE).getX(0)).toBeCloseTo(0.87, 5);
+  });
+
+  it("stretches modest isolation deltas onto the shared morph range", () => {
+    // Jump-3 proof means: parent shorter crest / colder coat, branch the reverse.
+    // Raw normalized gap is ~0.10 on crest; stylized weights must beat within-herd jitter.
+    const parent = {
+      bodyMass: 1.091, legLength: 1.034, footWidth: 1.020, insulation: 0.516,
+      coatLightness: 0.495, coatWarmth: 0.364, hornLength: 0.887,
+    };
+    const branch = {
+      bodyMass: 1.068, legLength: 1.038, footWidth: 1.032, insulation: 0.483,
+      coatLightness: 0.482, coatWarmth: 0.401, hornLength: 0.984,
+    };
+    const parentCrest = Array.from({ length: 12 }, (_, index) => (
+      expressionFromPopulationTraits(parent, index, 401, 0).shape[4]
+    ));
+    const branchCrest = Array.from({ length: 12 }, (_, index) => (
+      expressionFromPopulationTraits(branch, index, 409, 0).shape[4]
+    ));
+    const mean = (values: readonly number[]) => values.reduce((sum, value) => sum + value, 0) / values.length;
+    expect(mean(branchCrest) - mean(parentCrest)).toBeGreaterThan(0.18);
+    expect(Math.max(...parentCrest) - Math.min(...parentCrest)).toBeLessThan(0.08);
+  });
+
+  it("paints warmer coats more saturated gold than colder drab coats", () => {
+    const spike = createCreatureExpressionSpike([
+      { shape: [0.5, 0.5, 0.5, 0.5, 0.5], coatWarmth: 0.12, coatLightness: 0.4, walkPhase: 0 },
+      { shape: [0.5, 0.5, 0.5, 0.5, 0.5], coatWarmth: 0.88, coatLightness: 0.4, walkPhase: 0 },
+    ]);
+    const cold = new Color();
+    const warm = new Color();
+    spike.getColorAt(0, cold);
+    spike.getColorAt(1, warm);
+    expect(warm.r).toBeGreaterThan(cold.r);
+    expect(warm.r - cold.r).toBeGreaterThan(0.12);
   });
 
   it("swaps the founder hide for an unlit material when flatHide is set", () => {

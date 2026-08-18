@@ -8,7 +8,9 @@ import {
   Mesh,
 } from "three/webgpu";
 import source from "../assets/ecosystem/galapagos-land-iguana/source/land-iguana.geometry.json";
+import { sampleCoat } from "./coat-variation";
 import { COAT_DETAIL_ATTRIBUTE, createFlatHideMaterial, createFounderHideMaterial } from "./creature-material";
+import { POPULATION_TRAIT_BOUNDS, type PopulationTraits } from "./population-traits";
 
 export const GRAZER_SHAPE_CHANNELS = [
   "bodyMass",
@@ -25,6 +27,73 @@ export interface CreatureExpressionSample {
   readonly coatWarmth: number;
   readonly coatLightness: number;
   readonly walkPhase: number;
+}
+
+/**
+ * Isolation on the proof fixtures moves means by ~0.03–0.10 of each trait
+ * range. Mapping that 1:1 onto morph weights leaves parent and branch as
+ * clones. Gain around the founder-ish pivot stretches those deltas onto the
+ * shared rig without inventing a second mesh.
+ */
+export const TRAIT_EXPRESSION_GAIN = 2.75;
+export const TRAIT_EXPRESSION_PIVOT = 0.45;
+const SHAPE_JITTER = 0.05;
+
+export function normalizePopulationTrait(key: keyof PopulationTraits, value: number): number {
+  const bounds = POPULATION_TRAIT_BOUNDS[key];
+  return Math.max(0, Math.min(1, (value - bounds.min) / (bounds.max - bounds.min)));
+}
+
+export function stylizeTraitChannel(
+  normalized: number,
+  gain = TRAIT_EXPRESSION_GAIN,
+  pivot = TRAIT_EXPRESSION_PIVOT,
+): number {
+  return clamp01(pivot + (clamp01(normalized) - pivot) * gain);
+}
+
+function hash(seed: number, salt: number): number {
+  let value = (seed + Math.imul(salt + 1, 0x9e3779b9)) >>> 0;
+  value ^= value >>> 16;
+  value = Math.imul(value, 0x7feb352d);
+  value ^= value >>> 15;
+  value = Math.imul(value, 0x846ca68b);
+  value ^= value >>> 16;
+  return (value >>> 0) / 0x1_0000_0000;
+}
+
+/**
+ * Landing and raft founders share this mapping so a specialist reads the same
+ * whether it is standing on its island or arriving as a cohort.
+ */
+export function expressionFromPopulationTraits(
+  traits: PopulationTraits,
+  index: number,
+  seed: number,
+  walkPhase: number,
+): CreatureExpressionSample {
+  const variation = (channel: number) => (hash(index * 13 + channel, seed + channel * 31) - 0.5) * SHAPE_JITTER;
+  const value = (key: keyof PopulationTraits, channel: number) => (
+    clamp01(stylizeTraitChannel(normalizePopulationTrait(key, traits[key])) + variation(channel))
+  );
+  const coat = sampleCoat(
+    stylizeTraitChannel(normalizePopulationTrait("coatWarmth", traits.coatWarmth)),
+    stylizeTraitChannel(normalizePopulationTrait("coatLightness", traits.coatLightness)),
+    index,
+    seed,
+  );
+  return {
+    shape: [
+      value("bodyMass", 0),
+      value("legLength", 1),
+      value("footWidth", 2),
+      value("insulation", 3),
+      value("hornLength", 4),
+    ],
+    coatWarmth: coat.warmth,
+    coatLightness: coat.lightness,
+    walkPhase,
+  };
 }
 
 function clamp01(value: number): number {
@@ -140,14 +209,15 @@ export function setCreatureExpressionAt(
 const coatColor = new Color();
 
 /**
- * Ochre-to-gold family albedo. Warmth pulls toward saturated saffron; lightness
- * walks the same hue from dark chocolate to pale Conolophus yellow.
+ * Ochre family albedo, stretched so habitat warmth reads at mid distance:
+ * cold/wet pulls drab olive-brown; arid warmth saturates toward saffron gold.
+ * Lightness stays on the same hue, chocolate to pale Conolophus yellow.
  */
 function coatColorFor(sample: CreatureExpressionSample, out: Color): Color {
   const warmth = clamp01(sample.coatWarmth);
   return out.setHSL(
-    0.105 - warmth * 0.028,
-    0.32 + warmth * 0.38,
-    0.24 + clamp01(sample.coatLightness) * 0.40,
+    0.118 - warmth * 0.055,
+    0.18 + warmth * 0.62,
+    0.16 + clamp01(sample.coatLightness) * 0.46,
   );
 }
