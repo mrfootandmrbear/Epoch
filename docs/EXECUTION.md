@@ -305,11 +305,12 @@ accepted. Do not start M2–M5 in this session.
    marine shoal, not crab seats. Package `epoch-intertidal-crab` now compiles a
    centimetre-scale Sally Lightfoot from anyCreature JSON → skinned GLB
    (build-time only; not a runtime evolution engine; punchier-silhouette
-   doctrine is not used). Capture sets `splashCrab` and `crabPreview`. Owner
-   look is live WebGPU; headless `--webgl` stills are fallback-backend evidence
-   only. Owner question: "Do these read as Sally Lightfoot crabs on Galápagos
-   splash lava, distinct from the coastal fish?" Do not start M2–M5 in the same
-   session as another family. Do not reopen the accepted land iguana.
+   doctrine is not used). Compiler lessons: `tools/anycreature/README.md`.
+   Capture sets `splashCrab` and `crabPreview`. Owner look is live WebGPU;
+   headless `--webgl` stills are fallback-backend evidence only. Owner question:
+   "Do these read as Sally Lightfoot crabs on Galápagos splash lava, distinct
+   from the coastal fish?" Do not start M2–M5 in the same session as another
+   family. Do not reopen the accepted land iguana.
 
 ## Recorded owner verdicts
 

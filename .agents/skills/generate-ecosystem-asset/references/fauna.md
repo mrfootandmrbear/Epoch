@@ -2,6 +2,8 @@
 
 Use Foxel `.fxl` as the preferred editable source for animals, fish, and birds; export rigged/animated `.glb` files for runtime. Another tool is allowed only when the manifest explains why it better satisfies the same contract.
 
+anyCreature (vendored ACS under `tools/anycreature/`) may compile JSON → skinned GLB at **build time**. It is not a first-class fauna backend and not a runtime evolution engine. If a package uses it, read `tools/anycreature/README.md` before writing a spec — the punchier-silhouette cards are wrong for Epoch, and crab/cheliped traps from WU-M1 are recorded there. Do not reopen an accepted family to try the compiler.
+
 ## Shared requirements
 
 - Use one base rig per related family whenever anatomy allows.

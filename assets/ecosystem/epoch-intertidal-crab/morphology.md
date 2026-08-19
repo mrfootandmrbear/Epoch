@@ -28,7 +28,7 @@ Every sample shares one topology, flattened Grapsus carapace, eight walking legs
 
 ## Runtime motion
 
-`idle` and `walk` are authored clips on the compiled GLB. Walk is a sideways scuttle. Juvenile redness tints the vertex-coloured hide toward cryptic brown. The landing renderer clones the skinned GLB at centimetre scale; simulation does not import meshes.
+`idle` and `walk` are authored clips on the compiled GLB. Walk is a sideways scuttle. Juvenile redness tints the vertex-coloured hide toward cryptic brown. The landing renderer clones the skinned GLB at centimetre scale; simulation does not import meshes. Compiler traps (volume-tube claws, `paw` as a foot, `fin` anchors that never face forward) live in `tools/anycreature/README.md`.
 
 ## Rejected directions
 
