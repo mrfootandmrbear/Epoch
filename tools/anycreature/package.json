@@ -1,0 +1,7 @@
+{
+  "name": "epoch-anycreature-engine",
+  "private": true,
+  "version": "1.2.0",
+  "type": "commonjs",
+  "description": "Vendored anyCreature ACS compiler. Build-time only."
+}

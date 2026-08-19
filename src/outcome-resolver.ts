@@ -110,6 +110,18 @@ export interface CoastalAnimalOutcome {
   scale: number;
 }
 
+export interface IntertidalCrabOutcome {
+  x: number;
+  y: number;
+  z: number;
+  heading: number;
+  bodySize: number;
+  redness: number;
+  wetness: number;
+  agility: number;
+  energy: number;
+}
+
 export interface SeagrassOutcome {
   x: number;
   y: number;
@@ -156,7 +168,7 @@ export interface LandingOutcome {
   populations: readonly PopulationOutcome[];
   freshwater: FreshwaterOutcome[];
   freshwaterField: FreshwaterField;
-  coastalAnimals: CoastalAnimalOutcome[];
+  intertidalCrabs: IntertidalCrabOutcome[];
   marinePopulations: readonly MarinePopulationOutcome[];
   marineEnergy: MarineEnergyExchange;
   aerial: AerialPopulationOutcome;
@@ -267,6 +279,136 @@ export function sampleEcosystem(
     nutrients,
     runoff,
   };
+}
+
+const SHOAL_GOLDEN_ANGLE = 2.399;
+export const MAX_INTERITDAL_CRABS = 40;
+const CRAB_MIN_SPACING = 0.42;
+const SPLASH_BAND_METERS = 1;
+
+/** Water-column samples around a visible marine site. Not splash-lava crab seats. */
+export function marineShoalSamples(population: MarinePopulationOutcome): CoastalAnimalOutcome[] {
+  if (!population.visible || !population.site) return [];
+  const count = Math.max(1, Math.ceil((population.abundance ?? 0.3) * 10));
+  const site = population.site;
+  return Array.from({ length: count }, (_, index) => ({
+    x: site.x + Math.cos(index * SHOAL_GOLDEN_ANGLE) * (2 + index * 0.65),
+    y: site.y,
+    z: site.z + Math.sin(index * SHOAL_GOLDEN_ANGLE) * (2 + index * 0.65),
+    heading: index * SHOAL_GOLDEN_ANGLE,
+    scale: 0.72 + (population.traits?.bodySize ?? 0.5) * 0.72,
+  }));
+}
+
+export function intertidalCrabCount(shorelineSubsidy: number): number {
+  if (shorelineSubsidy <= 0) return 0;
+  return Math.min(MAX_INTERITDAL_CRABS, Math.round(shorelineSubsidy * 64));
+}
+
+function nearbyCoastalProductivity(heightAt: HeightAt, x: number, z: number, climate: ClimateForces): number {
+  const offsets = [
+    [8, 0], [-8, 0], [0, 8], [0, -8], [6, 6], [-6, 6], [6, -6], [-6, -6],
+  ] as const;
+  let best = 0;
+  for (const [dx, dz] of offsets) {
+    best = Math.max(best, sampleEcosystem(heightAt, x + dx, z + dz, climate).coastalProductivity);
+  }
+  return best;
+}
+
+/**
+ * Guild occupancy on wet lava within ~1 m of sea level. Count tracks
+ * shorelineSubsidy; seats are terrain samples, not marine-forager sites.
+ */
+export function resolveIntertidalCrabOccupancy(
+  heightAt: HeightAt,
+  climate: ClimateForces,
+  basaltAt: HeightAt,
+  shorelineSubsidy: number,
+  scatterRadius: number,
+  sampleCount: number,
+): IntertidalCrabOutcome[] {
+  const wanted = intertidalCrabCount(shorelineSubsidy);
+  if (wanted === 0) return [];
+  const seaLevel = SEA_LEVEL[climate.seaLevel];
+  const candidates: Array<{
+    x: number;
+    y: number;
+    z: number;
+    score: number;
+    wetness: number;
+    agility: number;
+    heading: number;
+    seed: number;
+  }> = [];
+  for (let i = 0; i < sampleCount; i++) {
+    const angle = hash(i, 409) * Math.PI * 2;
+    const radius = Math.sqrt(hash(i, 421)) * scatterRadius;
+    const x = Math.cos(angle) * radius;
+    const z = Math.sin(angle) * radius;
+    const ecosystem = sampleEcosystem(heightAt, x, z, climate);
+    const above = ecosystem.elevation - seaLevel;
+    if (above < 0 || above > SPLASH_BAND_METERS) continue;
+    if (ecosystem.slope > 1.85) continue;
+    const lava = basaltAt(x, z);
+    const splash = 1 - Math.abs(above - 0.22) / SPLASH_BAND_METERS;
+    const coast = nearbyCoastalProductivity(heightAt, x, z, climate);
+    const score = splash * (0.32 + lava * 0.68) * (0.35 + coast * 0.65);
+    if (score <= 0.04) continue;
+    const downhillX = heightAt(x - 0.6, z) - heightAt(x + 0.6, z);
+    const downhillZ = heightAt(x, z - 0.6) - heightAt(x, z + 0.6);
+    candidates.push({
+      x,
+      y: ecosystem.elevation,
+      z,
+      score,
+      wetness: clamp01(1 - above / SPLASH_BAND_METERS),
+      agility: clamp01(ecosystem.exposure * 0.7 + ecosystem.slope * 0.35),
+      heading: Math.atan2(downhillZ, downhillX),
+      seed: hash(i, 433),
+    });
+  }
+  candidates.sort((a, b) => b.score - a.score);
+  const origin = candidates[0];
+  if (!origin) return [];
+  const tangentX = -Math.sin(origin.heading);
+  const tangentZ = Math.cos(origin.heading);
+  const inlandX = Math.cos(origin.heading);
+  const inlandZ = Math.sin(origin.heading);
+  const seats: IntertidalCrabOutcome[] = [{
+    x: origin.x,
+    y: origin.y,
+    z: origin.z,
+    heading: origin.heading,
+    bodySize: clamp01(0.34 + shorelineSubsidy * 0.38 + origin.seed * 0.22),
+    redness: clamp01(0.16 + shorelineSubsidy * 0.52 + (origin.seed - 0.5) * 0.72),
+    wetness: origin.wetness,
+    agility: origin.agility,
+    energy: clamp01(shorelineSubsidy),
+  }];
+  for (let i = 0; i < wanted * 24 && seats.length < wanted; i++) {
+    const along = (hash(i, 457) - 0.5) * 8.5;
+    const inland = (hash(i, 461) - 0.42) * 1.6;
+    const x = origin.x + tangentX * along - inlandX * inland;
+    const z = origin.z + tangentZ * along - inlandZ * inland;
+    const y = heightAt(x, z);
+    const above = y - seaLevel;
+    if (above < 0 || above > SPLASH_BAND_METERS) continue;
+    if (seats.some((seat) => Math.hypot(seat.x - x, seat.z - z) < CRAB_MIN_SPACING)) continue;
+    const seed = hash(i, 467);
+    seats.push({
+      x,
+      y,
+      z,
+      heading: origin.heading,
+      bodySize: clamp01(0.34 + shorelineSubsidy * 0.38 + seed * 0.22),
+      redness: clamp01(0.16 + shorelineSubsidy * 0.52 + (seed - 0.5) * 0.72),
+      wetness: clamp01(1 - above / SPLASH_BAND_METERS),
+      agility: origin.agility,
+      energy: clamp01(shorelineSubsidy),
+    });
+  }
+  return seats;
 }
 
 interface ScoredSite {
@@ -1302,16 +1444,6 @@ export function resolveLanding(
   const saltwaterSeagrass = seagrass.filter((tuft) => !freshwater.some((pool) => (
     Math.hypot(tuft.x - pool.x, tuft.z - pool.z) < pool.radius + 2
   )));
-  const marine = marineResolution.outcomes.find((population) => population.visible && population.site);
-  const coastalAnimals = marine?.site
-    ? Array.from({ length: Math.max(1, Math.ceil((marine.abundance ?? 0.3) * 10)) }, (_, index) => ({
-      x: marine.site!.x + Math.cos(index * 2.399) * (2 + index * 0.65),
-      y: marine.site!.y,
-      z: marine.site!.z + Math.sin(index * 2.399) * (2 + index * 0.65),
-      heading: index * 2.399,
-      scale: 0.72 + (marine.traits?.bodySize ?? 0.5) * 0.72,
-    }))
-    : [];
   const { score: _aerialScore, ...aerial } = aerialBest;
   const inheritedMarineNutrients = snapshot.marineNutrients ?? 0.2;
   const primaryProductivity = clamp01(
@@ -1326,10 +1458,17 @@ export function resolveLanding(
     primaryProductivity: primaryProductivityWithReef,
     nurseryCapacity,
     preyAvailability,
-    // This is available to future shoreline scavengers, nesting colonies,
-    // and nutrient transport. Grazers do not consume it directly.
+    // Splash crabs consume this as occupancy count. Grazers do not.
     shorelineSubsidy: clamp01(preyAvailability * 0.24 + primaryProductivity * 0.12),
   };
+  const intertidalCrabs = resolveIntertidalCrabOccupancy(
+    heightAt,
+    climate as ClimateForces,
+    basaltAt,
+    marineEnergy.shorelineSubsidy,
+    scatterRadius,
+    perArea(900),
+  );
   const freshwaterEdges = trees.filter((tree) => !freshwater.some((pool) => (
     Math.hypot(tree.x - pool.x, tree.z - pool.z) < pool.radius + 3
   )));
@@ -1340,7 +1479,7 @@ export function resolveLanding(
       populations: lineageResolutions.map((resolution) => resolution.outcome),
       freshwater,
       freshwaterField,
-      coastalAnimals,
+      intertidalCrabs,
       marinePopulations: marineResolution.outcomes,
       marineEnergy,
       aerial,

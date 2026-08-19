@@ -1420,6 +1420,7 @@ async function start() {
     if (captureParams.get("herd") === "candidate") landingState.showcaseGrazerHerd();
     if (captureParams.get("herd") === "contrast") landingState.showcaseHerdContrast();
     if (captureParams.get("fish") === "candidate") landingState.showcaseFish();
+    if (captureParams.get("crabs") === "candidate") landingState.showcaseCrabs();
     landingState.update(captureTime, camera.position);
   }
 

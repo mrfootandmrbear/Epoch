@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "id": "epoch-intertidal-crab",
+  "displayName": "Epoch Intertidal Crab",
+  "category": "animal",
+  "stage": "candidate",
+  "role": "splash-zone scavenger linking shoreline subsidy to wet lava occupancy",
+  "habitats": ["rocky intertidal", "splash lava", "wet basalt shore"],
+  "realWorldReferents": [
+    "Grapsus grapsus (Sally Lightfoot) for flattened carapace, spreading legs, and adult scarlet on black lava",
+    "juvenile Grapsus for cryptic mottled olive-brown"
+  ],
+  "silhouette": "A low transverse oval on long spreading legs, modest claws, and eyestalks; adults read scarlet against black splash lava, juveniles as darker specks on the same rock.",
+  "paletteFamily": "epoch-splash-sally",
+  "scaleMeters": { "min": 0.05, "max": 0.08 },
+  "traits": {
+    "continuous": [
+      { "name": "bodySize", "driver": "shoreline subsidy and energy", "range": [0, 1] },
+      { "name": "redness", "driver": "maturity on splash rock", "range": [0, 1] },
+      { "name": "wetness", "driver": "proximity to swash", "range": [0, 1] },
+      { "name": "agility", "driver": "wave exposure on steep lava", "range": [0, 1] }
+    ],
+    "discrete": []
+  },
+  "source": {
+    "tool": "anyCreature ACS (build-time)",
+    "files": ["source/sally-lightfoot.json"],
+    "procedure": "Foxel's preferred fauna path is a rigged GLB; anyCreature compiles an editable JSON skeleton, volumes, vertex colours, and idle/walk clips into that GLB without becoming Epoch's evolution engine. Biological bounds stay in the spec (centimetre Grapsus, not a punchier monster). Compile with npm run asset:crab:generate. Do not ship the compiler to players."
+  },
+  "previews": [
+    "previews/front.png",
+    "previews/side.png",
+    "previews/top.png",
+    "previews/game-distance.png",
+    "previews/landing-showcase.png"
+  ],
+  "exports": ["exports/sally-lightfoot.glb"],
+  "lods": [{ "name": "near", "file": "exports/sally-lightfoot.glb", "maxTriangles": 1024 }],
+  "animations": { "required": ["idle", "walk"] },
+  "showcase": "previews/landing-showcase.png",
+  "acceptance": { "verdict": "" }
+}

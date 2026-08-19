@@ -225,6 +225,19 @@ const SHOT_SETS = {
     { label: "03-slope", query: "shot=w2k-underwater-slope&fixture=mature-warm-reef&time=42" },
     { label: "04-look-up", query: "shot=w2k-underwater-look-up&fixture=mature-warm-reef&time=42" },
   ],
+  // Splash-zone crab occupancy (WU-M1). Added; existing sets are unedited.
+  // Live seats on the default Young volcano landing, plus a candidate
+  // cluster for the package showcase. Headless --webgl is fallback evidence.
+  splashCrab: [
+    { label: "01-mid", query: "shot=w2k-splash-crab-mid&time=42" },
+    { label: "02-near", query: "shot=w2k-splash-crab-near&time=42" },
+  ],
+  crabPreview: [
+    { label: "01-front", path: "/crab-preview.html", query: "view=front" },
+    { label: "02-side", path: "/crab-preview.html", query: "view=side" },
+    { label: "03-top", path: "/crab-preview.html", query: "view=top" },
+    { label: "04-game-distance", path: "/crab-preview.html", query: "view=game-distance" },
+  ],
   // UI/HUD review runs WITHOUT capture mode, because `?shot=` hides every
   // panel. These are the surfaces a new player actually sees first.
   ui: [

@@ -88,6 +88,7 @@ import {
   type StartingWorldPreset,
 } from "./starting-world-presets";
 import { createFishRenderer } from "./fish-renderer";
+import { createCrabRenderer } from "./crab-renderer";
 import { createDistantDrifterRenderer, drifterArrivalPosition } from "./distant-drifter-renderer";
 import {
   applyHeightBrush,
@@ -484,6 +485,7 @@ export interface WorldExperience {
   showcaseGrazerHerd: () => void;
   showcaseHerdContrast: () => void;
   showcaseFish: () => void;
+  showcaseCrabs: () => void;
   advance: (years: number, totalYears: number, climate: ClimateForces) => LineageReport;
   /** Where the renderer actually seated a living population — use for camera bookmarks. */
   populationFocusTarget: (lineageId: string) => Readonly<{ x: number; y: number; z: number }> | undefined;
@@ -536,6 +538,7 @@ export function createLandingState(
   const streams = createStreamRenderer(life);
   const cascades = createCascadeRenderer(life);
   const fish = createFishRenderer(life, reefWater);
+  const crabs = createCrabRenderer(life);
   const aerialAnimals = addAerialAnimals(life);
   const distantDrifter = createDistantDrifterRenderer();
   scene.add(distantDrifter.group);
@@ -1022,14 +1025,6 @@ export function createLandingState(
     }
     const marine = currentOutcome?.marinePopulations.find((entry) => entry.id === lineageId);
     if (marine?.site && marine.status === "active" && marine.visible) {
-      const samples = currentOutcome?.coastalAnimals ?? [];
-      if (samples.length > 0) {
-        const shoal = visibleHerdCentroid(samples.map((sample) => ({
-          visible: true,
-          position: { x: sample.x, y: sample.y, z: sample.z },
-        })));
-        if (shoal) return shoal;
-      }
       return { x: marine.site.x, y: marine.site.y, z: marine.site.z };
     }
     return undefined;
@@ -1052,7 +1047,6 @@ export function createLandingState(
     }
     for (const population of currentOutcome?.marinePopulations ?? []) {
       if (population.status !== "active" || !population.visible) continue;
-      if ((currentOutcome?.coastalAnimals.length ?? 0) === 0) continue;
       const target = populationFocusTarget(population.id);
       if (target) targets.set(population.id, target);
     }
@@ -1263,6 +1257,43 @@ export function createLandingState(
         energy: 0.72,
       }, samples);
     },
+    showcaseCrabs() {
+      let originX = 0;
+      let originZ = 0;
+      let found = false;
+      for (let radius = 40; radius <= 420 && !found; radius += 6) {
+        const x = radius * 0.72;
+        const z = radius * 0.72;
+        const y = heightAt(x, z);
+        if (y >= 0 && y <= 1) {
+          originX = x;
+          originZ = z;
+          found = true;
+        }
+      }
+      if (!found) {
+        crabs.setSeats([]);
+        return;
+      }
+      const seats = Array.from({ length: 22 }, (_, index) => {
+        const angle = index * 2.399;
+        const r = 0.32 + (index % 6) * 0.13;
+        const x = originX + Math.cos(angle) * r;
+        const z = originZ + Math.sin(angle) * r;
+        return {
+          x,
+          y: heightAt(x, z),
+          z,
+          heading: Math.PI * 0.25,
+          bodySize: 0.32 + (index % 5) * 0.12,
+          redness: index % 4 === 0 ? 0.16 : 0.86,
+          wetness: 0.72,
+          agility: 0.55,
+          energy: 0.48,
+        };
+      }).filter((seat) => seat.y >= 0 && seat.y <= 1.15);
+      crabs.setSeats(seats);
+    },
     advance(years: number, totalYears: number, climate: ClimateForces) {
       distantDrifter.hide();
       revealed = true;
@@ -1436,7 +1467,8 @@ export function createLandingState(
         if (!marker.visible || !previous) return;
         marker.position.set(previous.x, heightAt(previous.x, previous.z) + 0.18, previous.z);
       });
-      fish.setPopulation(outcome.marinePopulations.find((population) => population.visible), outcome.coastalAnimals);
+      fish.setPopulation(outcome.marinePopulations.find((population) => population.visible));
+      crabs.setSeats(outcome.intertidalCrabs);
       aerialAnimals.forEach((bird, index) => {
         bird.visible = outcome.aerial.visible;
         bird.userData.phase = (index / aerialAnimals.length) * Math.PI * 2;
@@ -1611,6 +1643,7 @@ export function createLandingState(
         }
       });
       fish.update(elapsed);
+      crabs.update(elapsed, viewPosition);
       if (currentOutcome?.aerial.visible) {
         aerialAnimals.forEach((bird, index) => {
           const phase = (bird.userData.phase as number) + elapsed * (0.13 + (index % 4) * 0.012);

@@ -54,4 +54,31 @@ describe("coastal forager renderer", () => {
     expect(renderer.mesh.count).toBe(0);
     expect(renderer.mesh.visible).toBe(false);
   });
+
+  it("samples the marine site water column when crab seats are not supplied", () => {
+    const renderer = createFishRenderer(new Group());
+    const traits = {
+      bodySize: 0.5, streamlining: 0.5, depthPreference: 0.5,
+      thermalTolerance: 0.5, maneuverability: 0.5, depthControl: 0,
+      propulsionPlan: "tail" as const,
+    };
+    renderer.setPopulation({
+      id: "fish",
+      status: "active",
+      visible: true,
+      site: { x: 10, y: -4.5, z: -8, band: "midwater", habitat: {} as never },
+      traits,
+      abundance: 0.3,
+      energy: 0.6,
+    });
+    expect(renderer.mesh.count).toBeGreaterThan(0);
+    const matrix = new Matrix4();
+    const position = new Vector3();
+    const quaternion = new Quaternion();
+    const scale = new Vector3();
+    renderer.mesh.getMatrixAt(0, matrix);
+    matrix.decompose(position, quaternion, scale);
+    expect(position.y).toBeGreaterThan(-4.7);
+    expect(position.y).toBeLessThan(-4.3);
+  });
 });

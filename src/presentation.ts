@@ -137,6 +137,15 @@ export const GOLDEN_SHOTS = {
   "w2k-underwater-slope": { position: [398, -25, 446], target: [372, -28, 418] },
   /** From the shelf, looking up at the underside of the surface. */
   "w2k-underwater-look-up": { position: [290, -9, 325], target: [280, -1, 313] },
+
+  // ---------------------------------------------------------------------
+  // Splash-zone crab occupancy (WU-M1). Added; existing cameras are unedited.
+  // Tight shoreline mid/near on the clustered splash patch after a 10 kyr
+  // young-volcano landing (~-299, 0.21, 127). Carapace is centimetre-scale;
+  // overview cannot judge this family.
+  // ---------------------------------------------------------------------
+  "w2k-splash-crab-mid": { position: [-304.2, 1.45, 128.8], target: [-298.5, 0.24, 127] },
+  "w2k-splash-crab-near": { position: [-300.9, 0.68, 127.9], target: [-298.6, 0.2, 127.1] },
 } as const;
 
 export type GoldenShotName = keyof typeof GOLDEN_SHOTS;

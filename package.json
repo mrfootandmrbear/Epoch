@@ -6,6 +6,7 @@
   "scripts": {
     "asset:check": "node .agents/skills/generate-ecosystem-asset/scripts/validate-asset.mjs",
     "asset:coral:generate": "node assets/ecosystem/epoch-reef-builder-family/source/generate-coral-geometry.mjs",
+    "asset:crab:generate": "node tools/anycreature/engine/cli.js assets/ecosystem/epoch-intertidal-crab/source/sally-lightfoot.json assets/ecosystem/epoch-intertidal-crab/exports/sally-lightfoot.glb",
     "asset:seagrass:generate": "node assets/ecosystem/epoch-seagrass-meadow/source/generate-seagrass.mjs",
     "asset:tree:generate": "node assets/ecosystem/epoch-canopy-tree/source/generate-ez-tree.mjs",
     "dev": "vite",

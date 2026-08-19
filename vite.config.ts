@@ -12,9 +12,11 @@ export default defineConfig(({ command }) => ({
         main: resolve(__dirname, "index.html"),
         creaturePreview: resolve(__dirname, "creature-preview.html"),
         fishPreview: resolve(__dirname, "fish-preview.html"),
+        crabPreview: resolve(__dirname, "crab-preview.html"),
       },
     },
   },
+  assetsInclude: ["**/*.glb"],
   server: {
     port: 5173,
   },

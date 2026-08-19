@@ -55,6 +55,8 @@ describe("golden shots", () => {
       "w2k-underwater-shelf",
       "w2k-underwater-slope",
       "w2k-underwater-look-up",
+      "w2k-splash-crab-mid",
+      "w2k-splash-crab-near",
     ]);
   });
 

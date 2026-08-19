@@ -1,0 +1,41 @@
+{
+  "set": "crabPreview",
+  "capturedAt": "2026-08-18T23:48:21.139Z",
+  "viewport": {
+    "width": 1600,
+    "height": 900
+  },
+  "settleMs": 1800,
+  "contactSheet": "contact-sheet.png",
+  "consoleErrors": [],
+  "shots": [
+    {
+      "label": "01-front",
+      "url": "http://localhost:5190/crab-preview.html?view=front",
+      "backend": "",
+      "ms": 2766,
+      "frame": "frames/01-front.png"
+    },
+    {
+      "label": "02-side",
+      "url": "http://localhost:5190/crab-preview.html?view=side",
+      "backend": "",
+      "ms": 2377,
+      "frame": "frames/02-side.png"
+    },
+    {
+      "label": "03-top",
+      "url": "http://localhost:5190/crab-preview.html?view=top",
+      "backend": "",
+      "ms": 2482,
+      "frame": "frames/03-top.png"
+    },
+    {
+      "label": "04-game-distance",
+      "url": "http://localhost:5190/crab-preview.html?view=game-distance",
+      "backend": "",
+      "ms": 4070,
+      "frame": "frames/04-game-distance.png"
+    }
+  ]
+}

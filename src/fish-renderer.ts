@@ -13,7 +13,7 @@ import {
 import { float, normalWorld, varyingProperty } from "three/tsl";
 import source from "../assets/ecosystem/epoch-coastal-forager/exports/coastal-forager.runtime.json";
 import type { MarinePopulationOutcome, MarineTraits } from "./marine-lineage";
-import type { CoastalAnimalOutcome } from "./outcome-resolver";
+import { marineShoalSamples, type CoastalAnimalOutcome } from "./outcome-resolver";
 import {
   causticLight,
   createReefWaterUniforms,
@@ -85,7 +85,7 @@ interface FishState {
 export interface FishRenderer {
   readonly mesh: InstancedMesh;
   readonly water: ReefWaterUniforms;
-  setPopulation: (population: MarinePopulationOutcome | undefined, samples: readonly CoastalAnimalOutcome[]) => void;
+  setPopulation: (population: MarinePopulationOutcome | undefined, samples?: readonly CoastalAnimalOutcome[]) => void;
   update: (elapsed: number) => void;
 }
 
@@ -162,9 +162,10 @@ export function createFishRenderer(parent: Group, sharedWater?: ReefWaterUniform
     mesh,
     water,
     setPopulation(population, samples) {
+      const shoal = samples ?? (population ? marineShoalSamples(population) : []);
       const expression = population?.traits ? fishExpression(population.traits, population.energy) : undefined;
       states.forEach((state, index) => {
-        const sample = samples[index];
+        const sample = shoal[index];
         state.visible = sample !== undefined && expression !== undefined && population?.visible === true;
         if (!state.visible || !sample || !expression) return;
         state.baseX = sample.x;

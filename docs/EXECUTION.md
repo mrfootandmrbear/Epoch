@@ -25,15 +25,16 @@ look need local WebGPU.
 | Next | Brief | Gate |
 |---|---|---|
 | **Now** | [WU-N1](briefs/WU-N1-underwater-camera.md) — underwater camera navigation | Owner visual verdict |
-| Next | [WU-M1](briefs/WU-M1-intertidal-crab.md) — splash-zone crab occupancy | Owner visual verdict |
-| Later, one per session | [WU-M2](briefs/WU-M2-marine-iguana.md) marine iguana → [WU-M3](briefs/WU-M3-sea-lion.md) sea lion → [WU-M4](briefs/WU-M4-reef-urchin.md) urchin → [WU-M5](briefs/WU-M5-upwelling-bird.md) one upwelling bird | Owner visual verdict each |
+| Next | [WU-M2](briefs/WU-M2-marine-iguana.md) — marine iguana occupancy | Owner visual verdict |
+| Later, one per session | [WU-M3](briefs/WU-M3-sea-lion.md) sea lion → [WU-M4](briefs/WU-M4-reef-urchin.md) urchin → [WU-M5](briefs/WU-M5-upwelling-bird.md) one upwelling bird | Owner visual verdict each |
 | Parallel, optional | [WU-P0-1](briefs/WU-P0-1-lockfile.md) — clean `npm install` | Tests on a fresh clone |
 
 Do not resume LW-6, LW-7, atmosphere identity, or unplanned extra fauna unless a
 proof capture shows the sequence fails without them. The parked water-life
 program (M1–M5) is the dispatched shoreline fill; the WU-7 look is recorded
-(accepted 2026-08-18), so M1 is unblocked. Do not start M2–M5 in the same
-session as another family. It is splash-to-shelf occupancy, not FFT / water-surface polish.
+(accepted 2026-08-18). M1 splash-crab occupancy is at candidate, awaiting
+owner look. Do not start M2–M5 in the same session as another family. It is
+splash-to-shelf occupancy, not FFT / water-surface polish.
 N1 (underwater camera) is implemented 2026-08-18 and awaiting owner verdict —
 M2 and M4 still cannot pass a visual gate until that look lands.
 
@@ -299,6 +300,17 @@ accepted. Do not start M2–M5 in this session.
    reef and back without fighting it, and does it read as underwater the whole
    way?"
 
+   *M1 landed 2026-08-18, splash-crab occupancy at candidate — not accepted.*
+   Seats consume `shorelineSubsidy` on wet splash rock; fish still sample the
+   marine shoal, not crab seats. Package `epoch-intertidal-crab` now compiles a
+   centimetre-scale Sally Lightfoot from anyCreature JSON → skinned GLB
+   (build-time only; not a runtime evolution engine; punchier-silhouette
+   doctrine is not used). Capture sets `splashCrab` and `crabPreview`. Owner
+   look is live WebGPU; headless `--webgl` stills are fallback-backend evidence
+   only. Owner question: "Do these read as Sally Lightfoot crabs on Galápagos
+   splash lava, distinct from the coastal fish?" Do not start M2–M5 in the same
+   session as another family. Do not reopen the accepted land iguana.
+
 ## Recorded owner verdicts
 
 - **World scale, 2026-08-15** — "the scale is much better." Covers world scale
@@ -546,10 +558,10 @@ members consequences.
 | Persistent terrain and volcanic change | **Accepted** 2026-08-15 — "good initial first, it passes." Accretion runs off `resolveShieldVents`; the player fixes hotspot position and drift bearing at world formation and thereafter holds one three-way plume setting | None. See the verdict's scope below before treating any other gate as satisfied. |
 | Climate, hydrology, ocean, reef, and shared habitat sampling | Implemented in bounded forms | Reconcile fields with shield age, regional upwelling, and changing connectivity. |
 | Terrestrial population persistence | Implemented with trait means, energy, abundance, Distant Drifter establishment, and now island-driven gene flow, isolation branching, drift, and ancestry records (`gene-flow.test.ts`) | Deepen path-dependent selection and per-lineage variance only where the serialized proof (items 3–5) exposes a need. |
-| Marine lineage and reef succession | Implemented as bounded proofs. `coastalAnimals` still instances extra fish, not crabs. `shorelineSubsidy` has no scavenger consumer. | After WU-7: [WU-M1](briefs/WU-M1-intertidal-crab.md). Then M2–M5, one family per session. |
+| Marine lineage and reef succession | Implemented as bounded proofs. Splash crabs consume `shorelineSubsidy` on wet rock; fish sample the marine shoal. Crab occupancy is **candidate**, not accepted. | Owner look on [WU-M1](briefs/WU-M1-intertidal-crab.md). Then M2–M5, one family per session. |
 | Aerial persistence and wider food web | Partial (generic circling placeholders) | [WU-M5](briefs/WU-M5-upwelling-bird.md) after M1–M4. Penguin default; cormorant only if that brief is a flightlessness exam. |
 | Landing-state renderer | Substantial WebGPU/TSL implementation | Regional multi-shield grammar and serialized proof captures. |
-| Ecosystem assets | Grazer, coral, and land-iguana founder family **accepted** (WU-4a, 2026-08-18); proof placement **accepted** (WU-4b, 2026-08-18); overview occupancy and mid herd mass **accepted** (WU-4b2, 2026-08-18); descendant readability **accepted** (WU-4c, 2026-08-18); WU-5 visual: cohesion / organism / motion **accepted**, reef-edge **accepted with "more"**; tree, seagrass, and fish remain candidates | After WU-7 look: splash crab [WU-M1](briefs/WU-M1-intertidal-crab.md), then M2–M5. Causal exam withdrawn. |
+| Ecosystem assets | Grazer, coral, and land-iguana founder family **accepted** (WU-4a, 2026-08-18); proof placement **accepted** (WU-4b, 2026-08-18); overview occupancy and mid herd mass **accepted** (WU-4b2, 2026-08-18); descendant readability **accepted** (WU-4c, 2026-08-18); WU-5 visual: cohesion / organism / motion **accepted**, reef-edge **accepted with "more"**; tree, seagrass, fish, and splash crab remain candidates | Owner look on splash crab [WU-M1](briefs/WU-M1-intertidal-crab.md), then M2–M5. Causal exam withdrawn. |
 | Jump transition | Production direction selected; depth remains secondary | Revisit after landing causality reads clearly. |
 
 “Implemented” means present with proportionate automated evidence. “Accepted”

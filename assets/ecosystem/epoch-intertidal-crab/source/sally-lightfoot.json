@@ -1,0 +1,207 @@
+{
+  "name": "epoch_intertidal_crab",
+  "_intent": "Sally Lightfoot (Grapsus grapsus) at real centimetre scale. Flattened carapace, spreading walk legs, modest claws. Not a punchier monster silhouette.",
+  "palette": {
+    "shell": { "color": "#c43428", "rough": 0.72 },
+    "joint": { "color": "#3aa8c4", "rough": 0.55 },
+    "leg": { "color": "#d24a32", "rough": 0.7 },
+    "dactyl": { "color": "#c8a45c", "rough": 0.78 },
+    "claw": { "color": "#b82e22", "rough": 0.68 },
+    "chela": { "color": "#e07030", "rough": 0.62 },
+    "eye": { "color": "#141210", "rough": 0.28 }
+  },
+  "shading": {
+    "gradient": { "top": 0.12, "bottom": -0.35 },
+    "noise": { "size": 0.04, "amount": 0.12 }
+  },
+  "smooth_angle": 42,
+  "joints": {
+    "Hips": [0, 0.018, -0.016],
+    "Spine": { "from": "Hips", "fwd": 0.014 },
+    "Chest": { "from": "Spine", "fwd": 0.02 },
+    "LClawRoot": { "from": "Chest", "side": 0.005, "up": -0.004, "fwd": 0.007 },
+    "LClawMid": { "from": "LClawRoot", "side": 0.002, "up": 0, "fwd": 0.007 },
+    "LClawHand": { "from": "LClawMid", "side": 0.001, "up": 0.001, "fwd": 0.004 },
+    "LWalk1Root": { "from": "Chest", "side": 0.02, "up": -0.002, "fwd": -0.001 },
+    "LWalk1Mid": { "from": "LWalk1Root", "side": 0.016, "up": -0.002, "fwd": 0.008 },
+    "LWalk1Toe": { "from": "LWalk1Mid", "side": 0.007, "fwd": 0.005, "ground": 0.0015 },
+    "LWalk2Root": { "from": "Spine", "side": 0.022, "up": -0.002, "fwd": 0.003 },
+    "LWalk2Mid": { "from": "LWalk2Root", "side": 0.024, "up": -0.002, "fwd": 0 },
+    "LWalk2Toe": { "from": "LWalk2Mid", "side": 0.008, "fwd": 0.001, "ground": 0.0015 },
+    "LWalk3Root": { "from": "Spine", "side": 0.021, "up": -0.002, "fwd": -0.003 },
+    "LWalk3Mid": { "from": "LWalk3Root", "side": 0.022, "up": -0.002, "fwd": -0.008 },
+    "LWalk3Toe": { "from": "LWalk3Mid", "side": 0.008, "fwd": -0.004, "ground": 0.0015 },
+    "LWalk4Root": { "from": "Hips", "side": 0.018, "up": -0.002, "fwd": -0.002 },
+    "LWalk4Mid": { "from": "LWalk4Root", "side": 0.016, "up": -0.002, "fwd": -0.012 },
+    "LWalk4Toe": { "from": "LWalk4Mid", "side": 0.007, "fwd": -0.006, "ground": 0.0015 }
+  },
+  "chains": {
+    "body": ["Hips", "Spine", "Chest"],
+    "LClaw": ["LClawRoot", "LClawMid", "LClawHand"],
+    "LWalk1": ["LWalk1Root", "LWalk1Mid", "LWalk1Toe"],
+    "LWalk2": ["LWalk2Root", "LWalk2Mid", "LWalk2Toe"],
+    "LWalk3": ["LWalk3Root", "LWalk3Mid", "LWalk3Toe"],
+    "LWalk4": ["LWalk4Root", "LWalk4Mid", "LWalk4Toe"]
+  },
+  "attach": {
+    "LClaw": "Chest",
+    "LWalk1": "Chest",
+    "LWalk2": "Spine",
+    "LWalk3": "Spine",
+    "LWalk4": "Hips"
+  },
+  "mirror": ["LClaw", "LWalk1", "LWalk2", "LWalk3", "LWalk4"],
+  "volumes": [
+    {
+      "chain": "body",
+      "material": "shell",
+      "frame": "up",
+      "sides": 12,
+      "profile": [
+        [0, 0.024, 0.007],
+        [0.38, 0.036, 0.01, { "bias": -0.06, "sharp": true }],
+        [1, 0.028, 0.007]
+      ],
+      "caps": ["dome", "dome"],
+      "ring_step": 0.012,
+      "colors": {
+        "arcs": [
+          { "from": 0, "to": 50, "color": "#8a241c" },
+          { "from": 130, "to": 180, "color": "#48b0c8" }
+        ]
+      }
+    },
+    {
+      "chain": "LWalk1",
+      "material": "leg",
+      "sides": 7,
+      "profile": [
+        [0, 0.0042, 0.0036],
+        [0.55, 0.0032, 0.0028],
+        [1, 0.0022, 0.002]
+      ],
+      "caps": ["none", "dome"],
+      "ring_step": 0.006
+    },
+    {
+      "chain": "LWalk2",
+      "material": "leg",
+      "sides": 7,
+      "profile": [
+        [0, 0.004, 0.0035],
+        [0.55, 0.003, 0.0027],
+        [1, 0.0021, 0.0019]
+      ],
+      "caps": ["none", "dome"],
+      "ring_step": 0.006
+    },
+    {
+      "chain": "LWalk3",
+      "material": "leg",
+      "sides": 7,
+      "profile": [
+        [0, 0.0039, 0.0034],
+        [0.55, 0.0029, 0.0026],
+        [1, 0.002, 0.0018]
+      ],
+      "caps": ["none", "dome"],
+      "ring_step": 0.006
+    },
+    {
+      "chain": "LWalk4",
+      "material": "leg",
+      "sides": 7,
+      "profile": [
+        [0, 0.0036, 0.0032],
+        [0.55, 0.0027, 0.0024],
+        [1, 0.0019, 0.0017]
+      ],
+      "caps": ["none", "dome"],
+      "ring_step": 0.006
+    }
+  ],
+  "parts": [
+    {
+      "type": "eye",
+      "host": "Chest",
+      "material": "eye",
+      "size": 0.0032,
+      "anchor": { "chain": "body", "t": 0.82, "around": 58 }
+    },
+    {
+      "type": "paw",
+      "host": "LWalk1Toe",
+      "material": "dactyl",
+      "size": [0.0055, 0.0032, 0.007],
+      "mirrored": true
+    },
+    {
+      "type": "paw",
+      "host": "LWalk2Toe",
+      "material": "dactyl",
+      "size": [0.0055, 0.0032, 0.007],
+      "mirrored": true
+    },
+    {
+      "type": "paw",
+      "host": "LWalk3Toe",
+      "material": "dactyl",
+      "size": [0.0052, 0.003, 0.0065],
+      "mirrored": true
+    },
+    {
+      "type": "paw",
+      "host": "LWalk4Toe",
+      "material": "dactyl",
+      "size": [0.005, 0.0028, 0.006],
+      "mirrored": true
+    },
+    {
+      "type": "fin",
+      "name": "chela",
+      "host": "Chest",
+      "material": "chela",
+      "mirrored": true,
+      "conform": false,
+      "offset": [0.009, -0.005, 0.01],
+      "thickness": 0.0036,
+      "udir": [0.08, -0.2, 1],
+      "vdir": [1, 0.08, 0],
+      "points": [
+        [-0.005, 0],
+        [0.003, 0.005],
+        [0.016, 0.0025],
+        [0.014, -0.0015],
+        [0.004, -0.004],
+        [-0.005, -0.0015]
+      ]
+    }
+  ],
+  "animations": {
+    "idle": {
+      "duration": 1.8,
+      "loop": true,
+      "tracks": {
+        "Hips": { "ty": [[0, 0], [0.5, 0.0012], [1, 0]] },
+        "LClawRoot": { "ry": [[0, 3], [0.5, -2], [1, 3]] }
+      }
+    },
+    "walk": {
+      "duration": 0.55,
+      "loop": true,
+      "mirror_phase": 0.5,
+      "tracks": {
+        "LWalk1Root": { "rz": [[0, -12], [0.5, 14], [1, -12]] },
+        "LWalk1Mid": { "rz": [[0, 8], [0.5, -10], [1, 8]] },
+        "LWalk2Root": { "rz": [[0, 14], [0.5, -12], [1, 14]] },
+        "LWalk2Mid": { "rz": [[0, -10], [0.5, 8], [1, -10]] },
+        "LWalk3Root": { "rz": [[0, -12], [0.5, 14], [1, -12]] },
+        "LWalk3Mid": { "rz": [[0, 8], [0.5, -10], [1, 8]] },
+        "LWalk4Root": { "rz": [[0, 14], [0.5, -12], [1, 14]] },
+        "LWalk4Mid": { "rz": [[0, -10], [0.5, 8], [1, -10]] },
+        "LClawRoot": { "ry": [[0, 2], [0.5, -2], [1, 2]] },
+        "Hips": { "ty": [[0, 0], [0.25, 0.001], [0.5, 0], [0.75, 0.001], [1, 0]] }
+      }
+    }
+  }
+}

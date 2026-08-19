@@ -1,0 +1,27 @@
+{
+  "set": "splashCrab",
+  "capturedAt": "2026-08-18T23:21:26.985Z",
+  "viewport": {
+    "width": 1600,
+    "height": 900
+  },
+  "settleMs": 2500,
+  "contactSheet": "contact-sheet.png",
+  "consoleErrors": [],
+  "shots": [
+    {
+      "label": "01-mid",
+      "url": "http://localhost:5182/?shot=w2k-splash-crab-mid&time=42",
+      "backend": "backend: WebGL2 · 0 fps · 15 draws · 6 m",
+      "ms": 41134,
+      "frame": "frames/01-mid.png"
+    },
+    {
+      "label": "02-near",
+      "url": "http://localhost:5182/?shot=w2k-splash-crab-near&time=42",
+      "backend": "backend: WebGL2 · 0 fps · 15 draws · 3 m",
+      "ms": 44487,
+      "frame": "frames/02-near.png"
+    }
+  ]
+}
